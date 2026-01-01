@@ -1,3 +1,4 @@
+pub mod editor;
 pub mod git;
 pub mod kitty;
 pub mod nvm_manager;

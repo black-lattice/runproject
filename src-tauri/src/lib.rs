@@ -2,6 +2,7 @@ use std::path::Path;
 
 // 导入模块
 mod modules;
+use modules::editor;
 use modules::nvm_manager;
 use modules::project_scanner;
 use tauri_plugin_mcp::Builder as McpBuilder;
@@ -60,11 +61,9 @@ fn execute_project_command(
 ) -> Result<String, String> {
     let mut result_output = String::new();
 
-    // 显示执行的详细信息
     result_output.push_str(&format!("📁 工作目录: {}\n", working_dir));
     result_output.push_str(&format!("🔧 执行命令: {}\n", command));
 
-    // 如果指定了Node版本，先切换
     if let Some(version) = node_version {
         result_output.push_str(&format!("📋 使用Node版本: {}\n", version));
 
@@ -77,7 +76,6 @@ fn execute_project_command(
 
     result_output.push_str("\n🚀 开始执行命令...\n\n");
 
-    // 使用同步方式执行命令并获取输出
     match std::process::Command::new("bash")
         .arg("-c")
         .arg(&command)
@@ -117,6 +115,26 @@ fn execute_project_command(
     }
 }
 
+#[tauri::command]
+fn get_available_editors() -> Result<Vec<editor::Editor>, String> {
+    editor::get_available_editors()
+}
+
+#[tauri::command]
+fn open_project_in_editor(editor_id: String, project_path: String) -> Result<String, String> {
+    let editors = editor::get_available_editors()?;
+    let editor = editors
+        .iter()
+        .find(|e| e.id == editor_id)
+        .ok_or_else(|| format!("Editor not found: {}", editor_id))?;
+
+    if !editor.installed {
+        return Err(format!("Editor {} is not installed", editor.name));
+    }
+
+    editor::open_project_in_editor(&editor.command, &project_path)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -131,6 +149,8 @@ pub fn run() {
             ensure_node_version,
             switch_to_highest_version,
             execute_project_command,
+            get_available_editors,
+            open_project_in_editor,
             modules::kitty::executor::execute_command_in_kitty,
             modules::kitty::executor::execute_command_with_kitten,
             modules::kitty::process::terminate_command,
