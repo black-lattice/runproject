@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Package, Folder, RefreshCw, Settings, Info } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import DebugInfoPanel from './DebugInfoPanel';
 import GitBranchSelector from './GitBranchSelector';
 import NodeVersionSelector from './NodeVersionSelector';
 import PackageManagerBadge from './PackageManagerBadge';
 import EditorSelector from './EditorSelector';
+import GitWorktreeDialog from './GitWorktreeDialog';
+import { useToast } from '@/hooks/use-toast';
 
 function ProjectInfoCard({
 	project,
@@ -28,6 +32,89 @@ function ProjectInfoCard({
 	onEditorChange,
 	onRefreshEditors
 }) {
+	const [worktrees, setWorktrees] = useState([]);
+	const [showWorktreeDialog, setShowWorktreeDialog] = useState(false);
+	const [isLoadingWorktrees, setIsLoadingWorktrees] = useState(false);
+	const { toast } = useToast();
+
+	const loadWorktrees = async () => {
+		if (!project?.path) return;
+		setIsLoadingWorktrees(true);
+		try {
+			const worktreeList = await invoke('list_worktrees', {
+				projectPath: project.path
+			});
+			setWorktrees(worktreeList);
+		} catch (error) {
+			console.error('加载 Worktree 失败:', error);
+			setWorktrees([]);
+		} finally {
+			setIsLoadingWorktrees(false);
+		}
+	};
+
+	const handleCreateWorktree = async (branch, worktreeName) => {
+		try {
+			const worktreePath = `${project.path}/${worktreeName}`;
+			await invoke('create_worktree', {
+				projectPath: project.path,
+				branch: branch,
+				worktreePath: worktreePath
+			});
+			toast({
+				title: '创建成功',
+				description: `已为分支 ${branch} 创建 worktree`
+			});
+			loadWorktrees();
+		} catch (error) {
+			console.error('创建 Worktree 失败:', error);
+			toast({
+				title: '创建失败',
+				description: error.toString(),
+				variant: 'destructive'
+			});
+		}
+	};
+
+	const handleRemoveWorktree = async worktreePath => {
+		try {
+			await invoke('remove_worktree', {
+				projectPath: project.path,
+				worktreePath: worktreePath
+			});
+			toast({
+				title: '删除成功',
+				description: `已删除 worktree`
+			});
+			loadWorktrees();
+		} catch (error) {
+			console.error('删除 Worktree 失败:', error);
+			toast({
+				title: '删除失败',
+				description: error.toString(),
+				variant: 'destructive'
+			});
+		}
+	};
+
+	const handleOpenWorktree = async worktreePath => {
+		try {
+			await invoke('open_in_finder', { path: worktreePath });
+		} catch (error) {
+			console.error('打开 Worktree 失败:', error);
+			toast({
+				title: '打开失败',
+				description: error.toString(),
+				variant: 'destructive'
+			});
+		}
+	};
+
+	const handleOpenWorktreeDialog = () => {
+		loadWorktrees();
+		setShowWorktreeDialog(true);
+	};
+
 	return (
 		<Card className='border-none shadow-sm bg-white/80 backdrop-blur-sm'>
 			<CardContent className='p-6'>
@@ -93,6 +180,7 @@ function ProjectInfoCard({
 						currentBranch={currentBranch}
 						isLoadingBranches={isLoadingBranches}
 						onSwitchBranch={onSwitchBranch}
+						onOpenWorktreeDialog={handleOpenWorktreeDialog}
 					/>
 
 					<NodeVersionSelector
@@ -118,6 +206,19 @@ function ProjectInfoCard({
 						</p>
 					</div>
 				)}
+
+				<GitWorktreeDialog
+					isOpen={showWorktreeDialog}
+					onClose={() => setShowWorktreeDialog(false)}
+					worktrees={worktrees}
+					branches={branches}
+					onCreateWorktree={handleCreateWorktree}
+					onRemoveWorktree={handleRemoveWorktree}
+					onOpenWorktree={handleOpenWorktree}
+					selectedEditor={selectedEditor}
+					availableEditors={availableEditors}
+					project={project}
+				/>
 			</CardContent>
 		</Card>
 	);

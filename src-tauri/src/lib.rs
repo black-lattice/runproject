@@ -135,6 +135,15 @@ fn open_project_in_editor(editor_id: String, project_path: String) -> Result<Str
     editor::open_project_in_editor(&editor.command, &project_path)
 }
 
+#[tauri::command]
+fn open_in_finder(path: String) -> Result<String, String> {
+    std::process::Command::new("open")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| format!("Failed to open folder: {}", e))?;
+    Ok(format!("Opened: {}", path))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -151,12 +160,16 @@ pub fn run() {
             execute_project_command,
             get_available_editors,
             open_project_in_editor,
+            open_in_finder,
             modules::kitty::executor::execute_command_in_kitty,
             modules::kitty::executor::execute_command_with_kitten,
             modules::kitty::process::terminate_command,
             modules::kitty::process::get_running_processes,
             modules::git::list_branches,
             modules::git::switch_branch,
+            modules::git::list_worktrees,
+            modules::git::create_worktree,
+            modules::git::remove_worktree,
             modules::terminal::pty_manager::create_terminal_session,
             modules::terminal::pty_manager::write_to_terminal,
             modules::terminal::pty_manager::resize_terminal,
