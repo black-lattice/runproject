@@ -6,7 +6,6 @@ import BookmarkList from '@/pages/browser/BookmarkList';
 
 function BrowserPage() {
 	const DEFAULT_HOME_URL = 'https://www.bing.com/';
-	const [viewMode, setViewMode] = useState('tab'); // 'tab' | 'tile'
 	const [tabs, setTabs] = useState(() => [
 		{
 			id: `${Date.now()}`,
@@ -71,88 +70,56 @@ function BrowserPage() {
 				/>
 
 				<div className='flex items-center gap-2 px-3 py-2 border-b bg-white'>
-					<div className='flex items-center gap-1 overflow-x-auto flex-1'>
-						{tabs.map(t => (
-							<button
-								key={t.id}
-								className={`px-3 py-1 rounded text-sm border whitespace-nowrap ${t.id === activeTabId
+					<div className='flex items-center gap-2 min-w-0 flex-1'>
+						<div className='flex items-center gap-1 overflow-x-auto min-w-0'>
+							{tabs.map(t => (
+								<button
+									key={t.id}
+									className={`px-3 py-1 rounded text-sm border whitespace-nowrap ${t.id === activeTabId
 										? 'bg-blue-50 border-blue-400 text-blue-700'
 										: 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-									}`}
-								onClick={() => setActiveTabId(t.id)}>
-								<span className='mr-2'>标签页</span>
-								<span
-									className='ml-1 text-gray-400 hover:text-red-500'
-									onClick={e => {
-										e.stopPropagation();
-										closeTab(t.id);
-									}}>
-									×
-								</span>
-							</button>
-						))}
+										}`}
+									onClick={() => setActiveTabId(t.id)}>
+									<span className='mr-2'>标签页</span>
+									<span
+										className='ml-1 text-gray-400 hover:text-red-500'
+										onClick={e => {
+											e.stopPropagation();
+											closeTab(t.id);
+										}}>
+										×
+									</span>
+								</button>
+							))}
+						</div>
+
+						<button
+							className='px-3 py-1 rounded text-sm border border-gray-200 hover:bg-gray-50 flex-shrink-0'
+							onClick={() => createTab()}>
+							新建
+						</button>
 					</div>
-					<button
-						className='px-3 py-1 rounded text-sm border border-gray-200 hover:bg-gray-50'
-						onClick={() => createTab()}>
-						新建
-					</button>
-					<button
-						className='px-3 py-1 rounded text-sm border border-gray-200 hover:bg-gray-50'
-						onClick={() =>
-							setViewMode(m => (m === 'tab' ? 'tile' : 'tab'))
-						}>
-						{viewMode === 'tab' ? '平铺' : '页签'}
-					</button>
 				</div>
 
 				<div className='flex-1 flex min-h-0'>
 					<div className='flex-1 min-w-0'>
-						{viewMode === 'tab' ? (
-							<div className='h-full w-full relative'>
-								{tabs.map(t => (
-									<div
-										key={t.id}
-										className='absolute inset-0'
-										style={{
-											visibility:
-												t.id === activeTabId ? 'visible' : 'hidden'
-										}}>
-										<Webview
-											label={`browser-webview-${t.id}`}
-											url={t.url}
-											isVisible={t.id === activeTabId}
-										/>
-									</div>
-								))}
-							</div>
-						) : (
-							<div className='h-full w-full p-2 overflow-auto'>
-								<div className='grid grid-cols-2 gap-2'>
-									{tabs.map(t => (
-										<div
-											key={t.id}
-											className='border rounded overflow-hidden h-[420px] flex flex-col bg-white'>
-											<div className='flex items-center justify-between px-2 py-1 border-b text-xs'>
-												<span className='truncate'>{t.url}</span>
-												<button
-													className='text-gray-400 hover:text-red-500'
-													onClick={() => closeTab(t.id)}>
-													×
-												</button>
-											</div>
-											<div className='flex-1 min-h-0'>
-												<Webview
-													label={`browser-webview-${t.id}`}
-													url={t.url}
-													isVisible={true}
-												/>
-											</div>
-										</div>
-									))}
+						<div className='h-full w-full relative'>
+							{tabs.map(t => (
+								<div
+									key={t.id}
+									className='absolute inset-0'
+									style={{
+										visibility:
+											t.id === activeTabId ? 'visible' : 'hidden'
+									}}>
+									<Webview
+										label={`browser-webview-${t.id}`}
+										url={t.url}
+										isVisible={t.id === activeTabId}
+									/>
 								</div>
-							</div>
-						)}
+							))}
+						</div>
 					</div>
 
 					<div className='w-80 border-l flex flex-col'>
