@@ -21,6 +21,9 @@ export const useAppStore = create(
 			useKittenRemote: true,
 			terminalType: 'builtin', // 'builtin' | 'kitty'
 
+			// === 收藏夹状态 ===
+			bookmarks: [], // { id, url, title, favicon, createdAt, lastVisited }
+
 			// === 页签管理状态 ===
 			tabs: DEFAULT_TABS,
 			// 移除 activeTab，由路由控制
@@ -38,8 +41,12 @@ export const useAppStore = create(
 				if (!project) return project;
 				return {
 					...project,
-					packageManager: project.packageManager || project.package_manager || 'npm',
-					nodeVersion: project.nodeVersion || project.node_version || null,
+					packageManager:
+						project.packageManager ||
+						project.package_manager ||
+						'npm',
+					nodeVersion:
+						project.nodeVersion || project.node_version || null,
 					commands: project.commands || []
 				};
 			},
@@ -48,11 +55,14 @@ export const useAppStore = create(
 				if (!workspace) return workspace;
 				return {
 					...workspace,
-					projects: (workspace.projects || []).map(get().normalizeProject)
+					projects: (workspace.projects || []).map(
+						get().normalizeProject
+					)
 				};
 			},
 
-			normalizeWorkspaces: workspaces => (workspaces || []).map(get().normalizeWorkspace),
+			normalizeWorkspaces: workspaces =>
+				(workspaces || []).map(get().normalizeWorkspace),
 
 			clearWorkspaces: () => {
 				set({
@@ -80,7 +90,8 @@ export const useAppStore = create(
 
 			clearProjectTerminal: projectName => {
 				set(state => {
-					const { [projectName]: _, ...rest } = state.projectTerminals;
+					const { [projectName]: _, ...rest } =
+						state.projectTerminals;
 					return { projectTerminals: rest };
 				});
 			},
@@ -89,7 +100,8 @@ export const useAppStore = create(
 				set(state => ({
 					collapsedWorkspaces: {
 						...state.collapsedWorkspaces,
-						[workspaceIndex]: !state.collapsedWorkspaces[workspaceIndex]
+						[workspaceIndex]:
+							!state.collapsedWorkspaces[workspaceIndex]
 					}
 				}));
 			},
@@ -113,6 +125,42 @@ export const useAppStore = create(
 						fetchedAt: 0
 					}
 				}),
+
+			// === 收藏夹 Actions ===
+
+			addBookmark: bookmark => {
+				const newBookmark = {
+					id: Date.now().toString(),
+					createdAt: Date.now(),
+					lastVisited: Date.now(),
+					...bookmark
+				};
+				set(state => ({
+					bookmarks: [...state.bookmarks, newBookmark]
+				}));
+			},
+
+			removeBookmark: id => {
+				set(state => ({
+					bookmarks: state.bookmarks.filter(b => b.id !== id)
+				}));
+			},
+
+			updateBookmark: (id, updates) => {
+				set(state => ({
+					bookmarks: state.bookmarks.map(b =>
+						b.id === id ? { ...b, ...updates } : b
+					)
+				}));
+			},
+
+			updateBookmarkLastVisited: id => {
+				set(state => ({
+					bookmarks: state.bookmarks.map(b =>
+						b.id === id ? { ...b, lastVisited: Date.now() } : b
+					)
+				}));
+			},
 
 			// === 简化的页签 Actions ===
 
@@ -157,7 +205,8 @@ export const useAppStore = create(
 				useKittenRemote: state.useKittenRemote,
 				terminalType: state.terminalType,
 				tabs: state.tabs,
-				nodeVersionsCache: state.nodeVersionsCache
+				nodeVersionsCache: state.nodeVersionsCache,
+				bookmarks: state.bookmarks
 			})
 		}
 	)

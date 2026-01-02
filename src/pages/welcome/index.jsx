@@ -17,7 +17,8 @@ import {
 	BookOpen,
 	Code,
 	Zap,
-	Code2
+	Code2,
+	Globe
 } from 'lucide-react';
 import { PAGE_CONFIGS } from '@/config/routes';
 
@@ -51,6 +52,14 @@ function WelcomePage() {
 			icon: Terminal,
 			color: 'bg-green-500',
 			action: () => handleNavigate('terminal')
+		},
+		{
+			id: 'browser',
+			title: '浏览器',
+			description: '浏览网站和本地开发地址',
+			icon: Globe,
+			color: 'bg-indigo-500',
+			action: () => handleNavigate('browser')
 		},
 		{
 			id: 'formatter',
@@ -103,7 +112,7 @@ function WelcomePage() {
 						<Zap className='h-6 w-6 mr-2 text-blue-600' />
 						快速操作
 					</h2>
-					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
+					<div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6'>
 						{quickActions.map(action => {
 							const Icon = action.icon;
 							const isActive = tabs.includes(action.id);
