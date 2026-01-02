@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 const DEFAULT_TABS = [];
+const DEFAULT_HOME_SITES = [
+	{ id: 'home-bing', title: 'Bing', url: 'https://www.bing.com/' },
+	{ id: 'home-bilibili', title: 'Bilibili', url: 'https://www.bilibili.com/' },
+	{ id: 'home-github', title: 'GitHub', url: 'https://github.com/' }
+];
 
 export const useAppStore = create(
 	persist(
@@ -23,6 +28,9 @@ export const useAppStore = create(
 
 			// === 收藏夹状态 ===
 			bookmarks: [], // { id, url, title, favicon, createdAt, lastVisited }
+
+			// === Home 网站列表（持久化）===
+			homeSites: DEFAULT_HOME_SITES, // { id, title, url }
 
 			// === 页签管理状态 ===
 			tabs: DEFAULT_TABS,
@@ -162,6 +170,46 @@ export const useAppStore = create(
 				}));
 			},
 
+			// === HomeSites Actions ===
+			addHomeSite: site => {
+				const { title, url } = site || {};
+				if (!url) return;
+
+				const normalizedUrl = String(url).trim();
+				if (!normalizedUrl) return;
+
+				set(state => {
+					const exists = state.homeSites.some(s => s.url === normalizedUrl);
+					if (exists) return state;
+
+					const id = `home-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+					return {
+						homeSites: [
+							...state.homeSites,
+							{
+								id,
+								title: title || normalizedUrl,
+								url: normalizedUrl
+							}
+						]
+					};
+				});
+			},
+
+			removeHomeSite: id => {
+				set(state => ({
+					homeSites: state.homeSites.filter(s => s.id !== id)
+				}));
+			},
+
+			updateHomeSite: (id, updates) => {
+				set(state => ({
+					homeSites: state.homeSites.map(s =>
+						s.id === id ? { ...s, ...updates } : s
+					)
+				}));
+			},
+
 			// === 简化的页签 Actions ===
 
 			addTab: tabId => {
@@ -191,7 +239,8 @@ export const useAppStore = create(
 						versions: [],
 						fetchedAt: 0
 					},
-					tabs: DEFAULT_TABS
+					tabs: DEFAULT_TABS,
+					homeSites: DEFAULT_HOME_SITES
 				});
 				localStorage.clear();
 			}
@@ -206,7 +255,8 @@ export const useAppStore = create(
 				terminalType: state.terminalType,
 				tabs: state.tabs,
 				nodeVersionsCache: state.nodeVersionsCache,
-				bookmarks: state.bookmarks
+				bookmarks: state.bookmarks,
+				homeSites: state.homeSites
 			})
 		}
 	)

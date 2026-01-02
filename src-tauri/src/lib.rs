@@ -7,42 +7,6 @@ use modules::nvm_manager;
 use modules::project_scanner;
 use tauri_plugin_mcp::Builder as McpBuilder;
 
-use std::collections::HashMap;
-use std::sync::Mutex;
-use tauri::Manager;
-
-lazy_static::lazy_static! {
-    static ref WEBVIEW_POS_CORRECTION: Mutex<HashMap<String, (i32, i32)>> = Mutex::new(HashMap::new());
-}
-
-#[cfg(target_os = "macos")]
-const DEFAULT_WEBVIEW_POS_CORRECTION: (i32, i32) = (0, 28);
-#[cfg(not(target_os = "macos"))]
-const DEFAULT_WEBVIEW_POS_CORRECTION: (i32, i32) = (0, 0);
-
-fn apply_pos_correction(label: &str, x: i32, y: i32) -> (i32, i32) {
-    let map = WEBVIEW_POS_CORRECTION.lock().unwrap();
-    let (dx, dy) = map
-        .get(label)
-        .copied()
-        .unwrap_or(DEFAULT_WEBVIEW_POS_CORRECTION);
-    (x + dx, y + dy)
-}
-
-fn update_pos_correction(label: &str, dx: i32, dy: i32) {
-    // 防止异常值把位置带飞
-    if dx.abs() > 200 || dy.abs() > 200 {
-        return;
-    }
-    let mut map = WEBVIEW_POS_CORRECTION.lock().unwrap();
-    // 以默认值为基线累加微调，避免第一次就出现大偏移时“校准无从开始”
-    let (cur_dx, cur_dy) = map
-        .get(label)
-        .copied()
-        .unwrap_or(DEFAULT_WEBVIEW_POS_CORRECTION);
-    map.insert(label.to_string(), (cur_dx + dx, cur_dy + dy));
-}
-
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -180,137 +144,6 @@ fn open_in_finder(path: String) -> Result<String, String> {
     Ok(format!("Opened: {}", path))
 }
 
-#[tauri::command]
-fn create_child_webview(
-    window: tauri::Window,
-    label: String,
-    url: String,
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-) -> Result<String, String> {
-    let parsed_url = url
-        .parse::<url::Url>()
-        .map_err(|e| format!("Invalid URL: {}", e))?;
-
-    let (x, y) = apply_pos_correction(&label, x, y);
-
-    // 有些站点（如搜索/验证码）会通过 window.open 进行跳转；默认可能导致新窗口被拦截从而出现空白。
-    // 这里将新窗口请求转为在当前 child webview 内导航，并阻止创建新窗口。
-    let app = window.app_handle().clone();
-    let label_for_handler = label.clone();
-    let webview_builder =
-        tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(parsed_url))
-            .on_new_window(move |url, _features| {
-                if let Some(webview) = app.get_webview(&label_for_handler) {
-                    let _ = webview.navigate(url);
-                }
-                tauri::webview::NewWindowResponse::Deny
-            });
-
-    let webview = window
-        .add_child(
-            webview_builder,
-            tauri::LogicalPosition::new(x, y),
-            tauri::LogicalSize::new(width, height),
-        )
-        .map_err(|e| format!("Failed to create child webview: {}", e))?;
-
-    // 位置自校准：读取实际 position，与期望值比较，记录偏差用于后续修正
-    if let (Ok(scale), Ok(actual_pos)) = (window.scale_factor(), webview.position()) {
-        let actual = actual_pos.to_logical::<f64>(scale);
-        let dx = x - actual.x.round() as i32;
-        let dy = y - actual.y.round() as i32;
-        update_pos_correction(&label, dx, dy);
-    }
-
-    Ok(label)
-}
-
-#[tauri::command]
-fn navigate_webview(app: tauri::AppHandle, label: String, url: String) -> Result<(), String> {
-    let webview = app
-        .get_webview(&label)
-        .ok_or_else(|| format!("Webview not found: {}", label))?;
-
-    let parsed_url = url
-        .parse::<url::Url>()
-        .map_err(|e| format!("Invalid URL: {}", e))?;
-
-    webview
-        .navigate(parsed_url)
-        .map_err(|e| format!("Failed to navigate: {}", e))
-}
-
-#[tauri::command]
-fn close_webview(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let webview = app
-        .get_webview(&label)
-        .ok_or_else(|| format!("Webview not found: {}", label))?;
-
-    webview
-        .close()
-        .map_err(|e| format!("Failed to close webview: {}", e))
-}
-
-#[tauri::command]
-fn hide_webview(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let webview = app
-        .get_webview(&label)
-        .ok_or_else(|| format!("Webview not found: {}", label))?;
-
-    webview
-        .hide()
-        .map_err(|e| format!("Failed to hide webview: {}", e))
-}
-
-#[tauri::command]
-fn show_webview(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let webview = app
-        .get_webview(&label)
-        .ok_or_else(|| format!("Webview not found: {}", label))?;
-
-    webview
-        .show()
-        .map_err(|e| format!("Failed to show webview: {}", e))
-}
-
-#[tauri::command]
-fn resize_webview(
-    app: tauri::AppHandle,
-    label: String,
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-) -> Result<(), String> {
-    let webview = app
-        .get_webview(&label)
-        .ok_or_else(|| format!("Webview not found: {}", label))?;
-
-    let (x, y) = apply_pos_correction(&label, x, y);
-
-    webview
-        .set_position(tauri::LogicalPosition::new(x, y))
-        .map_err(|e| format!("Failed to set position: {}", e))?;
-
-    webview
-        .set_size(tauri::LogicalSize::new(width, height))
-        .map_err(|e| format!("Failed to set size: {}", e))?;
-
-    // 位置自校准：读取实际 position，与期望值比较，记录偏差用于后续修正
-    let window = webview.window();
-    if let (Ok(scale), Ok(actual_pos)) = (window.scale_factor(), webview.position()) {
-        let actual = actual_pos.to_logical::<f64>(scale);
-        let dx = x - actual.x.round() as i32;
-        let dy = y - actual.y.round() as i32;
-        update_pos_correction(&label, dx, dy);
-    }
-
-    Ok(())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -328,12 +161,12 @@ pub fn run() {
             get_available_editors,
             open_project_in_editor,
             open_in_finder,
-            create_child_webview,
-            navigate_webview,
-            close_webview,
-            hide_webview,
-            show_webview,
-            resize_webview,
+            modules::webview::create_child_webview,
+            modules::webview::navigate_webview,
+            modules::webview::close_webview,
+            modules::webview::hide_webview,
+            modules::webview::show_webview,
+            modules::webview::resize_webview,
             modules::kitty::executor::execute_command_in_kitty,
             modules::kitty::executor::execute_command_with_kitten,
             modules::kitty::process::terminate_command,

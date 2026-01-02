@@ -1,15 +1,28 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import Webview from '@/components/Webview';
 import URLInput from '@/pages/browser/URLInput';
-import BookmarkList from '@/pages/browser/BookmarkList';
+import TabsBar from '@/pages/browser/TabsBar';
+import HomePage from '@/pages/browser/HomePage';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle
+} from '@/components/ui/dialog';
+import { listen } from '@tauri-apps/api/event';
 
 function BrowserPage() {
 	const DEFAULT_HOME_URL = 'https://www.bing.com/';
+	const HOME_TAB_ID = 'home';
 	const [tabs, setTabs] = useState(() => [
 		{
 			id: `${Date.now()}`,
-			url: DEFAULT_HOME_URL
+			desiredUrl: DEFAULT_HOME_URL,
+			currentUrl: DEFAULT_HOME_URL
 		}
 	]);
 	const [activeTabId, setActiveTabId] = useState(tabs[0].id);
@@ -18,41 +31,89 @@ function BrowserPage() {
 		() => tabs.find(t => t.id === activeTabId) || tabs[0],
 		[tabs, activeTabId]
 	);
-	const currentUrl = activeTab?.url || '';
+	const isHomeActive = activeTabId === HOME_TAB_ID;
+	const currentUrl = isHomeActive ? '' : activeTab?.currentUrl || '';
 
-	const { bookmarks, addBookmark, removeBookmark } = useAppStore();
+	const { homeSites, addHomeSite, removeHomeSite, updateHomeSite } = useAppStore();
+	const [editingSite, setEditingSite] = useState(null);
+	const [editTitle, setEditTitle] = useState('');
+	const [editUrl, setEditUrl] = useState('');
+	const [deletingSiteId, setDeletingSiteId] = useState(null);
+
+	const guessTitleFromUrl = rawUrl => {
+		if (!rawUrl) return '';
+		try {
+			const u = new URL(rawUrl);
+			return u.hostname || rawUrl;
+		} catch {
+			return rawUrl;
+		}
+	};
+
+	const openEdit = site => {
+		setEditingSite(site);
+		setEditTitle(site?.title || '');
+		setEditUrl(site?.url || '');
+	};
 
 	const handleUrlChange = url => {
+		if (isHomeActive) {
+			createTab(url);
+			return;
+		}
 		setTabs(prev =>
-			prev.map(t => (t.id === activeTabId ? { ...t, url } : t))
+			prev.map(t =>
+				t.id === activeTabId
+					? { ...t, desiredUrl: url, currentUrl: url }
+					: t
+			)
 		);
-	};
-
-	const handleBookmarkClick = bookmark => {
-		handleUrlChange(bookmark.url);
-	};
-
-	const handleAddBookmark = bookmark => {
-		addBookmark(bookmark);
-	};
-
-	const handleRemoveBookmark = bookmarkId => {
-		removeBookmark(bookmarkId);
 	};
 
 	const createTab = (url = DEFAULT_HOME_URL) => {
 		const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-		setTabs(prev => [...prev, { id, url }]);
+		setTabs(prev => [...prev, { id, desiredUrl: url, currentUrl: url }]);
 		setActiveTabId(id);
 	};
+
+	// 只响应用户点击触发的新窗口请求（target=_blank / window.open）：更新显示 URL（不驱动导航）
+	useEffect(() => {
+		let unlistenClick;
+		(async () => {
+			unlistenClick = await listen('browser:user-click', event => {
+				const payload = event.payload || {};
+				const label = typeof payload.label === 'string' ? payload.label : '';
+				const url = typeof payload.url === 'string' ? payload.url : '';
+				if (!label || !url) return;
+
+				setTabs(prev =>
+					prev.map(t => {
+						const tLabel = `browser-webview-${t.id}`;
+						if (tLabel !== label) return t;
+						if (t.currentUrl === url) return t;
+						return { ...t, currentUrl: url };
+					})
+				);
+			});
+		})();
+		return () => {
+			if (typeof unlistenClick === 'function') unlistenClick();
+		};
+	}, []);
 
 	const closeTab = id => {
 		setTabs(prev => {
 			const next = prev.filter(t => t.id !== id);
 			if (next.length === 0) {
 				const newId = `${Date.now()}`;
-				setActiveTabId(newId);
-				return [{ id: newId, url: DEFAULT_HOME_URL }];
+				setActiveTabId(HOME_TAB_ID);
+				return [
+					{
+						id: newId,
+						desiredUrl: DEFAULT_HOME_URL,
+						currentUrl: DEFAULT_HOME_URL
+					}
+				];
 			}
 			if (id === activeTabId) {
 				setActiveTabId(next[0].id);
@@ -67,42 +128,32 @@ function BrowserPage() {
 				<URLInput
 					url={currentUrl}
 					onUrlChange={handleUrlChange}
+					favoriteDefaultTitle={guessTitleFromUrl(currentUrl)}
+					onFavoriteSubmit={title => {
+						if (!currentUrl) return;
+						addHomeSite({ title, url: currentUrl });
+					}}
 				/>
 
-				<div className='flex items-center gap-2 px-3 py-2 border-b bg-white'>
-					<div className='flex items-center gap-2 min-w-0 flex-1'>
-						<div className='flex items-center gap-1 overflow-x-auto min-w-0'>
-							{tabs.map(t => (
-								<button
-									key={t.id}
-									className={`px-3 py-1 rounded text-sm border whitespace-nowrap ${t.id === activeTabId
-										? 'bg-blue-50 border-blue-400 text-blue-700'
-										: 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-										}`}
-									onClick={() => setActiveTabId(t.id)}>
-									<span className='mr-2'>标签页</span>
-									<span
-										className='ml-1 text-gray-400 hover:text-red-500'
-										onClick={e => {
-											e.stopPropagation();
-											closeTab(t.id);
-										}}>
-										×
-									</span>
-								</button>
-							))}
-						</div>
+				<TabsBar
+					isHomeActive={isHomeActive}
+					tabs={tabs}
+					activeTabId={activeTabId}
+					onGoHome={() => setActiveTabId(HOME_TAB_ID)}
+					onSelectTab={setActiveTabId}
+					onCloseTab={closeTab}
+					onNewTab={() => createTab()}
+				/>
 
-						<button
-							className='px-3 py-1 rounded text-sm border border-gray-200 hover:bg-gray-50 flex-shrink-0'
-							onClick={() => createTab()}>
-							新建
-						</button>
-					</div>
-				</div>
-
-				<div className='flex-1 flex min-h-0'>
-					<div className='flex-1 min-w-0'>
+				<div className='flex-1 min-h-0'>
+					{isHomeActive ? (
+						<HomePage
+							sites={homeSites}
+							onOpenSite={url => createTab(url)}
+							onEditSite={site => openEdit(site)}
+							onDeleteSite={id => setDeletingSiteId(id)}
+						/>
+					) : (
 						<div className='h-full w-full relative'>
 							{tabs.map(t => (
 								<div
@@ -114,24 +165,84 @@ function BrowserPage() {
 									}}>
 									<Webview
 										label={`browser-webview-${t.id}`}
-										url={t.url}
+										url={t.desiredUrl}
 										isVisible={t.id === activeTabId}
 									/>
 								</div>
 							))}
 						</div>
-					</div>
-
-					<div className='w-80 border-l flex flex-col'>
-						<BookmarkList
-							bookmarks={bookmarks}
-							currentUrl={currentUrl}
-							onBookmarkClick={handleBookmarkClick}
-							onRemoveBookmark={handleRemoveBookmark}
-							onAddBookmark={handleAddBookmark}
-						/>
-					</div>
+					)}
 				</div>
+
+				<Dialog
+					open={!!editingSite}
+					onOpenChange={open => {
+						if (!open) setEditingSite(null);
+					}}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>编辑网站</DialogTitle>
+						</DialogHeader>
+						<div className='p-4 space-y-3'>
+							<Input
+								placeholder='名称'
+								value={editTitle}
+								onChange={e => setEditTitle(e.target.value)}
+							/>
+							<Input
+								placeholder='URL'
+								value={editUrl}
+								onChange={e => setEditUrl(e.target.value)}
+							/>
+						</div>
+						<DialogFooter>
+							<Button
+								variant='outline'
+								onClick={() => setEditingSite(null)}>
+								取消
+							</Button>
+							<Button
+								disabled={!editTitle.trim() || !editUrl.trim()}
+								onClick={() => {
+									updateHomeSite(editingSite.id, {
+										title: editTitle.trim(),
+										url: editUrl.trim()
+									});
+									setEditingSite(null);
+								}}>
+								保存
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				<Dialog
+					open={!!deletingSiteId}
+					onOpenChange={open => {
+						if (!open) setDeletingSiteId(null);
+					}}>
+					<DialogContent className='max-w-sm'>
+						<DialogHeader>
+							<DialogTitle>确认删除</DialogTitle>
+						</DialogHeader>
+						<div className='p-4 text-sm text-gray-600'>确定删除该网站？</div>
+						<DialogFooter>
+							<Button
+								variant='outline'
+								onClick={() => setDeletingSiteId(null)}>
+								取消
+							</Button>
+							<Button
+								variant='destructive'
+								onClick={() => {
+									removeHomeSite(deletingSiteId);
+									setDeletingSiteId(null);
+								}}>
+								删除
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</div>
 		</div>
 	);

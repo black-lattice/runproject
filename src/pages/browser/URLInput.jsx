@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const SEARCH_ENGINE = 'https://www.bing.com/search?q=';
 
-function URLInput({ url, onUrlChange }) {
+function URLInput({ url, onUrlChange, favoriteDefaultTitle, onFavoriteSubmit }) {
 	const [inputValue, setInputValue] = useState(url || '');
 
 	useEffect(() => {
@@ -58,12 +59,26 @@ function URLInput({ url, onUrlChange }) {
 			className='flex items-center p-3 bg-white border-b'>
 			<div className='relative flex-1'>
 				<Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400' />
+				<div className='absolute right-2 top-1/2 -translate-y-1/2'>
+					<Button
+						type='button'
+						variant='ghost'
+						size='sm'
+						className='h-8 w-8 p-0 text-gray-500'
+						disabled={!url}
+						onClick={() => {
+							const title = (favoriteDefaultTitle || '').trim();
+							onFavoriteSubmit?.(title || url);
+						}}>
+						<Star className='h-4 w-4' />
+					</Button>
+				</div>
 				<Input
 					type='text'
 					placeholder='输入 URL 或搜索关键词，按 Enter 搜索'
 					value={inputValue}
 					onChange={e => setInputValue(e.target.value)}
-					className='pl-10'
+					className='pl-10 pr-10'
 				/>
 			</div>
 		</form>
