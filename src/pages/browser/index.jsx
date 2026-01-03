@@ -79,8 +79,25 @@ function BrowserPage() {
 	// 只响应用户点击触发的新窗口请求（target=_blank / window.open）：更新显示 URL（不驱动导航）
 	useEffect(() => {
 		let unlistenClick;
+		let unlistenUrlChanged;
 		(async () => {
 			unlistenClick = await listen('browser:user-click', event => {
+				const payload = event.payload || {};
+				const label = typeof payload.label === 'string' ? payload.label : '';
+				const url = typeof payload.url === 'string' ? payload.url : '';
+				if (!label || !url) return;
+
+				setTabs(prev =>
+					prev.map(t => {
+						const tLabel = `browser-webview-${t.id}`;
+						if (tLabel !== label) return t;
+						if (t.currentUrl === url) return t;
+						return { ...t, currentUrl: url };
+					})
+				);
+			});
+
+			unlistenUrlChanged = await listen('browser:url-changed', event => {
 				const payload = event.payload || {};
 				const label = typeof payload.label === 'string' ? payload.label : '';
 				const url = typeof payload.url === 'string' ? payload.url : '';
@@ -98,6 +115,7 @@ function BrowserPage() {
 		})();
 		return () => {
 			if (typeof unlistenClick === 'function') unlistenClick();
+			if (typeof unlistenUrlChanged === 'function') unlistenUrlChanged();
 		};
 	}, []);
 

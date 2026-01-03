@@ -9,7 +9,7 @@ lazy_static::lazy_static! {
 }
 
 #[derive(Clone, Serialize)]
-struct BrowserUserClickPayload {
+struct BrowserUrlChangedPayload {
     label: String,
     url: String,
 }
@@ -56,10 +56,25 @@ pub fn create_child_webview(
 
     let (x, y) = apply_pos_correction(&label, x, y);
 
-    let init_script = r#"
+    let init_script = format!(
+        r#"
         (function () {{
           try {{
-            // 外部网站可能会调用 __TAURI__.opener.open_url（该 webview 通常无权限），避免 Unhandled Promise Rejection
+            const WEBVIEW_LABEL = {label_json};
+
+            function safeEmit(url) {{
+              try {{
+                const ev = window.__TAURI__ && window.__TAURI__.event;
+                if (!ev || typeof ev.emit !== 'function') return;
+                const payload = {{ label: WEBVIEW_LABEL, url: String(url) }};
+                // 统一事件：用于地址栏显示更新
+                ev.emit('browser:url-changed', payload);
+                // 兼容旧事件名（若前端还在监听）
+                ev.emit('browser:user-click', payload);
+              }} catch (_) {{}}
+            }}
+
+            // 避免外部网站调用 opener.open_url 时因权限抛 Promise rejection
             if (window.__TAURI__ && window.__TAURI__.opener) {{
               const opener = window.__TAURI__.opener;
               const nav = (u) => {{
@@ -70,71 +85,140 @@ pub fn create_child_webview(
               if (typeof opener.open === 'function') opener.open = nav;
             }}
 
-            // 只处理 Bing 搜索页的“用户点击结果没反应”：
-            // Bing 可能通过 JS preventDefault 后再 window.open/自定义跳转；在 child webview 中容易被拦截导致无反应。
-            // 这里仅在 bing.com/search 下兜底：用户点链接就强制同页跳转，不影响其它站点。
-            setTimeout(function () {{
-              try {{
-                const host = (window.location && window.location.hostname) || '';
-                const path = (window.location && window.location.pathname) || '';
-                if (!(host.endsWith('bing.com') && path === '/search')) return;
-
-                // 兼容：站点走 window.open 分支时也能同页跳转
+            // 1) window.open：常见于 target=_blank / 脚本打开
+            try {{
+              const _open = window.open;
+              window.open = function (u) {{
                 try {{
-                  const _open = window.open;
-                  window.open = function (u) {{
-                    try {{ if (u) window.location.href = String(u); }} catch (_) {{}}
-                    return window;
-                  }};
-                  window.open.__runproject_wrapped__ = true;
-                  window.open.__runproject_original__ = _open;
+                  if (u) {{
+                    safeEmit(u);
+                    window.location.href = String(u);
+                  }}
                 }} catch (_) {{}}
+                return window;
+              }};
+              window.open.__runproject_wrapped__ = true;
+              window.open.__runproject_original__ = _open;
+            }} catch (_) {{}}
 
-                document.addEventListener('click', function (e) {{
-                  try {{
-                    let el = e.target;
-                    while (el && el !== document.documentElement) {{
-                      if (el.tagName && el.tagName.toLowerCase() === 'a') break;
-                      el = el.parentElement;
-                    }}
-                    if (!el || !el.href) return;
-                    const href = String(el.href);
-                    if (!href || href.startsWith('javascript:') || href.startsWith('#')) return;
+            // 2) 点击 a[href]：覆盖常见的 preventDefault + 自定义跳转
+            document.addEventListener('click', function (e) {{
+              try {{
+                if (e.button && e.button !== 0) return;
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
-                    // 只针对外跳链接，避免干扰 Bing 自身 UI 控件
-                    const target = (el.getAttribute('target') || '').toLowerCase();
-                    const rel = String(el.getAttribute('rel') || '');
-                    const isBlank = target === '_blank' || rel.includes('noopener') || rel.includes('noreferrer');
+                let el = e.target;
+                while (el && el !== document.documentElement) {{
+                  if (el.tagName && el.tagName.toLowerCase() === 'a') break;
+                  el = el.parentElement;
+                }}
+                if (!el || !el.href) return;
+                const href = String(el.href);
+                if (!href || href.startsWith('javascript:') || href.startsWith('#')) return;
 
-                    // 站点往往会 preventDefault，我们直接兜底跳转
-                    if (isBlank || e.defaultPrevented) {{
-                      e.preventDefault();
-                      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-                      window.location.href = href;
-                    }}
-                  }} catch (_) {{}}
-                }}, true);
+                const target = (el.getAttribute('target') || '').toLowerCase();
+                const rel = String(el.getAttribute('rel') || '');
+                const isBlank = target === '_blank' || rel.includes('noopener') || rel.includes('noreferrer');
+
+                // 更新地址栏显示（只跟用户点击走）
+                safeEmit(href);
+
+                // 对“无反应”的常见情况兜底：新窗口倾向 or 已被 preventDefault
+                if (isBlank || e.defaultPrevented) {{
+                  e.preventDefault();
+                  if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+                  window.location.href = href;
+                }}
               }} catch (_) {{}}
-            }}, 0);
+            }}, true);
+
+            // 3) 表单提交：GET/POST、target=_blank
+            document.addEventListener('submit', function (e) {{
+              try {{
+                const form = e.target;
+                if (!form || !form.action) return;
+                const action = String(form.action);
+                const method = String(form.method || 'get').toLowerCase();
+                const target = String(form.target || '').toLowerCase();
+
+                if (target === '_blank') {{
+                  // 强制同页
+                  form.target = '_self';
+                }}
+
+                if (method === 'get') {{
+                  const fd = new FormData(form);
+                  const params = new URLSearchParams();
+                  for (const [k, v] of fd.entries()) {{
+                    params.append(k, String(v));
+                  }}
+                  const url = action + (action.includes('?') ? '&' : '?') + params.toString();
+                  safeEmit(url);
+                }} else {{
+                  safeEmit(action);
+                }}
+              }} catch (_) {{}}
+            }}, true);
+
+            // 4) SPA：history API / hash / popstate（只用于地址栏显示，不做强制跳转）
+            (function () {{
+              let last = '';
+              let t = 0;
+              function report() {{
+                try {{
+                  const now = String(window.location.href);
+                  const ts = Date.now();
+                  if (now === last) return;
+                  if (ts - t < 300) return;
+                  last = now;
+                  t = ts;
+                  safeEmit(now);
+                }} catch (_) {{}}
+              }}
+
+              try {{
+                const ps = history.pushState;
+                history.pushState = function () {{
+                  const r = ps.apply(this, arguments);
+                  setTimeout(report, 0);
+                  return r;
+                }};
+              }} catch (_) {{}}
+              try {{
+                const rs = history.replaceState;
+                history.replaceState = function () {{
+                  const r = rs.apply(this, arguments);
+                  setTimeout(report, 0);
+                  return r;
+                }};
+              }} catch (_) {{}}
+              window.addEventListener('popstate', report, true);
+              window.addEventListener('hashchange', report, true);
+              // 兜底：少量轮询（不驱动导航）
+              setInterval(report, 800);
+            }})();
+
           }} catch (_) {{}}
         }})();
-        "#
-    .to_string();
+        "#,
+        label_json = serde_json::to_string(&label).unwrap_or_else(|_| "\"\"".into())
+    );
 
     let app = window.app_handle().clone();
     let label_for_handler = label.clone();
 
     let webview_builder =
         tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(parsed_url))
-            // 使用更接近 macOS WKWebView 的 UA，避免 Bing 按 Chrome 路径下发导致渲染异常
+            // 使用更接近 macOS WKWebView 的 UA，减少站点按 Chrome 特性路径下发导致异常
             .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
             .initialization_script_for_all_frames(init_script)
-            // 只响应“用户点击导致的新窗口请求”：改为同页导航，并通知前端（如需显示）一次点击 URL
+            // 新窗口请求：在当前 webview 内打开，并上报一次 URL（用于地址栏显示）
             .on_new_window(move |url, _features| {
-                let payload = BrowserUserClickPayload {
+                let payload = BrowserUrlChangedPayload {
                     label: label_for_handler.clone(),
                     url: url.as_str().to_string(),
                 };
+                let _ = app.emit("browser:url-changed", payload.clone());
                 let _ = app.emit("browser:user-click", payload);
 
                 if let Some(w) = app.get_webview(&label_for_handler) {

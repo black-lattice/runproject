@@ -1,0 +1,11 @@
+{
+    "$schema": "../gen/schemas/desktop-schema.json",
+    "identifier": "browser-webviews",
+    "description": "Capability for browser child webviews (allow core event emit)",
+    "webviews": [
+        "browser-webview-*"
+    ],
+    "permissions": [
+        "core:event:allow-emit"
+    ]
+}
