@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -76,8 +77,8 @@ function GitWorktreeDialog({
 		b => !worktreeBranches.includes(b.name)
 	);
 
-	return (
-		<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm'>
+	const dialogContent = (
+		<div className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm'>
 			<div className='bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col'>
 				<div className='flex items-center justify-between p-6 border-b'>
 					<div>
@@ -88,10 +89,7 @@ function GitWorktreeDialog({
 							创建和管理多个工作目录，同时操作不同分支
 						</p>
 					</div>
-					<Button
-						variant='ghost'
-						size='sm'
-						onClick={onClose}>
+					<Button variant='ghost' size='sm' onClick={onClose}>
 						<X className='w-5 h-5' />
 					</Button>
 				</div>
@@ -102,17 +100,13 @@ function GitWorktreeDialog({
 							创建新 Worktree
 						</h3>
 						<div className='flex gap-2'>
-							<Select
-								value={selectedBranch}
-								onValueChange={handleBranchChange}>
+							<Select value={selectedBranch} onValueChange={handleBranchChange}>
 								<SelectTrigger className='flex-1'>
 									<SelectValue placeholder='选择分支' />
 								</SelectTrigger>
 								<SelectContent>
 									{availableBranches.map(branch => (
-										<SelectItem
-											key={branch.name}
-											value={branch.name}>
+										<SelectItem key={branch.name} value={branch.name}>
 											{branch.name}
 										</SelectItem>
 									))}
@@ -126,7 +120,8 @@ function GitWorktreeDialog({
 							/>
 							<Button
 								onClick={handleCreate}
-								disabled={!selectedBranch || !worktreeName}>
+								disabled={!selectedBranch || !worktreeName}
+							>
 								<Plus className='w-4 h-4 mr-2' />
 								创建
 							</Button>
@@ -141,13 +136,12 @@ function GitWorktreeDialog({
 							{worktrees.map(worktree => (
 								<div
 									key={worktree.path}
-									className='flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200'>
+									className='flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200'
+								>
 									<div className='flex-1 min-w-0 mr-4'>
 										<div className='flex items-center gap-2 mb-2'>
 											<span className='font-medium text-sm text-gray-900'>
-												{worktree.is_main
-													? '🏠 主目录'
-													: '📁 Worktree'}
+												{worktree.is_main ? '🏠 主目录' : '📁 Worktree'}
 											</span>
 											{worktree.is_main && (
 												<span className='text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full'>
@@ -175,74 +169,54 @@ function GitWorktreeDialog({
 									<div className='flex gap-2 flex-shrink-0'>
 										{installedEditors.length > 0 && (
 											<div className='flex gap-1'>
-												{installedEditors.map(
-													editor => {
-														const iconPath =
-															EDITOR_ICONS[
-																editor.id
-															];
-														return (
-															<TooltipProvider
-																key={editor.id}>
-																<Tooltip>
-																	<TooltipTrigger
-																		asChild>
-																		<Button
-																			size='sm'
-																			variant='outline'
-																			onClick={() =>
-																				handleOpenInEditor(
-																					worktree.path,
-																					editor.id
-																				)
-																			}
-																			title={`在 ${editor.name} 中打开`}>
-																			<img
-																				src={
-																					iconPath
-																				}
-																				alt={
-																					editor.name
-																				}
-																				className='w-4 h-4'
-																			/>
-																		</Button>
-																	</TooltipTrigger>
-																	<TooltipContent>
-																		<p>
-																			在{' '}
-																			{
-																				editor.name
-																			}{' '}
-																			中打开
-																		</p>
-																	</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
-														);
-													}
-												)}
+												{installedEditors.map(editor => {
+													const iconPath = EDITOR_ICONS[editor.id];
+													return (
+														<TooltipProvider key={editor.id}>
+															<Tooltip>
+																<TooltipTrigger asChild>
+																	<Button
+																		size='sm'
+																		variant='outline'
+																		onClick={() =>
+																			handleOpenInEditor(
+																				worktree.path,
+																				editor.id
+																			)
+																		}
+																		title={`在 ${editor.name} 中打开`}
+																	>
+																		<img
+																			src={iconPath}
+																			alt={editor.name}
+																			className='w-4 h-4'
+																		/>
+																	</Button>
+																</TooltipTrigger>
+																<TooltipContent>
+																	<p>在 {editor.name} 中打开</p>
+																</TooltipContent>
+															</Tooltip>
+														</TooltipProvider>
+													);
+												})}
 											</div>
 										)}
 										<Button
 											size='sm'
 											variant='outline'
-											onClick={() =>
-												onOpenWorktree(worktree.path)
-											}
-											title='在文件管理器中打开'>
+											onClick={() => onOpenWorktree(worktree.path)}
+											title='在文件管理器中打开'
+										>
 											<FolderOpen className='w-4 h-4' />
 										</Button>
 										{!worktree.is_main && (
 											<Button
 												size='sm'
 												variant='outline'
-												onClick={() =>
-													onRemoveWorktree(
-														worktree.path
-													)
-												}
-												title='删除 Worktree'>
+												onClick={() => onRemoveWorktree(worktree.path)}
+												title='删除 Worktree'
+											>
 												<Trash2 className='w-4 h-4' />
 											</Button>
 										)}
@@ -259,15 +233,15 @@ function GitWorktreeDialog({
 				</div>
 
 				<div className='flex justify-end p-6 border-t bg-gray-50'>
-					<Button
-						variant='outline'
-						onClick={onClose}>
+					<Button variant='outline' onClick={onClose}>
 						关闭
 					</Button>
 				</div>
 			</div>
 		</div>
 	);
+
+	return createPortal(dialogContent, document.body);
 }
 
 export default GitWorktreeDialog;
