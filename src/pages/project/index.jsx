@@ -98,10 +98,16 @@ function ProjectPage() {
 
 		const setupCommandInterruptListener = async () => {
 			unlisten = await listen('command-interrupted', event => {
-				if (runningCommand && event.payload.sessionId === runningCommand.id) {
+				const currentRunningCommand = useAppStore.getState().runningCommand;
+				const currentProjectTerminals = useAppStore.getState().projectTerminals;
+
+				if (
+					currentRunningCommand &&
+					event.payload.sessionId === currentRunningCommand.id
+				) {
 					console.log('检测到命令被中断，清除运行状态');
-					const projectName = runningCommand.project.name;
-					const existingTerminal = projectTerminals[projectName];
+					const projectName = currentRunningCommand.project.name;
+					const existingTerminal = currentProjectTerminals[projectName];
 					if (existingTerminal) {
 						updateProjectTerminal(projectName, {
 							...existingTerminal,
@@ -121,7 +127,7 @@ function ProjectPage() {
 				unlisten();
 			}
 		};
-	}, [runningCommand, projectTerminals, setRunningCommand, updateProjectTerminal]);
+	}, [setRunningCommand, updateProjectTerminal]);
 
 	const clearCacheAndRefresh = () => {
 		localStorage.removeItem('nodejs-workspaces');
@@ -342,6 +348,17 @@ function ProjectPage() {
 	);
 
 	const getEffectiveNodeVersion = project => {
+		const preferences = JSON.parse(
+			localStorage.getItem('nodejs-project-preferences') || '{}'
+		);
+		const projectKey = `${project.name}_${project.path}`;
+		const userSelected = preferences[projectKey]?.nodeVersion || null;
+
+		if (userSelected) {
+			console.log(`📋 [${project.name}] 使用用户选择Node版本: ${userSelected}`);
+			return userSelected;
+		}
+
 		if (project.nodeVersion) {
 			console.log(
 				`📋 [${project.name}] 使用项目本地Node版本: ${project.nodeVersion}`
@@ -349,19 +366,8 @@ function ProjectPage() {
 			return project.nodeVersion;
 		}
 
-		const preferences = JSON.parse(
-			localStorage.getItem('nodejs-project-preferences') || '{}'
-		);
-		const projectKey = `${project.name}_${project.path}`;
-		const selected = preferences[projectKey]?.nodeVersion || null;
-
-		if (selected) {
-			console.log(`📋 [${project.name}] 使用用户选择Node版本: ${selected}`);
-		} else {
-			console.log(`📋 [${project.name}] 使用系统默认Node版本`);
-		}
-
-		return selected;
+		console.log(`📋 [${project.name}] 使用系统默认Node版本`);
+		return null;
 	};
 
 	const executeInBuiltinTerminal = async (project, command) => {
