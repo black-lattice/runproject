@@ -212,22 +212,34 @@ function ProjectPage() {
 	};
 
 	const removeWorkspace = async index => {
-		const workspaceToRemove = workspaces[index];
-		if (confirm(`确定要删除workspace "${workspaceToRemove.name}" 吗？`)) {
-			const newWorkspaces = workspaces.filter((_, i) => i !== index);
-			saveWorkspaces(newWorkspaces);
-			toast({
-				title: '删除成功',
-				description: `已删除workspace "${workspaceToRemove.name}"`,
-				variant: 'default'
-			});
+		const currentWorkspaces = useAppStore.getState().workspaces;
+		const workspaceToRemove = currentWorkspaces[index];
 
-			if (
-				selectedProject &&
-				workspaceToRemove.projects?.some(p => p.name === selectedProject.name)
-			) {
-				setSelectedProject(null);
-			}
+		if (!workspaceToRemove) {
+			toast({
+				title: '删除失败',
+				description: '未找到要删除的workspace',
+				variant: 'destructive'
+			});
+			return;
+		}
+
+		const newWorkspaces = currentWorkspaces.filter((_, i) => i !== index);
+		saveWorkspaces(newWorkspaces);
+		toast({
+			title: '删除成功',
+			description: `已删除workspace "${workspaceToRemove.name}"`,
+			variant: 'default'
+		});
+
+		const currentSelectedProject = useAppStore.getState().selectedProject;
+		if (
+			currentSelectedProject &&
+			workspaceToRemove.projects?.some(
+				p => p.name === currentSelectedProject.name
+			)
+		) {
+			setSelectedProject(null);
 		}
 	};
 
