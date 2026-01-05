@@ -8,10 +8,11 @@ import {
 	TooltipTrigger
 } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-
+import traeIcon from '@/assets/icons/www.trae.ai.ico';
+import cursorIcon from '@/assets/icons/cursor.com.ico';
 const EDITOR_ICONS = {
-	trae: '/src/assets/icons/www.trae.ai.ico',
-	cursor: '/src/assets/icons/cursor.com.ico'
+  trae: traeIcon,
+  cursor: cursorIcon
 };
 
 function EditorSelector({
