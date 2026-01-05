@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/useAppStore';
+import { listen } from '@tauri-apps/api/event';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import MainContent from '@/components/MainContent';
@@ -56,9 +57,7 @@ function ProjectPage() {
 
 	const clearCacheAndReload = () => {
 		if (
-			confirm(
-				'确定要清除所有缓存并重新加载吗？这将刷新所有workspace数据。'
-			)
+			confirm('确定要清除所有缓存并重新加载吗？这将刷新所有workspace数据。')
 		) {
 			localStorage.removeItem('nodejs-workspaces');
 			localStorage.removeItem('nodejs-workspaces-version');
@@ -94,6 +93,36 @@ function ProjectPage() {
 		};
 	}, []);
 
+	useEffect(() => {
+		let unlisten = null;
+
+		const setupCommandInterruptListener = async () => {
+			unlisten = await listen('command-interrupted', event => {
+				if (runningCommand && event.payload.sessionId === runningCommand.id) {
+					console.log('检测到命令被中断，清除运行状态');
+					const projectName = runningCommand.project.name;
+					const existingTerminal = projectTerminals[projectName];
+					if (existingTerminal) {
+						updateProjectTerminal(projectName, {
+							...existingTerminal,
+							isBusy: false,
+							currentCommand: null
+						});
+					}
+					setRunningCommand(null);
+				}
+			});
+		};
+
+		setupCommandInterruptListener();
+
+		return () => {
+			if (unlisten) {
+				unlisten();
+			}
+		};
+	}, [runningCommand, projectTerminals, setRunningCommand, updateProjectTerminal]);
+
 	const clearCacheAndRefresh = () => {
 		localStorage.removeItem('nodejs-workspaces');
 		setWorkspaces([]);
@@ -113,10 +142,7 @@ function ProjectPage() {
 			'nodejs-workspaces',
 			JSON.stringify(workspacesWithVersion)
 		);
-		localStorage.setItem(
-			'nodejs-workspaces-version',
-			currentTime.toString()
-		);
+		localStorage.setItem('nodejs-workspaces-version', currentTime.toString());
 		setWorkspaces(workspacesWithVersion);
 	};
 
@@ -192,9 +218,7 @@ function ProjectPage() {
 
 			if (
 				selectedProject &&
-				workspaceToRemove.projects?.some(
-					p => p.name === selectedProject.name
-				)
+				workspaceToRemove.projects?.some(p => p.name === selectedProject.name)
 			) {
 				setSelectedProject(null);
 			}
@@ -233,26 +257,35 @@ function ProjectPage() {
 
 		try {
 			const projectName = runningCommand.project.name;
+			let result;
 
-			const result = await invoke('terminate_command', {
-				commandId: runningCommand.id
-			});
+			if (terminalType === 'builtin') {
+				const ctrlC = '\x03';
+				const encoded = btoa(ctrlC);
+				await invoke('write_to_terminal', {
+					sessionId: runningCommand.id,
+					data: encoded
+				});
+				result = '已发送停止信号';
+			} else {
+				result = await invoke('terminate_command', {
+					commandId: runningCommand.id
+				});
+			}
 
 			const existingTerminal = projectTerminals[projectName];
 			if (existingTerminal) {
 				updateProjectTerminal(projectName, {
 					...existingTerminal,
 					isBusy: false,
-					currentCommand: null,
-					lastCommandId: null
+					currentCommand: null
 				});
 			}
 
 			setRunningCommand(null);
 			toast({
 				title: '命令停止',
-				description:
-					result || `已停止命令: ${runningCommand.command.name}`,
+				description: result || `已停止命令: ${runningCommand.command.name}`,
 				variant: 'default'
 			});
 		} catch (error) {
@@ -264,8 +297,7 @@ function ProjectPage() {
 				updateProjectTerminal(projectName, {
 					...existingTerminal,
 					isBusy: false,
-					currentCommand: null,
-					lastCommandId: null
+					currentCommand: null
 				});
 			}
 			setRunningCommand(null);
@@ -295,8 +327,7 @@ function ProjectPage() {
 
 				const result = await invoke('get_nvm_status');
 				const versions =
-					result?.available &&
-					Array.isArray(result.installed_versions)
+					result?.available && Array.isArray(result.installed_versions)
 						? result.installed_versions
 						: [];
 
@@ -325,9 +356,7 @@ function ProjectPage() {
 		const selected = preferences[projectKey]?.nodeVersion || null;
 
 		if (selected) {
-			console.log(
-				`📋 [${project.name}] 使用用户选择Node版本: ${selected}`
-			);
+			console.log(`📋 [${project.name}] 使用用户选择Node版本: ${selected}`);
 		} else {
 			console.log(`📋 [${project.name}] 使用系统默认Node版本`);
 		}
@@ -336,20 +365,54 @@ function ProjectPage() {
 	};
 
 	const executeInBuiltinTerminal = async (project, command) => {
-		const sessionId = `project-${project.name}-${Date.now()}`;
+		const projectName = project.name;
+		const existingTerminal = projectTerminals[projectName];
 		const packageManager =
 			project.packageManager || project.package_manager || 'npm';
 		const effectiveNodeVersion = getEffectiveNodeVersion(project);
 
+		let sessionId;
+		let needCreateSession = true;
+
+		if (existingTerminal && existingTerminal.lastCommandId) {
+			sessionId = existingTerminal.lastCommandId;
+
+			if (existingTerminal.isBusy) {
+				toast({
+					title: '命令执行中',
+					description: `项目 "${projectName}" 的终端正在执行命令 "${existingTerminal.currentCommand}"，请稍候重试`,
+					variant: 'default'
+				});
+				return;
+			}
+
+			try {
+				await invoke('write_to_terminal', {
+					sessionId,
+					data: btoa('echo test\n')
+				});
+				needCreateSession = false;
+			} catch (error) {
+				console.log('终端会话不存在，将创建新会话');
+				sessionId = `project-${project.name}-${Date.now()}`;
+			}
+		} else {
+			sessionId = `project-${project.name}-${Date.now()}`;
+		}
+
+		setRunningCommand({ project, command, id: sessionId });
+
 		try {
-			await invoke('create_terminal_session', {
-				sessionId,
-				config: {
-					cwd: project.path,
-					cols: 80,
-					rows: 24
-				}
-			});
+			if (needCreateSession) {
+				await invoke('create_terminal_session', {
+					sessionId,
+					config: {
+						cwd: project.path,
+						cols: 80,
+						rows: 24
+					}
+				});
+			}
 
 			let fullCommand = `${packageManager} run ${command.name}`;
 
@@ -363,6 +426,13 @@ function ProjectPage() {
 			);
 			await invoke('write_to_terminal', { sessionId, data: encoded });
 
+			updateProjectTerminal(projectName, {
+				isBusy: true,
+				currentCommand: command.name,
+				lastCommandId: sessionId,
+				createdAt: Date.now()
+			});
+
 			addTab(`terminal-${sessionId}`);
 
 			navigate(
@@ -375,6 +445,7 @@ function ProjectPage() {
 				variant: 'default'
 			});
 		} catch (error) {
+			setRunningCommand(null);
 			console.error('执行命令失败:', error);
 			toast({
 				title: '执行失败',
@@ -394,8 +465,7 @@ function ProjectPage() {
 			project.packageManager || project.package_manager || 'npm';
 		const effectiveNodeVersion = getEffectiveNodeVersion(project);
 		const existingTerminal = projectTerminals[projectName];
-		const shouldReuseTerminal =
-			Boolean(existingTerminal) && !useKittenRemote;
+		const shouldReuseTerminal = Boolean(existingTerminal) && !useKittenRemote;
 		const commandId = useKittenRemote
 			? `${projectName}-kitty`
 			: `${projectName}-${command.name}-${Date.now()}`;
@@ -443,9 +513,7 @@ function ProjectPage() {
 			setRunningCommand({ project, command, id: commandId });
 
 			try {
-				const result = await runBackendCommand(
-					'execute_command_in_kitty'
-				);
+				const result = await runBackendCommand('execute_command_in_kitty');
 
 				if (result.success) {
 					toast({
@@ -468,9 +536,7 @@ function ProjectPage() {
 				console.error('在终端中执行命令失败:', error);
 				toast({
 					title: '执行失败',
-					description: `在终端中执行命令失败: ${
-						error.message || error
-					}`,
+					description: `在终端中执行命令失败: ${error.message || error}`,
 					variant: 'destructive'
 				});
 				return;

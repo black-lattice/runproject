@@ -2,17 +2,24 @@ import { useEffect, useRef } from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { listen, emit } from '@tauri-apps/api/event';
 import 'xterm/css/xterm.css';
 
-const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => {
+const XtermTerminal = ({
+	sessionId,
+	cwd,
+	onClose,
+	existingSession = false
+}) => {
 	const containerRef = useRef(null);
 	const terminalRef = useRef(null);
 	const fitAddonRef = useRef(null);
 
 	useEffect(() => {
-		console.log(`XtermTerminal useEffect 运行: sessionId=${sessionId}, existingSession=${existingSession}`);
-		
+		console.log(
+			`XtermTerminal useEffect 运行: sessionId=${sessionId}, existingSession=${existingSession}`
+		);
+
 		if (!containerRef.current) return;
 
 		let unmounted = false;
@@ -44,11 +51,11 @@ const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => 
 			theme: {
 				background: '#1e1e1e',
 				foreground: '#d4d4d4',
-				cursor: '#ffffff',
+				cursor: '#ffffff'
 			},
 			scrollback: 1000,
 			cols: 80,
-			rows: 24,
+			rows: 24
 		});
 
 		fitAddon = new FitAddon();
@@ -76,7 +83,7 @@ const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => 
 				if (!existingSession) {
 					await invoke('create_terminal_session', {
 						sessionId,
-						config: { cwd, cols, rows },
+						config: { cwd, cols, rows }
 					});
 					sessionReady = true;
 				} else {
@@ -91,7 +98,7 @@ const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => 
 				if (!sessionReady) {
 					await invoke('create_terminal_session', {
 						sessionId,
-						config: { cwd, cols, rows },
+						config: { cwd, cols, rows }
 					});
 				}
 
@@ -100,8 +107,16 @@ const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => 
 				// 监听用户输入 - 必须在会话创建后立即注册
 				dataDisposable = terminal.onData(data => {
 					if (unmounted) return;
-					const encoded = btoa(String.fromCharCode(...new TextEncoder().encode(data)));
-					invoke('write_to_terminal', { sessionId, data: encoded }).catch(console.error);
+					const encoded = btoa(
+						String.fromCharCode(...new TextEncoder().encode(data))
+					);
+					invoke('write_to_terminal', { sessionId, data: encoded }).catch(
+						console.error
+					);
+
+					if (data === '\x03') {
+						emit('command-interrupted', { sessionId });
+					}
 				});
 
 				// 设置事件监听
@@ -137,7 +152,6 @@ const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => 
 					terminal.write('\r\n\x1b[33m[进程已退出]\x1b[0m\r\n');
 					if (onClose) onClose();
 				});
-
 			} catch (error) {
 				console.error('终端初始化失败:', error);
 				terminal.write(`\r\n\x1b[31m错误: ${error}\x1b[0m\r\n`);
@@ -150,7 +164,9 @@ const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => 
 			try {
 				fitAddon.fit();
 				const { cols, rows } = terminal;
-				invoke('resize_terminal', { sessionId, cols, rows }).catch(console.error);
+				invoke('resize_terminal', { sessionId, cols, rows }).catch(
+					console.error
+				);
 			} catch (error) {
 				console.warn('调整大小失败:', error);
 			}
@@ -193,7 +209,7 @@ const XtermTerminal = ({ sessionId, cwd, onClose, existingSession = false }) => 
 	return (
 		<div
 			ref={containerRef}
-			className="w-full h-full bg-[#1e1e1e]"
+			className='w-full h-full bg-[#1e1e1e]'
 			style={{ minHeight: '400px' }}
 		/>
 	);

@@ -12,8 +12,8 @@ function CommandList({
 	const isCommandRunning = command => {
 		return (
 			runningCommand &&
-			runningCommand.project === project &&
-			runningCommand.command === command
+			runningCommand.project.name === project.name &&
+			runningCommand.command.name === command.name
 		);
 	};
 
