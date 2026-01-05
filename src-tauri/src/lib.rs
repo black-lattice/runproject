@@ -128,11 +128,7 @@ fn open_project_in_editor(editor_id: String, project_path: String) -> Result<Str
         .find(|e| e.id == editor_id)
         .ok_or_else(|| format!("Editor not found: {}", editor_id))?;
 
-    if !editor.installed {
-        return Err(format!("Editor {} is not installed", editor.name));
-    }
-
-    editor::open_project_in_editor(&editor.command, &project_path)
+    editor::open_project_in_editor(&editor.id, &editor.command, &project_path)
 }
 
 #[tauri::command]

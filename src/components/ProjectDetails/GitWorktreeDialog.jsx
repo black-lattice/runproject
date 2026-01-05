@@ -17,10 +17,12 @@ import {
 } from '@/components/ui/tooltip';
 import { FolderOpen, Trash2, Plus, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import traeIcon from '@/assets/icons/www.trae.ai.ico';
+import cursorIcon from '@/assets/icons/cursor.com.ico';
 
 const EDITOR_ICONS = {
-	trae: '/src/assets/icons/www.trae.ai.ico',
-	cursor: '/src/assets/icons/cursor.com.ico'
+	trae: traeIcon,
+	cursor: cursorIcon
 };
 
 function GitWorktreeDialog({
@@ -68,9 +70,12 @@ function GitWorktreeDialog({
 		}
 	};
 
-	const installedEditors = availableEditors
-		.filter(e => e.installed)
-		.filter(e => e.id === 'trae' || e.id === 'cursor');
+	const supportedEditors = availableEditors.filter(
+		e => e.id === 'trae' || e.id === 'cursor'
+	);
+	const installedEditors = supportedEditors.filter(e => e.installed);
+	const displayEditors =
+		installedEditors.length > 0 ? installedEditors : supportedEditors;
 
 	const worktreeBranches = worktrees.map(w => w.branch);
 	const availableBranches = branches.filter(
@@ -167,9 +172,9 @@ function GitWorktreeDialog({
 										</div>
 									</div>
 									<div className='flex gap-2 flex-shrink-0'>
-										{installedEditors.length > 0 && (
+										{displayEditors.length > 0 && (
 											<div className='flex gap-1'>
-												{installedEditors.map(editor => {
+												{displayEditors.map(editor => {
 													const iconPath = EDITOR_ICONS[editor.id];
 													return (
 														<TooltipProvider key={editor.id}>
