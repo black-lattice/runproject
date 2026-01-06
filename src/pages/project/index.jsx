@@ -608,11 +608,11 @@ function ProjectPage() {
 
 	return (
 		<div className='h-screen flex flex-col overflow-hidden bg-gray-100'>
-			<Header
+			{/* <Header
 				onAddWorkspace={handleAddWorkspace}
 				useKittenRemote={useKittenRemote}
 				setUseKittenRemote={setUseKittenRemote}
-			/>
+			/> */}
 			<div className='flex-1 flex overflow-hidden'>
 				<Sidebar
 					workspaces={workspaces}

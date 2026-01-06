@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button';
 
 const SEARCH_ENGINE = 'https://www.bing.com/search?q=';
 
-function URLInput({ url, onUrlChange, favoriteDefaultTitle, onFavoriteSubmit }) {
+function URLInput({
+	url,
+	onUrlChange,
+	favoriteDefaultTitle,
+	onFavoriteSubmit
+}) {
 	const [inputValue, setInputValue] = useState(url || '');
 
 	useEffect(() => {
@@ -56,7 +61,8 @@ function URLInput({ url, onUrlChange, favoriteDefaultTitle, onFavoriteSubmit }) 
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className='flex items-center p-3 bg-white border-b'>
+			className='flex items-center p-1 bg-white border-b'
+		>
 			<div className='relative flex-1'>
 				<Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400' />
 				<div className='absolute right-2 top-1/2 -translate-y-1/2'>
@@ -69,7 +75,8 @@ function URLInput({ url, onUrlChange, favoriteDefaultTitle, onFavoriteSubmit }) 
 						onClick={() => {
 							const title = (favoriteDefaultTitle || '').trim();
 							onFavoriteSubmit?.(title || url);
-						}}>
+						}}
+					>
 						<Star className='h-4 w-4' />
 					</Button>
 				</div>

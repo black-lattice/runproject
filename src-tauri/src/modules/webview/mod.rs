@@ -15,7 +15,7 @@ struct BrowserUrlChangedPayload {
 }
 
 #[cfg(target_os = "macos")]
-const DEFAULT_WEBVIEW_POS_CORRECTION: (i32, i32) = (0, 28);
+const DEFAULT_WEBVIEW_POS_CORRECTION: (i32, i32) = (0, 0);
 #[cfg(not(target_os = "macos"))]
 const DEFAULT_WEBVIEW_POS_CORRECTION: (i32, i32) = (0, 0);
 

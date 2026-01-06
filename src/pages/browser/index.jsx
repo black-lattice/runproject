@@ -34,7 +34,8 @@ function BrowserPage() {
 	const isHomeActive = activeTabId === HOME_TAB_ID;
 	const currentUrl = isHomeActive ? '' : activeTab?.currentUrl || '';
 
-	const { homeSites, addHomeSite, removeHomeSite, updateHomeSite } = useAppStore();
+	const { homeSites, addHomeSite, removeHomeSite, updateHomeSite } =
+		useAppStore();
 	const [editingSite, setEditingSite] = useState(null);
 	const [editTitle, setEditTitle] = useState('');
 	const [editUrl, setEditUrl] = useState('');
@@ -63,9 +64,7 @@ function BrowserPage() {
 		}
 		setTabs(prev =>
 			prev.map(t =>
-				t.id === activeTabId
-					? { ...t, desiredUrl: url, currentUrl: url }
-					: t
+				t.id === activeTabId ? { ...t, desiredUrl: url, currentUrl: url } : t
 			)
 		);
 	};
@@ -143,16 +142,6 @@ function BrowserPage() {
 	return (
 		<div className='h-full flex flex-col bg-white'>
 			<div className='flex-1 flex flex-col min-h-0'>
-				<URLInput
-					url={currentUrl}
-					onUrlChange={handleUrlChange}
-					favoriteDefaultTitle={guessTitleFromUrl(currentUrl)}
-					onFavoriteSubmit={title => {
-						if (!currentUrl) return;
-						addHomeSite({ title, url: currentUrl });
-					}}
-				/>
-
 				<TabsBar
 					isHomeActive={isHomeActive}
 					tabs={tabs}
@@ -161,6 +150,15 @@ function BrowserPage() {
 					onSelectTab={setActiveTabId}
 					onCloseTab={closeTab}
 					onNewTab={() => createTab()}
+				/>
+				<URLInput
+					url={currentUrl}
+					onUrlChange={handleUrlChange}
+					favoriteDefaultTitle={guessTitleFromUrl(currentUrl)}
+					onFavoriteSubmit={title => {
+						if (!currentUrl) return;
+						addHomeSite({ title, url: currentUrl });
+					}}
 				/>
 
 				<div className='flex-1 min-h-0'>
@@ -178,9 +176,9 @@ function BrowserPage() {
 									key={t.id}
 									className='absolute inset-0'
 									style={{
-										visibility:
-											t.id === activeTabId ? 'visible' : 'hidden'
-									}}>
+										visibility: t.id === activeTabId ? 'visible' : 'hidden'
+									}}
+								>
 									<Webview
 										label={`browser-webview-${t.id}`}
 										url={t.desiredUrl}
@@ -196,7 +194,8 @@ function BrowserPage() {
 					open={!!editingSite}
 					onOpenChange={open => {
 						if (!open) setEditingSite(null);
-					}}>
+					}}
+				>
 					<DialogContent>
 						<DialogHeader>
 							<DialogTitle>编辑网站</DialogTitle>
@@ -214,9 +213,7 @@ function BrowserPage() {
 							/>
 						</div>
 						<DialogFooter>
-							<Button
-								variant='outline'
-								onClick={() => setEditingSite(null)}>
+							<Button variant='outline' onClick={() => setEditingSite(null)}>
 								取消
 							</Button>
 							<Button
@@ -227,7 +224,8 @@ function BrowserPage() {
 										url: editUrl.trim()
 									});
 									setEditingSite(null);
-								}}>
+								}}
+							>
 								保存
 							</Button>
 						</DialogFooter>
@@ -238,16 +236,15 @@ function BrowserPage() {
 					open={!!deletingSiteId}
 					onOpenChange={open => {
 						if (!open) setDeletingSiteId(null);
-					}}>
+					}}
+				>
 					<DialogContent className='max-w-sm'>
 						<DialogHeader>
 							<DialogTitle>确认删除</DialogTitle>
 						</DialogHeader>
 						<div className='p-4 text-sm text-gray-600'>确定删除该网站？</div>
 						<DialogFooter>
-							<Button
-								variant='outline'
-								onClick={() => setDeletingSiteId(null)}>
+							<Button variant='outline' onClick={() => setDeletingSiteId(null)}>
 								取消
 							</Button>
 							<Button
@@ -255,7 +252,8 @@ function BrowserPage() {
 								onClick={() => {
 									removeHomeSite(deletingSiteId);
 									setDeletingSiteId(null);
-								}}>
+								}}
+							>
 								删除
 							</Button>
 						</DialogFooter>

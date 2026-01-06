@@ -18,14 +18,16 @@ function TabsBar({
 	onNewTab
 }) {
 	return (
-		<div className='flex items-center gap-2 px-3 py-2 border-b bg-white'>
+		<div className='flex items-center gap-2 px-3 py-1  bg-white'>
 			<div className='flex items-center gap-2 min-w-0 flex-1'>
 				<button
-					className={`px-3 py-1 rounded text-sm border whitespace-nowrap ${isHomeActive
+					className={`px-3 py-1 rounded text-sm border whitespace-nowrap ${
+						isHomeActive
 							? 'bg-blue-50 border-blue-400 text-blue-700'
 							: 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-						}`}
-					onClick={onGoHome}>
+					}`}
+					onClick={onGoHome}
+				>
 					Home
 				</button>
 
@@ -33,18 +35,23 @@ function TabsBar({
 					{tabs.map(t => (
 						<button
 							key={t.id}
-							className={`px-3 py-1 rounded text-sm border whitespace-nowrap ${t.id === activeTabId
+							className={`px-3 py-1 rounded text-sm border whitespace-nowrap ${
+								t.id === activeTabId
 									? 'bg-blue-50 border-blue-400 text-blue-700'
 									: 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-								}`}
-							onClick={() => onSelectTab(t.id)}>
-							<span className='mr-2'>{getTabTitle(t.currentUrl || t.desiredUrl)}</span>
+							}`}
+							onClick={() => onSelectTab(t.id)}
+						>
+							<span className='mr-2'>
+								{getTabTitle(t.currentUrl || t.desiredUrl)}
+							</span>
 							<span
 								className='ml-1 text-gray-400 hover:text-red-500'
 								onClick={e => {
 									e.stopPropagation();
 									onCloseTab(t.id);
-								}}>
+								}}
+							>
 								×
 							</span>
 						</button>
@@ -53,7 +60,8 @@ function TabsBar({
 
 				<button
 					className='px-3 py-1 rounded text-sm border border-gray-200 hover:bg-gray-50 flex-shrink-0'
-					onClick={onNewTab}>
+					onClick={onNewTab}
+				>
 					新建
 				</button>
 			</div>
@@ -62,5 +70,3 @@ function TabsBar({
 }
 
 export default TabsBar;
-
-
