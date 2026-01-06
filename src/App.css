@@ -103,4 +103,14 @@
   .animate-slide-in {
     animation: slideIn 0.3s ease-out;
   }
+
+  /* 隐藏滚动条 */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
