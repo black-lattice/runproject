@@ -50,7 +50,10 @@ function TabBar() {
 	};
 
 	return (
-		<div className='flex items-center bg-white border-b border-gray-200 px-4 py-1.5 overflow-x-auto gap-1 h-[32px] no-scrollbar'>
+		<div
+			className='flex items-center bg-white px-4 py-1.5 overflow-x-auto gap-1 h-[32px] overflow-hidden no-scrollbar'
+			data-tauri-drag-region
+		>
 			{/* 固定 Home 标签 */}
 			<div
 				className={cn(

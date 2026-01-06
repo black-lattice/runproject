@@ -13,8 +13,8 @@ function TitleBar({ children }) {
 
 	useEffect(() => {
 		const handleMouseDown = async e => {
-			// 只在标题栏区域触发拖拽，不包含可交互元素
-			if (e.target.closest('[data-tauri-drag-region]')) {
+			const dragRegion = e.target.closest('[data-tauri-drag-region]');
+			if (dragRegion) {
 				const window = getCurrentWindow();
 				await window.startDragging();
 			}
@@ -33,21 +33,21 @@ function TitleBar({ children }) {
 	}, []);
 
 	return (
-		<div className='flex items-center h-[32px] flex-shrink-0 select-none overflow-hidden'>
+		<div
+			ref={titleBarRef}
+			className='flex items-center h-[32px] flex-shrink-0 select-none overflow-hidden border-b border-gray-200'
+		>
 			{/* macOS 原生控制按钮区域（红/黄/绿按钮）- Overlay 模式下原生按钮已存在 */}
 			<div
 				className='w-20 h-full flex-shrink-0 bg-white'
 				data-tauri-drag-region
 			/>
 
-			{/* 标题栏内容区域（包含 TabBar） */}
-			<div className='flex-1 overflow-hidden'>{children}</div>
+			{/* 标题栏内容区域（包含 TabBar）- 宽度根据内容自动撑大 */}
+			<div className='overflow-hidden'>{children}</div>
 
-			{/* 右侧拖拽区域 */}
-			<div
-				className='w-8 h-full flex-shrink-0 bg-white'
-				data-tauri-drag-region
-			/>
+			{/* 右侧拖拽区域 - 占据剩余空间 */}
+			<div className='flex-1 h-full bg-white' data-tauri-drag-region />
 		</div>
 	);
 }
