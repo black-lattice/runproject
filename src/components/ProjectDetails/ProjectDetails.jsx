@@ -3,8 +3,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAppStore } from '@/store/useAppStore';
 import ProjectInfoCard from './ProjectInfoCard';
 import CommandList from './CommandList';
+
+const EDITORS_CACHE_TTL = 1000 * 60 * 60 * 24;
+const GIT_BRANCHES_CACHE_TTL = 1000 * 60 * 60 * 24;
 
 function ProjectDetails({
 	project,
@@ -27,6 +31,7 @@ function ProjectDetails({
 	const [availableEditors, setAvailableEditors] = useState([]);
 	const [isLoadingEditors, setIsLoadingEditors] = useState(false);
 	const { toast } = useToast();
+	const { setAvailableEditorsCache, setGitBranchesCache } = useAppStore();
 
 	const compareVersions = (v1, v2) => {
 		const cleanV1 = v1.replace(/^v/, '').split('.').map(Number);
@@ -99,8 +104,7 @@ function ProjectDetails({
 					</CardHeader>
 					<CardContent>
 						<p className='text-red-600'>
-							项目缺少必要属性 (name: {project.name}, path:{' '}
-							{project.path})
+							项目缺少必要属性 (name: {project.name}, path: {project.path})
 						</p>
 					</CardContent>
 				</Card>
@@ -110,13 +114,27 @@ function ProjectDetails({
 
 	const sortedCommands = project.commands || [];
 
-	const loadGitBranches = async () => {
+	const loadGitBranches = async ({ forceRefresh = false } = {}) => {
 		if (!project?.path) return;
 		setIsLoadingBranches(true);
 		try {
-			const branchList = await invoke('list_branches', {
-				projectPath: project.path
-			});
+			const { gitBranchesCache } = useAppStore.getState();
+			const cachedData = gitBranchesCache[project.path];
+			const hasCache =
+				!forceRefresh &&
+				cachedData &&
+				Date.now() - (cachedData.fetchedAt || 0) < GIT_BRANCHES_CACHE_TTL;
+
+			let branchList;
+			if (hasCache) {
+				branchList = cachedData.branches;
+			} else {
+				branchList = await invoke('list_branches', {
+					projectPath: project.path
+				});
+				setGitBranchesCache(project.path, branchList);
+			}
+
 			setBranches(branchList);
 			const current = branchList.find(b => b.is_current);
 			if (current) {
@@ -131,10 +149,23 @@ function ProjectDetails({
 		}
 	};
 
-	const loadAvailableEditors = async () => {
+	const loadAvailableEditors = async ({ forceRefresh = false } = {}) => {
 		setIsLoadingEditors(true);
 		try {
-			const editors = await invoke('get_available_editors');
+			const { availableEditorsCache } = useAppStore.getState();
+			const hasCache =
+				!forceRefresh &&
+				availableEditorsCache?.editors?.length > 0 &&
+				Date.now() - (availableEditorsCache.fetchedAt || 0) < EDITORS_CACHE_TTL;
+
+			let editors;
+			if (hasCache) {
+				editors = availableEditorsCache.editors;
+			} else {
+				editors = await invoke('get_available_editors');
+				setAvailableEditorsCache(editors);
+			}
+
 			setAvailableEditors(editors);
 
 			const preferences = JSON.parse(
@@ -143,10 +174,7 @@ function ProjectDetails({
 			const projectKey = `${project.name}_${project.path}`;
 			const userPref = preferences[projectKey]?.editor;
 
-			if (
-				userPref &&
-				editors.find(e => e.id === userPref && e.installed)
-			) {
+			if (userPref && editors.find(e => e.id === userPref && e.installed)) {
 				setSelectedEditor(userPref);
 			} else {
 				const installedEditor = editors.find(e => e.installed);
@@ -176,6 +204,8 @@ function ProjectDetails({
 				description: `已切换到分支 ${branchName}`
 			});
 
+			const { clearGitBranchesCache } = useAppStore.getState();
+			clearGitBranchesCache(project.path);
 			loadGitBranches();
 		} catch (error) {
 			console.error('切换分支失败:', error);
@@ -189,52 +219,49 @@ function ProjectDetails({
 	};
 
 	useEffect(() => {
-		loadGitBranches();
-	}, [project.path]);
+		const loadAllData = async () => {
+			await Promise.all([
+				loadGitBranches(),
+				loadAvailableEditors(),
+				(async () => {
+					if (onGetInstalledVersions) {
+						setIsLoadingVersions(true);
+						try {
+							const versions = await onGetInstalledVersions();
+							const versionList = versions || [];
+							setInstalledVersions(versionList);
 
-	useEffect(() => {
-		loadAvailableEditors();
-	}, [project.name, project.path]);
+							const preferences = JSON.parse(
+								localStorage.getItem('nodejs-project-preferences') || '{}'
+							);
+							const projectKey = `${project.name}_${project.path}`;
+							const userPref = preferences[projectKey]?.nodeVersion;
 
-	useEffect(() => {
-		const loadInstalledVersions = async () => {
-			if (onGetInstalledVersions) {
-				setIsLoadingVersions(true);
-				try {
-					const versions = await onGetInstalledVersions();
-					const versionList = versions || [];
-					setInstalledVersions(versionList);
+							let targetVersion = 'system';
 
-					const preferences = JSON.parse(
-						localStorage.getItem('nodejs-project-preferences') ||
-							'{}'
-					);
-					const projectKey = `${project.name}_${project.path}`;
-					const userPref = preferences[projectKey]?.nodeVersion;
+							if (userPref) {
+								targetVersion = userPref;
+							} else if (project.nodeVersion) {
+								targetVersion = project.nodeVersion;
+							}
 
-					let targetVersion = 'system';
-
-					if (userPref) {
-						targetVersion = userPref;
-					} else if (project.nodeVersion) {
-						targetVersion = project.nodeVersion;
+							const bestMatch = findBestMatchVersion(
+								targetVersion,
+								versionList
+							);
+							setSelectedNodeVersion(bestMatch);
+						} catch (error) {
+							console.error('加载Node版本失败:', error);
+							setInstalledVersions([]);
+						} finally {
+							setIsLoadingVersions(false);
+						}
 					}
-
-					const bestMatch = findBestMatchVersion(
-						targetVersion,
-						versionList
-					);
-					setSelectedNodeVersion(bestMatch);
-				} catch (error) {
-					console.error('加载Node版本失败:', error);
-					setInstalledVersions([]);
-				} finally {
-					setIsLoadingVersions(false);
-				}
-			}
+				})()
+			]);
 		};
 
-		loadInstalledVersions();
+		loadAllData();
 	}, [
 		project.name,
 		project.path,
@@ -327,9 +354,7 @@ function ProjectDetails({
 						</CardTitle>
 					</CardHeader>
 					<CardContent className='space-y-4'>
-						<p className='text-gray-600'>
-							项目详情组件渲染时发生错误：
-						</p>
+						<p className='text-gray-600'>项目详情组件渲染时发生错误：</p>
 						<pre className='text-red-500 text-xs bg-red-50 p-4 rounded-lg overflow-auto border border-red-100 font-mono'>
 							{errorInfo && errorInfo.toString()}
 						</pre>
@@ -339,7 +364,8 @@ function ProjectDetails({
 								setErrorInfo(null);
 							}}
 							variant='destructive'
-							className='w-full'>
+							className='w-full'
+						>
 							重试
 						</Button>
 					</CardContent>
@@ -359,7 +385,7 @@ function ProjectDetails({
 					currentBranch={currentBranch}
 					isLoadingBranches={isLoadingBranches}
 					onSwitchBranch={handleSwitchBranch}
-					onRefreshBranches={loadGitBranches}
+					onRefreshBranches={() => loadGitBranches({ forceRefresh: true })}
 					selectedNodeVersion={selectedNodeVersion}
 					installedVersions={installedVersions}
 					isLoadingVersions={isLoadingVersions}

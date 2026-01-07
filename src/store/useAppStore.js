@@ -22,6 +22,11 @@ export const useAppStore = create(
 				versions: [],
 				fetchedAt: 0
 			},
+			availableEditorsCache: {
+				editors: [],
+				fetchedAt: 0
+			},
+			gitBranchesCache: {},
 			collapsedWorkspaces: {},
 			useKittenRemote: true,
 			terminalType: 'builtin', // 'builtin' | 'kitty'
@@ -50,11 +55,8 @@ export const useAppStore = create(
 				return {
 					...project,
 					packageManager:
-						project.packageManager ||
-						project.package_manager ||
-						'npm',
-					nodeVersion:
-						project.nodeVersion || project.node_version || null,
+						project.packageManager || project.package_manager || 'npm',
+					nodeVersion: project.nodeVersion || project.node_version || null,
 					commands: project.commands || []
 				};
 			},
@@ -63,9 +65,7 @@ export const useAppStore = create(
 				if (!workspace) return workspace;
 				return {
 					...workspace,
-					projects: (workspace.projects || []).map(
-						get().normalizeProject
-					)
+					projects: (workspace.projects || []).map(get().normalizeProject)
 				};
 			},
 
@@ -98,8 +98,7 @@ export const useAppStore = create(
 
 			clearProjectTerminal: projectName => {
 				set(state => {
-					const { [projectName]: _, ...rest } =
-						state.projectTerminals;
+					const { [projectName]: _, ...rest } = state.projectTerminals;
 					return { projectTerminals: rest };
 				});
 			},
@@ -108,8 +107,7 @@ export const useAppStore = create(
 				set(state => ({
 					collapsedWorkspaces: {
 						...state.collapsedWorkspaces,
-						[workspaceIndex]:
-							!state.collapsedWorkspaces[workspaceIndex]
+						[workspaceIndex]: !state.collapsedWorkspaces[workspaceIndex]
 					}
 				}));
 			},
@@ -133,6 +131,43 @@ export const useAppStore = create(
 						fetchedAt: 0
 					}
 				}),
+
+			setAvailableEditorsCache: editors => {
+				set({
+					availableEditorsCache: {
+						editors,
+						fetchedAt: Date.now()
+					}
+				});
+			},
+
+			clearAvailableEditorsCache: () =>
+				set({
+					availableEditorsCache: {
+						editors: [],
+						fetchedAt: 0
+					}
+				}),
+
+			setGitBranchesCache: (projectPath, branches) => {
+				set(state => ({
+					gitBranchesCache: {
+						...state.gitBranchesCache,
+						[projectPath]: {
+							branches,
+							fetchedAt: Date.now()
+						}
+					}
+				}));
+			},
+
+			clearGitBranchesCache: projectPath => {
+				set(state => {
+					const newCache = { ...state.gitBranchesCache };
+					delete newCache[projectPath];
+					return { gitBranchesCache: newCache };
+				});
+			},
 
 			// === 收藏夹 Actions ===
 
@@ -239,6 +274,10 @@ export const useAppStore = create(
 						versions: [],
 						fetchedAt: 0
 					},
+					availableEditorsCache: {
+						editors: [],
+						fetchedAt: 0
+					},
 					tabs: DEFAULT_TABS,
 					homeSites: DEFAULT_HOME_SITES
 				});
@@ -255,6 +294,7 @@ export const useAppStore = create(
 				terminalType: state.terminalType,
 				tabs: state.tabs,
 				nodeVersionsCache: state.nodeVersionsCache,
+				availableEditorsCache: state.availableEditorsCache,
 				bookmarks: state.bookmarks,
 				homeSites: state.homeSites
 			})

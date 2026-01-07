@@ -327,7 +327,7 @@ function ProjectPage() {
 		}
 	};
 
-	const NODE_VERSIONS_CACHE_TTL = 1000 * 60 * 5;
+	const NODE_VERSIONS_CACHE_TTL = 1000 * 60 * 60 * 24;
 
 	const getInstalledVersions = useCallback(
 		async ({ forceRefresh = false } = {}) => {
