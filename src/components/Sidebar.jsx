@@ -164,7 +164,7 @@ function Sidebar({
 
 								{/* Projects List */}
 								<div
-									className={`space-y-0.5 ml-2 pl-3 border-l border-gray-100 transition-all duration-300 ease-in-out overflow-hidden ${
+									className={`space-y-0.5 ml-2 pl-3 transition-all duration-300 ease-in-out overflow-hidden ${
 										collapsedWorkspaces[index]
 											? 'max-h-0 opacity-0'
 											: 'max-h-[2000px] opacity-100'
