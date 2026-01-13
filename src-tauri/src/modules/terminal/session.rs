@@ -30,6 +30,7 @@ impl TerminalSession {
             .map_err(|e| format!("创建 PTY 失败: {}", e))?;
 
         let mut cmd = CommandBuilder::new("zsh");
+        cmd.arg("-l");
         cmd.cwd(&config.cwd);
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
