@@ -57,7 +57,9 @@ function ProjectPage() {
 
 	const clearCacheAndReload = () => {
 		if (
-			confirm('确定要清除所有缓存并重新加载吗？这将刷新所有workspace数据。')
+			confirm(
+				'确定要清除所有缓存并重新加载吗？这将刷新所有workspace数据。'
+			)
 		) {
 			localStorage.removeItem('nodejs-workspaces');
 			localStorage.removeItem('nodejs-workspaces-version');
@@ -98,8 +100,10 @@ function ProjectPage() {
 
 		const setupCommandInterruptListener = async () => {
 			unlisten = await listen('command-interrupted', event => {
-				const currentRunningCommand = useAppStore.getState().runningCommand;
-				const currentProjectTerminals = useAppStore.getState().projectTerminals;
+				const currentRunningCommand =
+					useAppStore.getState().runningCommand;
+				const currentProjectTerminals =
+					useAppStore.getState().projectTerminals;
 
 				if (
 					currentRunningCommand &&
@@ -107,7 +111,8 @@ function ProjectPage() {
 				) {
 					console.log('检测到命令被中断，清除运行状态');
 					const projectName = currentRunningCommand.project.name;
-					const existingTerminal = currentProjectTerminals[projectName];
+					const existingTerminal =
+						currentProjectTerminals[projectName];
 					if (existingTerminal) {
 						updateProjectTerminal(projectName, {
 							...existingTerminal,
@@ -121,6 +126,46 @@ function ProjectPage() {
 		};
 
 		setupCommandInterruptListener();
+
+		return () => {
+			if (unlisten) {
+				unlisten();
+			}
+		};
+	}, [setRunningCommand, updateProjectTerminal]);
+
+	useEffect(() => {
+		let unlisten = null;
+
+		const setupTerminalCloseListener = async () => {
+			unlisten = await listen('terminal-closed', event => {
+				const currentRunningCommand =
+					useAppStore.getState().runningCommand;
+				const currentProjectTerminals =
+					useAppStore.getState().projectTerminals;
+
+				if (
+					currentRunningCommand &&
+					event.payload.sessionId === currentRunningCommand.id
+				) {
+					console.log('检测到终端已关闭，清除运行状态');
+					const projectName = currentRunningCommand.project.name;
+					const existingTerminal =
+						currentProjectTerminals[projectName];
+
+					if (existingTerminal) {
+						updateProjectTerminal(projectName, {
+							...existingTerminal,
+							isBusy: false,
+							currentCommand: null
+						});
+					}
+					setRunningCommand(null);
+				}
+			});
+		};
+
+		setupTerminalCloseListener();
 
 		return () => {
 			if (unlisten) {
@@ -148,7 +193,10 @@ function ProjectPage() {
 			'nodejs-workspaces',
 			JSON.stringify(workspacesWithVersion)
 		);
-		localStorage.setItem('nodejs-workspaces-version', currentTime.toString());
+		localStorage.setItem(
+			'nodejs-workspaces-version',
+			currentTime.toString()
+		);
 		setWorkspaces(workspacesWithVersion);
 	};
 
@@ -303,7 +351,8 @@ function ProjectPage() {
 			setRunningCommand(null);
 			toast({
 				title: '命令停止',
-				description: result || `已停止命令: ${runningCommand.command.name}`,
+				description:
+					result || `已停止命令: ${runningCommand.command.name}`,
 				variant: 'default'
 			});
 		} catch (error) {
@@ -345,7 +394,8 @@ function ProjectPage() {
 
 				const result = await invoke('get_nvm_status');
 				const versions =
-					result?.available && Array.isArray(result.installed_versions)
+					result?.available &&
+					Array.isArray(result.installed_versions)
 						? result.installed_versions
 						: [];
 
@@ -367,7 +417,9 @@ function ProjectPage() {
 		const userSelected = preferences[projectKey]?.nodeVersion || null;
 
 		if (userSelected) {
-			console.log(`📋 [${project.name}] 使用用户选择Node版本: ${userSelected}`);
+			console.log(
+				`📋 [${project.name}] 使用用户选择Node版本: ${userSelected}`
+			);
 			return userSelected;
 		}
 
@@ -483,7 +535,8 @@ function ProjectPage() {
 			project.packageManager || project.package_manager || 'npm';
 		const effectiveNodeVersion = getEffectiveNodeVersion(project);
 		const existingTerminal = projectTerminals[projectName];
-		const shouldReuseTerminal = Boolean(existingTerminal) && !useKittenRemote;
+		const shouldReuseTerminal =
+			Boolean(existingTerminal) && !useKittenRemote;
 		const commandId = useKittenRemote
 			? `${projectName}-kitty`
 			: `${projectName}-${command.name}-${Date.now()}`;
@@ -531,7 +584,9 @@ function ProjectPage() {
 			setRunningCommand({ project, command, id: commandId });
 
 			try {
-				const result = await runBackendCommand('execute_command_in_kitty');
+				const result = await runBackendCommand(
+					'execute_command_in_kitty'
+				);
 
 				if (result.success) {
 					toast({

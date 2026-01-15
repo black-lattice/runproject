@@ -8,6 +8,7 @@ import { XtermTerminal } from '@/components/Terminal';
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir } from '@tauri-apps/api/path';
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import {
 	Tooltip,
 	TooltipContent,
@@ -139,6 +140,8 @@ function TerminalPage() {
 		{ skipServerClose = false } = {}
 	) => {
 		if (!terminalId) return;
+
+		emit('terminal-closed', { sessionId: terminalId });
 
 		if (!skipServerClose) {
 			invoke('close_terminal_session', { sessionId: terminalId }).catch(
