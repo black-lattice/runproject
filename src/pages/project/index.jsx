@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { listen } from '@tauri-apps/api/event';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import MainContent from '@/components/MainContent';
+import CommandPalette from '@/components/CommandPalette';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 function ProjectPage() {
@@ -20,6 +21,7 @@ function ProjectPage() {
 		useKittenRemote,
 		terminalType,
 		tabs,
+		workspaceTags,
 		setWorkspaces,
 		setSelectedProject,
 		setIsLoading,
@@ -32,11 +34,13 @@ function ProjectPage() {
 		addTab,
 		normalizeWorkspace,
 		normalizeWorkspaces,
-		setNodeVersionsCache
+		setNodeVersionsCache,
+		setWorkspaceTags
 	} = useAppStore();
 
 	const { toast } = useToast();
 	const navigate = useNavigate();
+	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
 	useEffect(() => {
 		const savedWorkspaces = localStorage.getItem('nodejs-workspaces');
@@ -78,6 +82,10 @@ function ProjectPage() {
 			if ((event.ctrlKey || event.metaKey) && event.key === 'w') {
 				event.preventDefault();
 				handleAddWorkspace();
+			}
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+				event.preventDefault();
+				setCommandPaletteOpen(true);
 			}
 			if (
 				(event.ctrlKey || event.metaKey) &&
@@ -691,6 +699,8 @@ function ProjectPage() {
 					onExecuteCommand={executeProjectCommand}
 					collapsedWorkspaces={collapsedWorkspaces}
 					onToggleCollapse={toggleWorkspaceCollapse}
+					workspaceTags={workspaceTags}
+					onSetWorkspaceTags={setWorkspaceTags}
 				/>
 				<MainContent
 					selectedProject={selectedProject}
@@ -701,6 +711,13 @@ function ProjectPage() {
 				/>
 			</div>
 			<Toaster />
+			<CommandPalette
+				open={commandPaletteOpen}
+				onOpenChange={setCommandPaletteOpen}
+				workspaces={workspaces}
+				onSelectProject={setSelectedProject}
+				onRunCommand={executeProjectCommand}
+			/>
 		</div>
 	);
 }

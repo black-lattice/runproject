@@ -37,6 +37,9 @@ export const useAppStore = create(
 			// === Home 网站列表（持久化）===
 			homeSites: DEFAULT_HOME_SITES, // { id, title, url }
 
+			// === Workspace 标签 ===
+			workspaceTags: {}, // { [workspacePath]: string[] }
+
 			// === 页签管理状态 ===
 			tabs: DEFAULT_TABS,
 			// 移除 activeTab，由路由控制
@@ -169,6 +172,28 @@ export const useAppStore = create(
 				});
 			},
 
+			// === Workspace 标签 Actions ===
+
+			setWorkspaceTags: (workspacePath, tags) => {
+				const normalized = (tags || [])
+					.map(tag => String(tag).trim())
+					.filter(Boolean);
+				set(state => ({
+					workspaceTags: {
+						...state.workspaceTags,
+						[workspacePath]: normalized
+					}
+				}));
+			},
+
+			clearWorkspaceTags: workspacePath => {
+				set(state => {
+					const next = { ...state.workspaceTags };
+					delete next[workspacePath];
+					return { workspaceTags: next };
+				});
+			},
+
 			// === 收藏夹 Actions ===
 
 			addBookmark: bookmark => {
@@ -279,7 +304,8 @@ export const useAppStore = create(
 						fetchedAt: 0
 					},
 					tabs: DEFAULT_TABS,
-					homeSites: DEFAULT_HOME_SITES
+					homeSites: DEFAULT_HOME_SITES,
+					workspaceTags: {}
 				});
 				localStorage.clear();
 			}
@@ -296,7 +322,8 @@ export const useAppStore = create(
 				nodeVersionsCache: state.nodeVersionsCache,
 				availableEditorsCache: state.availableEditorsCache,
 				bookmarks: state.bookmarks,
-				homeSites: state.homeSites
+				homeSites: state.homeSites,
+				workspaceTags: state.workspaceTags
 			})
 		}
 	)
