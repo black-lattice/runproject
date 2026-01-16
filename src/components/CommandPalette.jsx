@@ -108,7 +108,10 @@ function CommandPalette({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className='max-w-xl'>
 				<DialogHeader>
-					<DialogTitle>快速搜索</DialogTitle>
+					<DialogTitle className='flex items-center justify-between'>
+						<span>快速搜索</span>
+						<span className='text-xs text-gray-400'>Cmd/Ctrl+K</span>
+					</DialogTitle>
 				</DialogHeader>
 				<div className='p-4 space-y-3'>
 					<Input

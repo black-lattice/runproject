@@ -147,6 +147,9 @@ function Sidebar({
 						className='h-8 text-xs'
 					/>
 				</div>
+				<div className='mt-1 text-[10px] text-gray-400'>
+					Cmd/Ctrl+K 快速搜索
+				</div>
 				{allTags.length > 0 && (
 					<div className='mt-2 flex flex-wrap gap-1'>
 						{allTags.map(tag => {
