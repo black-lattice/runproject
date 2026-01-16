@@ -317,23 +317,20 @@ function ProjectDetails({
 		e.stopPropagation();
 		if (!selectedNodeVersion || selectedNodeVersion === 'system') return;
 
-		const command = `npm --version > /dev/null && source ~/.nvm/nvm.sh && nvm install ${selectedNodeVersion}`;
-
 		try {
-			await invoke('execute_command_in_kitty', {
-				commandId: `install-node-${selectedNodeVersion}-${Date.now()}`,
-				workingDir: project.path,
-				command: command,
-				nodeVersion: null,
-				projectName: project.name,
-				commandName: `Install Node ${selectedNodeVersion}`,
-				packageManager: 'npm'
+			const result = await invoke('ensure_node_version', {
+				version: selectedNodeVersion
 			});
 
 			toast({
 				title: '开始安装',
-				description: `正在终端中安装 Node.js ${selectedNodeVersion}`
+				description: result || `正在安装 Node.js ${selectedNodeVersion}`
 			});
+
+			if (onGetInstalledVersions) {
+				const versions = await onGetInstalledVersions({ forceRefresh: true });
+				setInstalledVersions(versions || []);
+			}
 		} catch (error) {
 			console.error('安装失败:', error);
 			toast({

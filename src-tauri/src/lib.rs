@@ -4,6 +4,7 @@ use std::path::Path;
 mod modules;
 use modules::editor;
 use modules::nvm_manager;
+use modules::platform;
 use modules::project_scanner;
 use tauri_plugin_mcp::Builder as McpBuilder;
 
@@ -76,12 +77,8 @@ fn execute_project_command(
 
     result_output.push_str("\n🚀 开始执行命令...\n\n");
 
-    match std::process::Command::new("bash")
-        .arg("-c")
-        .arg(&command)
-        .current_dir(&working_dir)
-        .output()
-    {
+    let mut cmd = platform::build_shell_command(&command);
+    match cmd.current_dir(&working_dir).output() {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -133,11 +130,20 @@ fn open_project_in_editor(editor_id: String, project_path: String) -> Result<Str
 
 #[tauri::command]
 fn open_in_finder(path: String) -> Result<String, String> {
-    std::process::Command::new("open")
-        .arg(&path)
-        .spawn()
-        .map_err(|e| format!("Failed to open folder: {}", e))?;
-    Ok(format!("Opened: {}", path))
+    platform::open_path(&path)
+}
+
+#[tauri::command]
+fn build_execution_command(
+    command: String,
+    node_version: Option<String>,
+    package_manager: String,
+) -> Result<String, String> {
+    modules::kitty::executor::build_execution_command(
+        &command,
+        node_version.as_deref(),
+        &package_manager,
+    )
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -157,6 +163,7 @@ pub fn run() {
             get_available_editors,
             open_project_in_editor,
             open_in_finder,
+            build_execution_command,
             modules::webview::create_child_webview,
             modules::webview::navigate_webview,
             modules::webview::close_webview,
@@ -176,7 +183,8 @@ pub fn run() {
             modules::terminal::pty_manager::write_to_terminal,
             modules::terminal::pty_manager::resize_terminal,
             modules::terminal::pty_manager::close_terminal_session,
-            modules::terminal::pty_manager::get_terminal_buffer
+            modules::terminal::pty_manager::get_terminal_buffer,
+            modules::terminal::pty_manager::ping_terminal_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

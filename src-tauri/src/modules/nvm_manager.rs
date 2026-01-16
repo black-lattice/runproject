@@ -4,6 +4,7 @@ use std::process::{Command, Output, Stdio};
 enum NodeVersionManager {
     Nvm,
     Fnm,
+    NvmWindows,
 }
 
 impl NodeVersionManager {
@@ -11,6 +12,7 @@ impl NodeVersionManager {
         match self {
             NodeVersionManager::Nvm => "nvm",
             NodeVersionManager::Fnm => "fnm",
+            NodeVersionManager::NvmWindows => "nvm-windows",
         }
     }
 }
@@ -42,10 +44,22 @@ fn execute_manager_command(manager: NodeVersionManager, args: &[&str]) -> Result
             command.args(args);
             run_command(command)
         }
+        NodeVersionManager::NvmWindows => {
+            let mut command = Command::new("nvm");
+            command.args(args);
+            run_command(command)
+        }
     }
 }
 
 fn is_nvm_available() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = Command::new("nvm");
+        command.arg("version");
+        return run_command(command).is_ok();
+    }
+
     let mut command = Command::new("bash");
     command
         .arg("-c")
@@ -60,6 +74,17 @@ fn is_fnm_available() -> bool {
 }
 
 fn detect_manager() -> Result<NodeVersionManager, String> {
+    #[cfg(target_os = "windows")]
+    {
+        if is_nvm_available() {
+            return Ok(NodeVersionManager::NvmWindows);
+        }
+        if is_fnm_available() {
+            return Ok(NodeVersionManager::Fnm);
+        }
+        return Err("未检测到可用的 Node 版本管理器 (nvm 或 fnm)".to_string());
+    }
+
     if is_nvm_available() {
         Ok(NodeVersionManager::Nvm)
     } else if is_fnm_available() {
@@ -70,6 +95,18 @@ fn detect_manager() -> Result<NodeVersionManager, String> {
 }
 
 fn normalize_version_token(token: &str) -> Option<String> {
+    let trimmed = token.trim_matches(|c: char| !(c.is_ascii_digit() || c == 'v' || c == '.'));
+
+    if !trimmed.is_empty()
+        && trimmed
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+    {
+        return Some(trimmed.to_string());
+    }
+
     if let Some(pos) = token.find('v') {
         let candidate = &token[pos..];
         let trimmed =
@@ -106,6 +143,7 @@ fn get_installed_versions_with(manager: NodeVersionManager) -> Result<Vec<String
     let args: Vec<&str> = match manager {
         NodeVersionManager::Nvm => vec!["list", "--no-colors"],
         NodeVersionManager::Fnm => vec!["list"],
+        NodeVersionManager::NvmWindows => vec!["list"],
     };
 
     let output = execute_manager_command(manager, &args)?;
@@ -123,6 +161,7 @@ fn use_node_version_with(manager: NodeVersionManager, version: &str) -> Result<S
     let args: Vec<&str> = match manager {
         NodeVersionManager::Nvm => vec!["use", version],
         NodeVersionManager::Fnm => vec!["default", version],
+        NodeVersionManager::NvmWindows => vec!["use", version],
     };
 
     let output = execute_manager_command(manager, &args)?;
@@ -205,6 +244,10 @@ pub fn wrap_command_with_node(version: &str, command: &str) -> Result<String, St
         }
         NodeVersionManager::Fnm => format!(
             "eval \"$(fnm env --shell=bash)\" && fnm use {} && {}",
+            version, command
+        ),
+        NodeVersionManager::NvmWindows => format!(
+            "nvm use {}; if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }}; {}",
             version, command
         ),
     };

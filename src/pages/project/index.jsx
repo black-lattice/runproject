@@ -485,9 +485,20 @@ function ProjectPage() {
 			}
 
 			let fullCommand = `${packageManager} run ${command.name}`;
-
-			if (effectiveNodeVersion && effectiveNodeVersion !== 'system') {
-				fullCommand = `source ~/.nvm/nvm.sh && nvm use ${effectiveNodeVersion} && ${fullCommand}`;
+			try {
+				const built = await invoke('build_execution_command', {
+					command: command.name,
+					nodeVersion:
+						effectiveNodeVersion && effectiveNodeVersion !== 'system'
+							? effectiveNodeVersion
+							: null,
+					packageManager
+				});
+				if (built) {
+					fullCommand = built;
+				}
+			} catch (error) {
+				console.warn('构建命令失败，使用默认命令:', error);
 			}
 
 			fullCommand += '\n';

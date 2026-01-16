@@ -14,6 +14,8 @@ const XtermTerminal = ({
 	const containerRef = useRef(null);
 	const terminalRef = useRef(null);
 	const fitAddonRef = useRef(null);
+	const reconnectingRef = useRef(false);
+	const closedRef = useRef(false);
 
 	useEffect(() => {
 		console.log(
@@ -22,12 +24,16 @@ const XtermTerminal = ({
 
 		if (!containerRef.current) return;
 
+		closedRef.current = false;
+		reconnectingRef.current = false;
+
 		let unmounted = false;
 		let unlistenOutput = null;
 		let unlistenClose = null;
 		let dataDisposable = null;
 		let terminal = null;
 		let fitAddon = null;
+		let heartbeatTimer = null;
 		const pendingChunks = [];
 		let backlogLoaded = !existingSession;
 
@@ -79,6 +85,16 @@ const XtermTerminal = ({
 				// 创建或连接 PTY 会话
 				const { cols, rows } = terminal;
 
+				// 先建立输出监听，避免错过早期输出
+				unlistenOutput = await listen(`terminal-output-${sessionId}`, event => {
+					if (unmounted) return;
+					if (!backlogLoaded) {
+						pendingChunks.push(event.payload);
+						return;
+					}
+					writeEncodedChunk(event.payload);
+				});
+
 				let sessionReady = false;
 				if (!existingSession) {
 					await invoke('create_terminal_session', {
@@ -119,26 +135,14 @@ const XtermTerminal = ({
 					}
 				});
 
-				// 设置事件监听
-				unlistenOutput = await listen(`terminal-output-${sessionId}`, event => {
+				try {
+					const buffered = await invoke('get_terminal_buffer', { sessionId });
 					if (unmounted) return;
-					if (!backlogLoaded) {
-						pendingChunks.push(event.payload);
-						return;
+					if (buffered) {
+						writeEncodedChunk(buffered);
 					}
-					writeEncodedChunk(event.payload);
-				});
-
-				if (existingSession) {
-					try {
-						const buffered = await invoke('get_terminal_buffer', { sessionId });
-						if (unmounted) return;
-						if (buffered) {
-							writeEncodedChunk(buffered);
-						}
-					} catch (error) {
-						console.warn('获取终端历史失败:', error);
-					}
+				} catch (error) {
+					console.warn('获取终端历史失败:', error);
 				}
 
 				backlogLoaded = true;
@@ -149,6 +153,7 @@ const XtermTerminal = ({
 
 				unlistenClose = await listen(`terminal-closed-${sessionId}`, () => {
 					if (unmounted) return;
+					closedRef.current = true;
 					terminal.write('\r\n\x1b[33m[进程已退出]\x1b[0m\r\n');
 					if (onClose) onClose();
 				});
@@ -156,6 +161,55 @@ const XtermTerminal = ({
 				console.error('终端初始化失败:', error);
 				terminal.write(`\r\n\x1b[31m错误: ${error}\x1b[0m\r\n`);
 			}
+		};
+
+		const startHeartbeat = () => {
+			heartbeatTimer = setInterval(async () => {
+				if (unmounted || closedRef.current || reconnectingRef.current) return;
+				try {
+					const alive = await invoke('ping_terminal_session', { sessionId });
+					if (!alive) {
+						throw new Error('session not found');
+					}
+				} catch (error) {
+					reconnectingRef.current = true;
+					try {
+						terminal.write(
+							'\r\n\x1b[33m[连接已断开，正在尝试重连...]\x1b[0m\r\n'
+						);
+						const { cols, rows } = terminal;
+						await invoke('create_terminal_session', {
+							sessionId,
+							config: { cwd, cols, rows }
+						});
+
+						backlogLoaded = false;
+						pendingChunks.length = 0;
+						try {
+							const buffered = await invoke('get_terminal_buffer', {
+								sessionId
+							});
+							if (!unmounted && buffered) {
+								writeEncodedChunk(buffered);
+							}
+						} catch (bufferError) {
+							console.warn('获取终端历史失败:', bufferError);
+						}
+						backlogLoaded = true;
+
+						terminal.write(
+							'\r\n\x1b[32m[重连成功]\x1b[0m\r\n'
+						);
+					} catch (reconnectError) {
+						console.error('重连失败:', reconnectError);
+						terminal.write(
+							`\r\n\x1b[31m[重连失败] ${reconnectError}\x1b[0m\r\n`
+						);
+					} finally {
+						reconnectingRef.current = false;
+					}
+				}
+			}, 5000);
 		};
 
 		// 窗口大小调整
@@ -174,6 +228,7 @@ const XtermTerminal = ({
 
 		window.addEventListener('resize', handleResize);
 		initSession();
+		startHeartbeat();
 
 		// 清理
 		return () => {
@@ -191,6 +246,7 @@ const XtermTerminal = ({
 
 			if (unlistenOutput) unlistenOutput();
 			if (unlistenClose) unlistenClose();
+			if (heartbeatTimer) clearInterval(heartbeatTimer);
 
 			if (terminal) {
 				try {
@@ -203,6 +259,8 @@ const XtermTerminal = ({
 			// 清理 refs
 			terminalRef.current = null;
 			fitAddonRef.current = null;
+			reconnectingRef.current = false;
+			closedRef.current = false;
 		};
 	}, [sessionId, cwd, existingSession]); // 依赖 sessionId、cwd 与 existingSession
 

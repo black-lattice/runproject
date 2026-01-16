@@ -1,6 +1,7 @@
 use super::session::{TerminalConfig, TerminalSession};
 use base64::{engine::general_purpose, Engine as _};
 use lazy_static::lazy_static;
+use serde_json;
 use std::collections::HashMap;
 use std::io::Read;
 use std::sync::{Arc, Mutex};
@@ -79,6 +80,7 @@ pub fn create_terminal_session(
         let mut sessions = SESSIONS.lock().unwrap();
         sessions.remove(&id);
         let _ = app_clone.emit(&format!("terminal-closed-{}", id), ());
+        let _ = app_clone.emit("terminal-closed", serde_json::json!({ "sessionId": id }));
     });
 
     let mut sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
@@ -118,8 +120,16 @@ pub fn resize_terminal(session_id: String, cols: u16, rows: u16) -> Result<(), S
 #[tauri::command]
 pub fn close_terminal_session(session_id: String) -> Result<(), String> {
     let mut sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
-    sessions.remove(&session_id);
+    if let Some(session) = sessions.remove(&session_id) {
+        let _ = session.terminate();
+    }
     Ok(())
+}
+
+#[tauri::command]
+pub fn ping_terminal_session(session_id: String) -> Result<bool, String> {
+    let sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
+    Ok(sessions.contains_key(&session_id))
 }
 
 #[tauri::command]
