@@ -22,6 +22,7 @@ function ProjectPage() {
 		terminalType,
 		tabs,
 		workspaceTags,
+		projectTags,
 		setWorkspaces,
 		setSelectedProject,
 		setIsLoading,
@@ -35,7 +36,8 @@ function ProjectPage() {
 		normalizeWorkspace,
 		normalizeWorkspaces,
 		setNodeVersionsCache,
-		setWorkspaceTags
+		setWorkspaceTags,
+		setProjectTags
 	} = useAppStore();
 
 	const { toast } = useToast();
@@ -681,7 +683,7 @@ function ProjectPage() {
 	};
 
 	return (
-		<div className='h-screen flex flex-col overflow-hidden bg-gray-100'>
+		<div className='h-full flex flex-col overflow-hidden bg-gray-100'>
 			{/* <Header
 				onAddWorkspace={handleAddWorkspace}
 				useKittenRemote={useKittenRemote}
@@ -701,6 +703,8 @@ function ProjectPage() {
 					onToggleCollapse={toggleWorkspaceCollapse}
 					workspaceTags={workspaceTags}
 					onSetWorkspaceTags={setWorkspaceTags}
+					projectTags={projectTags}
+					onSetProjectTags={setProjectTags}
 				/>
 				<MainContent
 					selectedProject={selectedProject}

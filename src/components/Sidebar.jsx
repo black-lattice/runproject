@@ -31,7 +31,9 @@ function Sidebar({
 	collapsedWorkspaces,
 	onToggleCollapse,
 	workspaceTags,
-	onSetWorkspaceTags
+	onSetWorkspaceTags,
+	projectTags,
+	onSetProjectTags
 }) {
 	const [deletePopoverOpen, setDeletePopoverOpen] = useState(null);
 	const [tagEditorOpen, setTagEditorOpen] = useState(null);
@@ -54,6 +56,7 @@ function Sidebar({
 
 	const getWorkspaceTags = workspace =>
 		workspaceTags?.[workspace.path] || [];
+	const getProjectTags = project => projectTags?.[project.path] || [];
 
 	const allTags = Array.from(
 		new Set(
@@ -85,32 +88,105 @@ function Sidebar({
 		updateQueryTags(nextTags);
 	};
 
-	const matchesWorkspace = workspace => {
+	const workspaceHasTags = (workspace, tags) => {
+		const tagList = getWorkspaceTags(workspace).map(tag => tag.toLowerCase());
+		return tags.every(tag => tagList.includes(tag));
+	};
+
+	const projectHasTags = (project, tags) => {
+		const tagList = getProjectTags(project).map(tag => tag.toLowerCase());
+		return tags.every(tag => tagList.includes(tag));
+	};
+
+	const projectMatches = (workspace, project) => {
 		if (!searchQuery.trim()) return true;
-		const tags = getWorkspaceTags(workspace).map(tag => tag.toLowerCase());
-		if (tagTokens.length > 0) {
-			const hasAllTags = tagTokens.every(tag => tags.includes(tag));
-			if (!hasAllTags) return false;
+		const textMatch = textTokens.length === 0
+			? true
+			: textTokens.some(token => {
+					const projectName = project.name?.toLowerCase() || '';
+					const projectPath = project.path?.toLowerCase() || '';
+					return projectName.includes(token) || projectPath.includes(token);
+				});
+		if (!textMatch) return false;
+
+		if (tagTokens.length === 0) return true;
+		return projectHasTags(project, tagTokens);
+	};
+
+	const workspaceMatches = workspace => {
+		if (!searchQuery.trim()) return true;
+		const textMatch = textTokens.length === 0
+			? true
+			: textTokens.some(token => {
+					const workspaceName = workspace.name?.toLowerCase() || '';
+					const workspacePath = workspace.path?.toLowerCase() || '';
+					return (
+						workspaceName.includes(token) || workspacePath.includes(token)
+					);
+				});
+
+		const tagMatch =
+			tagTokens.length === 0 || workspaceHasTags(workspace, tagTokens);
+
+		if (textMatch && tagMatch) return true;
+
+		return (workspace.projects || []).some(project =>
+			projectMatches(workspace, project)
+		);
+	};
+
+	const getFilteredProjects = workspace => {
+		if (!searchQuery.trim()) return workspace.projects || [];
+
+		const textMatch = textTokens.length === 0
+			? true
+			: textTokens.some(token => {
+					const workspaceName = workspace.name?.toLowerCase() || '';
+					const workspacePath = workspace.path?.toLowerCase() || '';
+					return (
+						workspaceName.includes(token) || workspacePath.includes(token)
+					);
+				});
+
+		const tagMatch =
+			tagTokens.length === 0 || workspaceHasTags(workspace, tagTokens);
+
+		if (textMatch && tagMatch) {
+			return workspace.projects || [];
 		}
 
-		if (textTokens.length === 0) return true;
-
-		const workspaceName = workspace.name?.toLowerCase() || '';
-		const workspacePath = workspace.path?.toLowerCase() || '';
-		const projectNames =
-			workspace.projects?.map(project => project.name?.toLowerCase()) ||
-			[];
-
-		return textTokens.every(token => {
-			if (workspaceName.includes(token)) return true;
-			if (workspacePath.includes(token)) return true;
-			return projectNames.some(name => name?.includes(token));
-		});
+		return (workspace.projects || []).filter(project =>
+			projectMatches(workspace, project)
+		);
 	};
 
 	const filteredWorkspaces = workspaces
 		.map((workspace, index) => ({ workspace, index }))
-		.filter(item => matchesWorkspace(item.workspace));
+		.filter(item => workspaceMatches(item.workspace));
+
+	const groupProjectsByTag = projects => {
+		const groups = new Map();
+
+		for (const project of projects) {
+			const tags = getProjectTags(project);
+			const primaryTag = tags[0] || '未分类';
+			if (!groups.has(primaryTag)) {
+				groups.set(primaryTag, new Map());
+			}
+			groups.get(primaryTag).set(project.path, project);
+		}
+
+		const tagKeys = Array.from(groups.keys()).sort((a, b) => {
+			if (a === '未分类') return 1;
+			if (b === '未分类') return -1;
+			return a.localeCompare(b);
+		});
+
+		return tagKeys.map(tag => ({
+			tag,
+			projects: Array.from(groups.get(tag).values())
+		}));
+	};
 
 	const handleTagSave = workspace => {
 		const draft = tagDrafts[workspace.path] || '';
@@ -365,25 +441,43 @@ function Sidebar({
 
 								{/* Projects List */}
 								<div
-									className={`space-y-0.5 ml-2 pl-3 transition-all duration-300 ease-in-out overflow-hidden ${
+									className={`space-y-3 ml-2 pl-3 transition-all duration-300 ease-in-out ${
 										collapsedWorkspaces[index]
-											? 'max-h-0 opacity-0'
-											: 'max-h-[2000px] opacity-100'
+											? 'max-h-0 opacity-0 overflow-hidden'
+											: 'max-h-none opacity-100 overflow-visible'
 									}`}
 								>
-									{workspace.projects?.length === 0 ? (
+									{getFilteredProjects(workspace).length === 0 ? (
 										<div className='py-2 px-3 text-xs text-gray-400 italic'>
-											空文件夹
+											{searchQuery.trim()
+												? '未找到匹配的项目'
+												: '空文件夹'}
 										</div>
 									) : (
-										workspace.projects?.map((project, projectIndex) => (
-											<ProjectItem
-												key={projectIndex}
-												project={project}
-												selectedProject={selectedProject}
-												onProjectSelect={onProjectSelect}
-											/>
-										))
+										groupProjectsByTag(getFilteredProjects(workspace)).map(
+											group => (
+												<div key={group.tag} className='space-y-2'>
+													<div className='text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2'>
+														<span>{group.tag}</span>
+														<span className='text-[10px] text-gray-400'>
+															{group.projects.length}
+														</span>
+													</div>
+													<div className='space-y-0.5'>
+														{group.projects.map(project => (
+															<ProjectItem
+																key={project.path}
+																project={project}
+																selectedProject={selectedProject}
+																onProjectSelect={onProjectSelect}
+																tags={getProjectTags(project)}
+																onSetTags={onSetProjectTags}
+															/>
+														))}
+													</div>
+												</div>
+											)
+										)
 									)}
 								</div>
 							</div>
