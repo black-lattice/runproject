@@ -19,7 +19,7 @@ pub fn build_shell_command(command: &str) -> Command {
             .and_then(|name| name.to_str())
             .unwrap_or(default_shell);
 
-        let mut cmd = Command::new(shell_path);
+        let mut cmd = Command::new(&shell_path);
         if shell_name == "bash" || shell_name == "zsh" {
             cmd.arg("-lc");
         } else {
