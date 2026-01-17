@@ -1,0 +1,89 @@
+{
+  "categories": [
+    {
+      "id": "patterns",
+      "title": "Design Patterns",
+      "description": "Creational, structural, behavioral patterns and trade-offs."
+    },
+    {
+      "id": "data-structures",
+      "title": "Data Structures",
+      "description": "Lists, trees, graphs, and the shape of data."
+    },
+    {
+      "id": "algorithms",
+      "title": "Algorithms",
+      "description": "Sorting, searching, and problem-solving strategies."
+    },
+    {
+      "id": "toolkits",
+      "title": "Toolkits",
+      "description": "Git, nano, CLI routines and daily workflow boosters."
+    }
+  ],
+  "topics": [
+    {
+      "id": "design-patterns",
+      "title": "设计模式速查",
+      "category": "patterns",
+      "tags": ["patterns", "architecture"],
+      "file": "design-patterns.md"
+    },
+    {
+      "id": "data-structures",
+      "title": "数据结构速查",
+      "category": "data-structures",
+      "tags": ["data-structures"],
+      "file": "data-structures.md"
+    },
+    {
+      "id": "sorting-algorithms",
+      "title": "排序算法速查",
+      "category": "algorithms",
+      "tags": ["algorithms", "sorting"],
+      "file": "sorting-algorithms.md"
+    },
+    {
+      "id": "algorithms",
+      "title": "算法速查",
+      "category": "algorithms",
+      "tags": ["algorithms"],
+      "file": "algorithms.md"
+    },
+    {
+      "id": "git-guide",
+      "title": "Git 常用操作",
+      "category": "toolkits",
+      "tags": ["git", "tooling"],
+      "file": "git-guide.md"
+    },
+    {
+      "id": "nano-guide",
+      "title": "Nano 速查",
+      "category": "toolkits",
+      "tags": ["cli", "nano"],
+      "file": "nano-guide.md"
+    },
+    {
+      "id": "rust-syntax",
+      "title": "Rust 语法速查",
+      "category": "toolkits",
+      "tags": ["rust", "language"],
+      "file": "rust-syntax.md"
+    },
+    {
+      "id": "react-hooks",
+      "title": "React Hooks 速查",
+      "category": "toolkits",
+      "tags": ["react", "frontend"],
+      "file": "react-hooks.md"
+    },
+    {
+      "id": "toolkits",
+      "title": "工具与速记",
+      "category": "toolkits",
+      "tags": ["git", "cli", "rust"],
+      "file": "toolkits.md"
+    }
+  ]
+}
