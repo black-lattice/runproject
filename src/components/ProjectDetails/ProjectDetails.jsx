@@ -31,7 +31,12 @@ function ProjectDetails({
 	const [availableEditors, setAvailableEditors] = useState([]);
 	const [isLoadingEditors, setIsLoadingEditors] = useState(false);
 	const { toast } = useToast();
-	const { setAvailableEditorsCache, setGitBranchesCache } = useAppStore();
+	const {
+		setAvailableEditorsCache,
+		setGitBranchesCache,
+		commandTags,
+		setCommandTags
+	} = useAppStore();
 
 	const compareVersions = (v1, v2) => {
 		const cleanV1 = v1.replace(/^v/, '').split('.').map(Number);
@@ -402,6 +407,8 @@ function ProjectDetails({
 					commands={sortedCommands}
 					onExecuteCommand={onExecuteCommand}
 					onStopCommand={onStopCommand}
+					commandTags={commandTags}
+					onSetCommandTags={setCommandTags}
 				/>
 			</div>
 		</div>

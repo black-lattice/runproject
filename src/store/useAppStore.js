@@ -40,6 +40,7 @@ export const useAppStore = create(
 			// === Workspace 标签 ===
 			workspaceTags: {}, // { [workspacePath]: string[] }
 			projectTags: {}, // { [projectPath]: string[] }
+			commandTags: {}, // { [commandKey]: string[] }
 
 			// === 页签管理状态 ===
 			tabs: DEFAULT_TABS,
@@ -217,6 +218,28 @@ export const useAppStore = create(
 				});
 			},
 
+			// === Command 标签 Actions ===
+
+			setCommandTags: (commandKey, tags) => {
+				const normalized = (tags || [])
+					.map(tag => String(tag).trim())
+					.filter(Boolean);
+				set(state => ({
+					commandTags: {
+						...state.commandTags,
+						[commandKey]: normalized
+					}
+				}));
+			},
+
+			clearCommandTags: commandKey => {
+				set(state => {
+					const next = { ...state.commandTags };
+					delete next[commandKey];
+					return { commandTags: next };
+				});
+			},
+
 			// === 收藏夹 Actions ===
 
 			addBookmark: bookmark => {
@@ -329,7 +352,8 @@ export const useAppStore = create(
 					tabs: DEFAULT_TABS,
 					homeSites: DEFAULT_HOME_SITES,
 					workspaceTags: {},
-					projectTags: {}
+					projectTags: {},
+					commandTags: {}
 				});
 				localStorage.clear();
 			}
@@ -348,7 +372,8 @@ export const useAppStore = create(
 				bookmarks: state.bookmarks,
 				homeSites: state.homeSites,
 				workspaceTags: state.workspaceTags,
-				projectTags: state.projectTags
+				projectTags: state.projectTags,
+				commandTags: state.commandTags
 			})
 		}
 	)
