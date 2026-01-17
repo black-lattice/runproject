@@ -30,7 +30,7 @@ function ProjectItem({
 	const handleSaveTags = event => {
 		event.stopPropagation();
 		const normalized = tagDraft
-			.split(',')
+			.split(/[,，]/)
 			.map(tag => tag.trim())
 			.filter(Boolean);
 		onSetTags?.(project.path, normalized);

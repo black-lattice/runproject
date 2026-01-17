@@ -191,7 +191,7 @@ function Sidebar({
 	const handleTagSave = workspace => {
 		const draft = tagDrafts[workspace.path] || '';
 		const tags = draft
-			.split(',')
+			.split(/[,，]/)
 			.map(tag => tag.trim())
 			.filter(Boolean);
 		onSetWorkspaceTags(workspace.path, tags);
