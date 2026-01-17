@@ -3,6 +3,7 @@ use std::path::Path;
 // 导入模块
 mod modules;
 use modules::editor;
+use modules::knowledge;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
@@ -184,7 +185,10 @@ pub fn run() {
             modules::terminal::pty_manager::resize_terminal,
             modules::terminal::pty_manager::close_terminal_session,
             modules::terminal::pty_manager::get_terminal_buffer,
-            modules::terminal::pty_manager::ping_terminal_session
+            modules::terminal::pty_manager::ping_terminal_session,
+            modules::knowledge::list_md_files,
+            modules::knowledge::read_md_file,
+            modules::knowledge::write_md_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

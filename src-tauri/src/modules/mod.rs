@@ -1,6 +1,7 @@
 pub mod editor;
 pub mod git;
 pub mod kitty;
+pub mod knowledge;
 pub mod nvm_manager;
 pub mod platform;
 pub mod project_scanner;

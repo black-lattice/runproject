@@ -240,6 +240,13 @@ export const useAppStore = create(
 				});
 			},
 
+			// === Knowledge Library ===
+			knowledgeFolderPath: '',
+			knowledgeTopics: [],
+
+			setKnowledgeFolderPath: path => set({ knowledgeFolderPath: path }),
+			setKnowledgeTopics: topics => set({ knowledgeTopics: topics || [] }),
+
 			// === 收藏夹 Actions ===
 
 			addBookmark: bookmark => {
@@ -353,7 +360,9 @@ export const useAppStore = create(
 					homeSites: DEFAULT_HOME_SITES,
 					workspaceTags: {},
 					projectTags: {},
-					commandTags: {}
+					commandTags: {},
+					knowledgeFolderPath: '',
+					knowledgeTopics: []
 				});
 				localStorage.clear();
 			}
@@ -373,7 +382,9 @@ export const useAppStore = create(
 				homeSites: state.homeSites,
 				workspaceTags: state.workspaceTags,
 				projectTags: state.projectTags,
-				commandTags: state.commandTags
+				commandTags: state.commandTags,
+				knowledgeFolderPath: state.knowledgeFolderPath,
+				knowledgeTopics: state.knowledgeTopics
 			})
 		}
 	)

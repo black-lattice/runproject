@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
 	BookOpen,
 	Brain,
@@ -10,7 +10,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
-import knowledgeIndex from '@/content/knowledge/index.json';
+import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
+import { useAppStore } from '@/store/useAppStore';
 
 const PATHS = [
 	{
@@ -44,11 +46,44 @@ const CATEGORY_GRADIENTS = {
 function KnowledgePage() {
 	const [query, setQuery] = useState('');
 	const [activeCategory, setActiveCategory] = useState('all');
+	const [loadError, setLoadError] = useState('');
 	const navigate = useNavigate();
+	const {
+		knowledgeFolderPath,
+		knowledgeTopics,
+		setKnowledgeFolderPath,
+		setKnowledgeTopics
+	} = useAppStore();
+
+	const deriveCategory = topicId => {
+		const id = topicId.toLowerCase();
+		if (id.includes('pattern')) return 'patterns';
+		if (id.includes('data') || id.includes('structure')) return 'data-structures';
+		if (id.includes('algo') || id.includes('sort')) return 'algorithms';
+		return 'toolkits';
+	};
+
+	useEffect(() => {
+		if (!knowledgeFolderPath) return;
+		setLoadError('');
+		invoke('list_md_files', { folderPath: knowledgeFolderPath })
+			.then(files =>
+				setKnowledgeTopics(
+					(files || []).map(item => ({
+						...item,
+						category: deriveCategory(item.id || '')
+					}))
+				)
+			)
+			.catch(error => {
+				setKnowledgeTopics([]);
+				setLoadError(error?.toString?.() || '读取失败');
+			});
+	}, [knowledgeFolderPath, setKnowledgeTopics]);
 
 	const filteredTopics = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		const topics = knowledgeIndex.topics || [];
+		const topics = knowledgeTopics || [];
 		const categoryFiltered =
 			activeCategory === 'all'
 				? topics
@@ -65,6 +100,18 @@ function KnowledgePage() {
 		if (target) {
 			navigate(`/knowledge/${target.id}`);
 		}
+	};
+
+	const handleChooseFolder = async () => {
+		const selected = await open({
+			title: '选择知识库文件夹',
+			directory: true,
+			multiple: false
+		});
+		if (!selected) return;
+		const folderPath = Array.isArray(selected) ? selected[0] : selected;
+		if (!folderPath) return;
+		setKnowledgeFolderPath(folderPath);
 	};
 
 	return (
@@ -134,6 +181,30 @@ function KnowledgePage() {
 									value={query}
 									onChange={event => setQuery(event.target.value)}
 								/>
+								<div className='mt-3 flex items-center justify-between text-xs text-slate-500'>
+									<span>当前库</span>
+									<Button
+										size='sm'
+										variant='outline'
+										className='h-7'
+										onClick={handleChooseFolder}
+									>
+										选择文件夹
+									</Button>
+								</div>
+								<p className='mt-2 text-xs text-slate-400 truncate'>
+									{knowledgeFolderPath || '尚未选择'}
+								</p>
+								{knowledgeFolderPath && (
+									<p className='mt-1 text-xs text-slate-400'>
+										已加载 {knowledgeTopics.length} 个文件
+									</p>
+								)}
+								{loadError && (
+									<p className='mt-1 text-xs text-red-500'>
+										{loadError}
+									</p>
+								)}
 								<div className='mt-3 flex items-center gap-2 text-xs text-slate-500'>
 									<span>热门:</span>
 									<span className='rounded-full bg-amber-100 px-2 py-1'>#patterns</span>
@@ -143,7 +214,12 @@ function KnowledgePage() {
 						</div>
 					</div>
 					<div className='mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-						{(knowledgeIndex.categories || []).map((category, index) => {
+						{[
+							{ id: 'patterns', title: 'Design Patterns' },
+							{ id: 'data-structures', title: 'Data Structures' },
+							{ id: 'algorithms', title: 'Algorithms' },
+							{ id: 'toolkits', title: 'Toolkits' }
+						].map((category, index) => {
 							const Icon = CATEGORY_ICONS[category.id] || BookOpen;
 							const isActive = activeCategory === category.id;
 							return (
@@ -181,7 +257,7 @@ function KnowledgePage() {
 										{category.title}
 									</h3>
 									<p className='mt-2 text-sm text-slate-600'>
-										{category.description}
+										{knowledgeTopics.length} 条内容
 									</p>
 								</button>
 							);
@@ -239,7 +315,7 @@ function KnowledgePage() {
 						</div>
 						{filteredTopics.length === 0 && (
 							<div className='text-center text-sm text-slate-500 py-6'>
-								暂无匹配内容
+								{knowledgeFolderPath ? '暂无匹配内容' : '请先选择知识库文件夹'}
 							</div>
 						)}
 					</div>

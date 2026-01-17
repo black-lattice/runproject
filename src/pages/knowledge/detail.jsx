@@ -2,22 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import knowledgeIndex from '@/content/knowledge/index.json';
 import { Button } from '@/components/ui/button';
-
-const markdownModules = import.meta.glob('/src/content/knowledge/*.md', {
-	as: 'raw'
-});
+import { invoke } from '@tauri-apps/api/core';
+import { useAppStore } from '@/store/useAppStore';
 
 function KnowledgeDetailPage() {
 	const { topicId } = useParams();
 	const navigate = useNavigate();
 	const [content, setContent] = useState('');
 	const [outline, setOutline] = useState([]);
+	const [isEditing, setIsEditing] = useState(false);
+	const [draft, setDraft] = useState('');
+	const { knowledgeTopics } = useAppStore();
 
 	const topic = useMemo(
-		() => (knowledgeIndex.topics || []).find(item => item.id === topicId),
-		[topicId]
+		() => (knowledgeTopics || []).find(item => item.id === topicId),
+		[topicId, knowledgeTopics]
 	);
 
 	const slugify = text =>
@@ -41,44 +41,44 @@ function KnowledgeDetailPage() {
 		return '';
 	};
 
+	const buildOutline = text => {
+		const lines = text.split('\n');
+		const seen = new Map();
+		return lines
+			.filter(line => /^#{1,3}\s+/.test(line))
+			.map(line => {
+				const level = line.match(/^#+/)[0].length;
+				const title = line.replace(/^#{1,3}\s+/, '').trim();
+				const base = slugify(title);
+				const count = (seen.get(base) || 0) + 1;
+				seen.set(base, count);
+				const id = count > 1 ? `${base}-${count}` : base;
+				return { level, title, id };
+			});
+	};
+
 	useEffect(() => {
 		const loadContent = async () => {
-			if (!topic?.file) {
+			if (!topic?.path) {
 				setContent('暂无内容，请检查文件是否存在。');
 				setOutline([]);
-				return;
-			}
-			const loader = markdownModules[`/src/content/knowledge/${topic.file}`];
-			if (!loader) {
-				setContent('暂无内容，请检查文件是否存在。');
-				setOutline([]);
+				setDraft('');
 				return;
 			}
 			try {
-				const text = await loader();
+				const text = await invoke('read_md_file', { path: topic.path });
 				setContent(text);
-				const lines = text.split('\n');
-				const seen = new Map();
-				const headings = lines
-					.filter(line => /^#{1,3}\s+/.test(line))
-					.map(line => {
-						const level = line.match(/^#+/)[0].length;
-						const title = line.replace(/^#{1,3}\s+/, '').trim();
-						const base = slugify(title);
-						const count = (seen.get(base) || 0) + 1;
-						seen.set(base, count);
-						const id = count > 1 ? `${base}-${count}` : base;
-						return { level, title, id };
-					});
-				setOutline(headings);
+				setDraft(text);
+				setOutline(buildOutline(text));
 			} catch (error) {
 				setContent('加载内容失败。');
 				setOutline([]);
+				setDraft('');
 			}
 		};
 
 		loadContent();
-	}, [topic?.file]);
+	}, [topic?.path]);
 
 	return (
 		<div className='h-full overflow-y-auto knowledge-dots'>
@@ -138,50 +138,102 @@ function KnowledgeDetailPage() {
 				</aside>
 
 				<div className='rounded-3xl border border-slate-200 bg-white p-6 shadow-sm mt-6 mx-auto max-w-4xl'>
-					<h1
-						className='text-3xl font-semibold text-slate-900'
-						style={{
-							fontFamily:
-								'"Iowan Old Style","Palatino Linotype","Book Antiqua",serif'
-						}}
-					>
-						{topic?.title || '内容'}
-					</h1>
-					<div className='mt-4 knowledge-md'>
-						{(() => {
-							const idPool = outline.reduce((acc, item) => {
-								if (!acc[item.title]) acc[item.title] = [];
-								acc[item.title].push(item.id);
-								return acc;
-							}, {});
-							const idIndex = {};
-
-							const getIdForTitle = title => {
-								const list = idPool[title] || [];
-								const index = idIndex[title] || 0;
-								idIndex[title] = index + 1;
-								return list[index] || slugify(title);
-							};
-
-							const Heading = tag => ({ node, ...props }) => {
-								const title = extractText(props.children);
-								const id = getIdForTitle(title);
-								const Tag = tag;
-								return <Tag id={id} {...props} />;
-							};
-
-							return (
-								<ReactMarkdown
-									components={{
-										h1: Heading('h1'),
-										h2: Heading('h2'),
-										h3: Heading('h3')
-									}}
+					{!topic && (
+						<p className='text-sm text-slate-500'>
+							未找到对应的 Markdown，请先在知识地图页选择知识库文件夹。
+						</p>
+					)}
+					<div className='flex items-center justify-between gap-4'>
+						<h1
+							className='text-3xl font-semibold text-slate-900'
+							style={{
+								fontFamily:
+									'"Iowan Old Style","Palatino Linotype","Book Antiqua",serif'
+							}}
+						>
+							{topic?.title || '内容'}
+						</h1>
+						<div className='flex items-center gap-2'>
+							{isEditing ? (
+								<>
+									<Button
+										variant='outline'
+										onClick={() => {
+											setDraft(content);
+											setIsEditing(false);
+										}}
+									>
+										取消
+									</Button>
+									<Button
+										onClick={() => {
+											setContent(draft);
+											setIsEditing(false);
+											if (topic?.path) {
+												invoke('write_md_file', {
+													path: topic.path,
+													content: draft
+												}).catch(() => {});
+											}
+											setOutline(buildOutline(draft));
+										}}
+									>
+										保存
+									</Button>
+								</>
+							) : (
+								<Button
+									variant='outline'
+									onClick={() => setIsEditing(true)}
 								>
-									{content}
-								</ReactMarkdown>
-							);
-						})()}
+									编辑
+								</Button>
+							)}
+						</div>
+					</div>
+					<div className='mt-4 knowledge-md'>
+						{isEditing ? (
+							<textarea
+								className='w-full min-h-[360px] rounded-xl border border-slate-200 bg-slate-50 p-4 font-mono text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300'
+								value={draft}
+								onChange={event => setDraft(event.target.value)}
+							/>
+						) : (
+							(() => {
+								const idPool = outline.reduce((acc, item) => {
+									if (!acc[item.title]) acc[item.title] = [];
+									acc[item.title].push(item.id);
+									return acc;
+								}, {});
+								const idIndex = {};
+
+								const getIdForTitle = title => {
+									const list = idPool[title] || [];
+									const index = idIndex[title] || 0;
+									idIndex[title] = index + 1;
+									return list[index] || slugify(title);
+								};
+
+								const Heading = tag => ({ node, ...props }) => {
+									const title = extractText(props.children);
+									const id = getIdForTitle(title);
+									const Tag = tag;
+									return <Tag id={id} {...props} />;
+								};
+
+								return (
+									<ReactMarkdown
+										components={{
+											h1: Heading('h1'),
+											h2: Heading('h2'),
+											h3: Heading('h3')
+										}}
+									>
+										{content}
+									</ReactMarkdown>
+								);
+							})()
+						)}
 					</div>
 				</div>
 			</div>
