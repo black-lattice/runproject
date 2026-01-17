@@ -43,15 +43,29 @@ const CATEGORY_GRADIENTS = {
 
 function KnowledgePage() {
 	const [query, setQuery] = useState('');
+	const [activeCategory, setActiveCategory] = useState('all');
 	const navigate = useNavigate();
 
 	const filteredTopics = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		if (!q) return knowledgeIndex.topics || [];
-		return (knowledgeIndex.topics || []).filter(item =>
+		const topics = knowledgeIndex.topics || [];
+		const categoryFiltered =
+			activeCategory === 'all'
+				? topics
+				: topics.filter(item => item.category === activeCategory);
+
+		if (!q) return categoryFiltered;
+		return categoryFiltered.filter(item =>
 			item.title.toLowerCase().includes(q)
 		);
-	}, [query]);
+	}, [query, activeCategory]);
+
+	const openFirstTopic = list => {
+		const target = list?.[0];
+		if (target) {
+			navigate(`/knowledge/${target.id}`);
+		}
+	};
 
 	return (
 		<div
@@ -70,9 +84,8 @@ function KnowledgePage() {
 						linear-gradient(135deg, #fff8eb 0%, #f7f9ff 100%);
 				}
 				.paper-texture {
-					background-image: linear-gradient(transparent 24px, rgba(15, 23, 42, 0.04) 25px),
-						radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
-					background-size: 100% 26px, 14px 14px;
+					background-image: radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+					background-size: 14px 14px;
 				}
 				@keyframes atlasFade {
 					from { opacity: 0; transform: translateY(12px); }
@@ -132,13 +145,25 @@ function KnowledgePage() {
 					<div className='mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
 						{(knowledgeIndex.categories || []).map((category, index) => {
 							const Icon = CATEGORY_ICONS[category.id] || BookOpen;
+							const isActive = activeCategory === category.id;
 							return (
-								<div
+								<button
 									key={category.id}
-									className={`atlas-reveal rounded-2xl p-4 border border-white/60 shadow-sm bg-gradient-to-br ${
+									type='button'
+									className={`atlas-reveal text-left rounded-2xl p-4 border shadow-sm bg-gradient-to-br transition ${
 										CATEGORY_GRADIENTS[category.id] || 'from-slate-100'
+									} ${
+										isActive
+											? 'border-slate-900/60 ring-2 ring-slate-900/20'
+											: 'border-white/60 hover:border-slate-900/40'
 									}`}
 									style={{ animationDelay: `${index * 80}ms` }}
+									onClick={() => {
+										setActiveCategory(
+											isActive ? 'all' : category.id
+										);
+										setQuery('');
+									}}
 								>
 									<div className='flex items-start justify-between'>
 										<Icon className='h-6 w-6 text-slate-800' />
@@ -158,7 +183,7 @@ function KnowledgePage() {
 									<p className='mt-2 text-sm text-slate-600'>
 										{category.description}
 									</p>
-								</div>
+								</button>
 							);
 						})}
 					</div>
@@ -177,7 +202,11 @@ function KnowledgePage() {
 						>
 							知识速查
 						</h2>
-						<Button variant='outline' className='h-9'>
+						<Button
+							variant='outline'
+							className='h-9'
+							onClick={() => openFirstTopic(filteredTopics)}
+						>
 							进入专题
 						</Button>
 					</div>
@@ -230,12 +259,14 @@ function KnowledgePage() {
 									</h3>
 									<div className='flex flex-wrap gap-2'>
 										{path.steps.map(step => (
-											<span
+											<button
 												key={step}
-												className='rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600'
+												type='button'
+												className='rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 hover:border-slate-400 hover:text-slate-900'
+												onClick={() => setQuery(step)}
 											>
 												{step}
-											</span>
+											</button>
 										))}
 									</div>
 								</div>

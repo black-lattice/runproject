@@ -42,7 +42,13 @@ function KnowledgeDetailPage() {
 	}, [topic?.file]);
 
 	return (
-		<div className='h-full overflow-y-auto'>
+		<div className='h-full overflow-y-auto knowledge-dots'>
+			<style>{`
+				.knowledge-dots {
+					background-image: radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+					background-size: 14px 14px;
+				}
+			`}</style>
 			<div className='max-w-4xl mx-auto px-6 py-8'>
 				<div className='flex items-center justify-between mb-6'>
 					<Button variant='ghost' onClick={() => navigate('/knowledge')}>
