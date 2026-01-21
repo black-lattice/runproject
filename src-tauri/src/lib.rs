@@ -6,6 +6,7 @@ use modules::editor;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
+use modules::window_manager;
 use tauri_plugin_mcp::Builder as McpBuilder;
 
 #[tauri::command]
@@ -178,7 +179,10 @@ pub fn run() {
             modules::terminal::pty_manager::resize_terminal,
             modules::terminal::pty_manager::close_terminal_session,
             modules::terminal::pty_manager::get_terminal_buffer,
-            modules::terminal::pty_manager::ping_terminal_session
+            modules::terminal::pty_manager::ping_terminal_session,
+            window_manager::open_external_window,
+            window_manager::close_external_window,
+            window_manager::is_window_open
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
