@@ -3,7 +3,8 @@ import {
 	FolderOpen,
 	Settings,
 	Terminal,
-	Code2
+	Code2,
+	LayoutGrid
 } from 'lucide-react';
 
 export const PAGE_CONFIGS = {
@@ -41,6 +42,13 @@ export const PAGE_CONFIGS = {
 		path: '/formatter',
 		title: '数据格式化',
 		icon: Code2,
+		closable: true
+	},
+	'massage-web': {
+		id: 'massage-web',
+		path: '/massage-web',
+		title: '按按管理平台',
+		icon: LayoutGrid,
 		closable: true
 	}
 };

@@ -9,6 +9,7 @@ import ProjectPage from '../pages/project/index';
 import SettingsPage from '../pages/settings/index';
 import TerminalPage from '../pages/terminal/index';
 import FormatterPage from '../pages/formatter/index';
+import MassageWebPage from '../pages/micro-apps/MassageWeb';
 import { PAGE_CONFIGS } from '../config/routes';
 
 export const AppRouter = () => {
@@ -42,6 +43,10 @@ export const AppRouter = () => {
 			<Route
 				path={PAGE_CONFIGS.formatter.path}
 				element={<FormatterPage />}
+			/>
+			<Route
+				path={PAGE_CONFIGS['massage-web'].path}
+				element={<MassageWebPage />}
 			/>
 			<Route
 				path='*'
