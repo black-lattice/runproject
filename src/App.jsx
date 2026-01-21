@@ -1,10 +1,16 @@
+import { useEffect } from 'react';
 import { HashRouter as Router } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster';
 import TabBar from './components/TabBar';
 import TitleBar from './components/TitleBar';
 import { AppRouter } from './router';
+import { useAppStore } from './store/useAppStore';
 
 function App() {
+	useEffect(() => {
+		useAppStore.getState().initCommandStatusSync();
+	}, []);
+
 	return (
 		<Router>
 			<div className='h-screen flex flex-col overflow-hidden bg-gray-100'>

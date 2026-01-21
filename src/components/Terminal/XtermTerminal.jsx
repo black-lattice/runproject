@@ -3,6 +3,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit } from '@tauri-apps/api/event';
+import { useAppStore } from '@/store/useAppStore';
 import 'xterm/css/xterm.css';
 
 const XtermTerminal = ({
@@ -36,6 +37,39 @@ const XtermTerminal = ({
 		let heartbeatTimer = null;
 		const pendingChunks = [];
 		let backlogLoaded = !existingSession;
+		const COMMAND_DONE_MARKER = '__RUNPROJECT_CMD_DONE__:';
+		const commandDoneRegex = /__RUNPROJECT_CMD_DONE__:(\d+):(\d+)/g;
+		let markerCarry = '';
+
+		const writeDecodedText = text => {
+			if (!text) return;
+			const combined = markerCarry + text;
+			let carry = '';
+			for (let i = combined.length - 1; i >= 0; i--) {
+				const suffix = combined.slice(i);
+				if (
+					suffix.length < COMMAND_DONE_MARKER.length &&
+					COMMAND_DONE_MARKER.startsWith(suffix)
+				) {
+					carry = suffix;
+					break;
+				}
+			}
+			const processable = combined.slice(0, combined.length - carry.length);
+			const matches = [...processable.matchAll(commandDoneRegex)];
+			if (matches.length) {
+				matches.forEach(match => {
+					const runId = Number(match[1]);
+					const exitCode = Number(match[2]);
+					emit('command-finished', { sessionId, runId, exitCode });
+				});
+			}
+			const output = processable.replace(commandDoneRegex, '');
+			markerCarry = carry;
+			if (terminal && output) {
+				terminal.write(output);
+			}
+		};
 
 		const writeEncodedChunk = encoded => {
 			if (unmounted || !terminal) return;
@@ -43,7 +77,7 @@ const XtermTerminal = ({
 				const decoded = atob(encoded);
 				const bytes = new Uint8Array([...decoded].map(c => c.charCodeAt(0)));
 				const text = new TextDecoder().decode(bytes);
-				terminal.write(text);
+				writeDecodedText(text);
 			} catch (error) {
 				console.error('解码输出失败:', error);
 			}
@@ -131,7 +165,13 @@ const XtermTerminal = ({
 					);
 
 					if (data === '\x03') {
-						emit('command-interrupted', { sessionId });
+						const runningCommands =
+							useAppStore.getState().runningCommands || {};
+						const currentEntry = Object.values(runningCommands).find(
+							item => item && item.id === sessionId
+						);
+						const runId = currentEntry ? currentEntry.runId : null;
+						emit('command-interrupted', { sessionId, runId });
 					}
 				});
 

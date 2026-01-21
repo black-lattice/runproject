@@ -3,7 +3,6 @@ use std::path::Path;
 // 导入模块
 mod modules;
 use modules::editor;
-use modules::knowledge;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
@@ -165,12 +164,6 @@ pub fn run() {
             open_project_in_editor,
             open_in_finder,
             build_execution_command,
-            modules::webview::create_child_webview,
-            modules::webview::navigate_webview,
-            modules::webview::close_webview,
-            modules::webview::hide_webview,
-            modules::webview::show_webview,
-            modules::webview::resize_webview,
             modules::kitty::executor::execute_command_in_kitty,
             modules::kitty::executor::execute_command_with_kitten,
             modules::kitty::process::terminate_command,
@@ -185,10 +178,7 @@ pub fn run() {
             modules::terminal::pty_manager::resize_terminal,
             modules::terminal::pty_manager::close_terminal_session,
             modules::terminal::pty_manager::get_terminal_buffer,
-            modules::terminal::pty_manager::ping_terminal_session,
-            modules::knowledge::list_md_files,
-            modules::knowledge::read_md_file,
-            modules::knowledge::write_md_file
+            modules::terminal::pty_manager::ping_terminal_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

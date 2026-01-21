@@ -12,7 +12,7 @@ const GIT_BRANCHES_CACHE_TTL = 1000 * 60 * 60 * 24;
 
 function ProjectDetails({
 	project,
-	runningCommand,
+	runningCommands,
 	onExecuteCommand,
 	onStopCommand,
 	onGetInstalledVersions
@@ -403,7 +403,7 @@ function ProjectDetails({
 
 				<CommandList
 					project={project}
-					runningCommand={runningCommand}
+					runningCommands={runningCommands}
 					commands={sortedCommands}
 					onExecuteCommand={onExecuteCommand}
 					onStopCommand={onStopCommand}

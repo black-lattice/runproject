@@ -3,7 +3,7 @@ import WelcomeScreen from './WelcomeScreen';
 
 function MainContent({
 	selectedProject,
-	runningCommand,
+	runningCommands,
 	onExecuteCommand,
 	onStopCommand,
 	onGetInstalledVersions
@@ -13,7 +13,7 @@ function MainContent({
 			{selectedProject ? (
 				<ProjectDetails
 					project={selectedProject}
-					runningCommand={runningCommand}
+					runningCommands={runningCommands}
 					onExecuteCommand={onExecuteCommand}
 					onStopCommand={onStopCommand}
 					onGetInstalledVersions={onGetInstalledVersions}

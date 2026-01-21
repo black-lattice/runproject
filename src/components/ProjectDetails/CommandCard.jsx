@@ -138,7 +138,7 @@ function CommandCard({
 									onClick={e => {
 										e.stopPropagation();
 										if (running) {
-											onStopCommand();
+											onStopCommand(project, command);
 										} else {
 											onExecuteCommand(project, command);
 										}

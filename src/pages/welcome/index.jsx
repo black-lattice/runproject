@@ -17,8 +17,7 @@ import {
 	BookOpen,
 	Code,
 	Zap,
-	Code2,
-	Globe
+	Code2
 } from 'lucide-react';
 import { PAGE_CONFIGS } from '@/config/routes';
 
@@ -52,14 +51,6 @@ function WelcomePage() {
 			icon: Terminal,
 			color: 'bg-green-500',
 			action: () => handleNavigate('terminal')
-		},
-		{
-			id: 'browser',
-			title: '浏览器',
-			description: '浏览网站和本地开发地址',
-			icon: Globe,
-			color: 'bg-indigo-500',
-			action: () => handleNavigate('browser')
 		},
 		{
 			id: 'formatter',

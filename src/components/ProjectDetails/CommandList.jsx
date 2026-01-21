@@ -4,22 +4,16 @@ import CommandCard from './CommandCard';
 
 function CommandList({
 	project,
-	runningCommand,
+	runningCommands,
 	commands,
 	onExecuteCommand,
 	onStopCommand,
 	commandTags,
 	onSetCommandTags
 }) {
-	const isCommandRunning = command => {
-		return (
-			runningCommand &&
-			runningCommand.project.name === project.name &&
-			runningCommand.command.name === command.name
-		);
-	};
-
 	const getCommandKey = command => `${project.path}::${command.name}`;
+	const isCommandRunning = command =>
+		Boolean(runningCommands?.[getCommandKey(command)]);
 
 	const getCommandTags = command =>
 		commandTags?.[getCommandKey(command)] || [];

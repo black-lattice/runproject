@@ -3,8 +3,7 @@ import {
 	FolderOpen,
 	Settings,
 	Terminal,
-	Code2,
-	Globe
+	Code2
 } from 'lucide-react';
 
 export const PAGE_CONFIGS = {
@@ -42,13 +41,6 @@ export const PAGE_CONFIGS = {
 		path: '/formatter',
 		title: '数据格式化',
 		icon: Code2,
-		closable: true
-	},
-	browser: {
-		id: 'browser',
-		path: '/browser',
-		title: '浏览器',
-		icon: Globe,
 		closable: true
 	}
 };

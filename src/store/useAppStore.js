@@ -1,12 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { listen } from '@tauri-apps/api/event';
 
 const DEFAULT_TABS = [];
-const DEFAULT_HOME_SITES = [
-	{ id: 'home-bing', title: 'Bing', url: 'https://www.bing.com/' },
-	{ id: 'home-bilibili', title: 'Bilibili', url: 'https://www.bilibili.com/' },
-	{ id: 'home-github', title: 'GitHub', url: 'https://github.com/' }
-];
+let commandStatusSyncInitialized = false;
 
 export const useAppStore = create(
 	persist(
@@ -16,6 +13,7 @@ export const useAppStore = create(
 			selectedProject: null,
 			isLoading: false,
 			runningCommand: null,
+			runningCommands: {},
 			commandCounter: 0,
 			projectTerminals: {},
 			nodeVersionsCache: {
@@ -30,12 +28,6 @@ export const useAppStore = create(
 			collapsedWorkspaces: {},
 			useKittenRemote: true,
 			terminalType: 'builtin', // 'builtin' | 'kitty'
-
-			// === 收藏夹状态 ===
-			bookmarks: [], // { id, url, title, favicon, createdAt, lastVisited }
-
-			// === Home 网站列表（持久化）===
-			homeSites: DEFAULT_HOME_SITES, // { id, title, url }
 
 			// === Workspace 标签 ===
 			workspaceTags: {}, // { [workspacePath]: string[] }
@@ -90,6 +82,99 @@ export const useAppStore = create(
 			setSelectedProject: project => set({ selectedProject: project }),
 			setIsLoading: loading => set({ isLoading: loading }),
 			setRunningCommand: command => set({ runningCommand: command }),
+			setCommandRunning: (commandKey, payload) => {
+				if (!commandKey) return;
+				set(state => ({
+					runningCommands: {
+						...state.runningCommands,
+						[commandKey]: payload
+					}
+				}));
+			},
+			clearCommandRunning: commandKey => {
+				if (!commandKey) return;
+				set(state => {
+					if (!state.runningCommands?.[commandKey]) return state;
+					const next = { ...state.runningCommands };
+					delete next[commandKey];
+					return { runningCommands: next };
+				});
+			},
+
+			clearRunningCommandBySessionId: (sessionId, runId = null) => {
+				const currentState = get();
+				const nextRunningCommands = { ...currentState.runningCommands };
+				const matchedProjects = new Set();
+
+				for (const [key, value] of Object.entries(
+					currentState.runningCommands
+				)) {
+					if (!value || value.id !== sessionId) continue;
+					if (runId !== null && value.runId !== runId) continue;
+					if (value.project?.name) {
+						matchedProjects.add(value.project.name);
+					}
+					delete nextRunningCommands[key];
+				}
+
+				const updates = { runningCommands: nextRunningCommands };
+				const currentRunningCommand = currentState.runningCommand;
+				if (
+					currentRunningCommand &&
+					currentRunningCommand.id === sessionId &&
+					(runId === null || currentRunningCommand.runId === runId)
+				) {
+					updates.runningCommand = null;
+					if (currentRunningCommand.project?.name) {
+						matchedProjects.add(currentRunningCommand.project.name);
+					}
+				}
+
+				const currentProjectTerminals = currentState.projectTerminals;
+				if (matchedProjects.size > 0) {
+					let nextProjectTerminals = null;
+					for (const projectName of matchedProjects) {
+						const existingTerminal = currentProjectTerminals[projectName];
+						if (
+							existingTerminal &&
+							existingTerminal.lastCommandId === sessionId
+						) {
+							if (!nextProjectTerminals) {
+								nextProjectTerminals = { ...currentProjectTerminals };
+							}
+							nextProjectTerminals[projectName] = {
+								...existingTerminal,
+								isBusy: false,
+								currentCommand: null
+							};
+						}
+					}
+					if (nextProjectTerminals) {
+						updates.projectTerminals = nextProjectTerminals;
+					}
+				}
+
+				set(updates);
+			},
+
+			initCommandStatusSync: async () => {
+				if (commandStatusSyncInitialized) return;
+				commandStatusSyncInitialized = true;
+
+				const handleEvent = event => {
+					const sessionId = event?.payload?.sessionId;
+					if (!sessionId) return;
+					const runId =
+						typeof event?.payload?.runId === 'number'
+							? event.payload.runId
+							: null;
+					get().clearRunningCommandBySessionId(sessionId, runId);
+				};
+
+				await listen('command-interrupted', handleEvent);
+				await listen('command-finished', handleEvent);
+				await listen('terminal-closed', handleEvent);
+			},
 
 			// 终端状态
 			updateProjectTerminal: (projectName, terminalState) => {
@@ -240,89 +325,6 @@ export const useAppStore = create(
 				});
 			},
 
-			// === Knowledge Library ===
-			knowledgeFolderPath: '',
-			knowledgeTopics: [],
-
-			setKnowledgeFolderPath: path => set({ knowledgeFolderPath: path }),
-			setKnowledgeTopics: topics => set({ knowledgeTopics: topics || [] }),
-
-			// === 收藏夹 Actions ===
-
-			addBookmark: bookmark => {
-				const newBookmark = {
-					id: Date.now().toString(),
-					createdAt: Date.now(),
-					lastVisited: Date.now(),
-					...bookmark
-				};
-				set(state => ({
-					bookmarks: [...state.bookmarks, newBookmark]
-				}));
-			},
-
-			removeBookmark: id => {
-				set(state => ({
-					bookmarks: state.bookmarks.filter(b => b.id !== id)
-				}));
-			},
-
-			updateBookmark: (id, updates) => {
-				set(state => ({
-					bookmarks: state.bookmarks.map(b =>
-						b.id === id ? { ...b, ...updates } : b
-					)
-				}));
-			},
-
-			updateBookmarkLastVisited: id => {
-				set(state => ({
-					bookmarks: state.bookmarks.map(b =>
-						b.id === id ? { ...b, lastVisited: Date.now() } : b
-					)
-				}));
-			},
-
-			// === HomeSites Actions ===
-			addHomeSite: site => {
-				const { title, url } = site || {};
-				if (!url) return;
-
-				const normalizedUrl = String(url).trim();
-				if (!normalizedUrl) return;
-
-				set(state => {
-					const exists = state.homeSites.some(s => s.url === normalizedUrl);
-					if (exists) return state;
-
-					const id = `home-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-					return {
-						homeSites: [
-							...state.homeSites,
-							{
-								id,
-								title: title || normalizedUrl,
-								url: normalizedUrl
-							}
-						]
-					};
-				});
-			},
-
-			removeHomeSite: id => {
-				set(state => ({
-					homeSites: state.homeSites.filter(s => s.id !== id)
-				}));
-			},
-
-			updateHomeSite: (id, updates) => {
-				set(state => ({
-					homeSites: state.homeSites.map(s =>
-						s.id === id ? { ...s, ...updates } : s
-					)
-				}));
-			},
-
 			// === 简化的页签 Actions ===
 
 			addTab: tabId => {
@@ -347,6 +349,7 @@ export const useAppStore = create(
 					selectedProject: null,
 					isLoading: false,
 					runningCommand: null,
+					runningCommands: {},
 					projectTerminals: {},
 					nodeVersionsCache: {
 						versions: [],
@@ -357,12 +360,9 @@ export const useAppStore = create(
 						fetchedAt: 0
 					},
 					tabs: DEFAULT_TABS,
-					homeSites: DEFAULT_HOME_SITES,
 					workspaceTags: {},
 					projectTags: {},
-					commandTags: {},
-					knowledgeFolderPath: '',
-					knowledgeTopics: []
+					commandTags: {}
 				});
 				localStorage.clear();
 			}
@@ -378,13 +378,9 @@ export const useAppStore = create(
 				tabs: state.tabs,
 				nodeVersionsCache: state.nodeVersionsCache,
 				availableEditorsCache: state.availableEditorsCache,
-				bookmarks: state.bookmarks,
-				homeSites: state.homeSites,
 				workspaceTags: state.workspaceTags,
 				projectTags: state.projectTags,
-				commandTags: state.commandTags,
-				knowledgeFolderPath: state.knowledgeFolderPath,
-				knowledgeTopics: state.knowledgeTopics
+				commandTags: state.commandTags
 			})
 		}
 	)
