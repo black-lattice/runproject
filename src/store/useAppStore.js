@@ -29,6 +29,9 @@ export const useAppStore = create(
 			useKittenRemote: true,
 			terminalType: 'builtin', // 'builtin' | 'kitty'
 
+			// === 微前端代理状态 ===
+			proxyReady: false,
+
 			// === Workspace 标签 ===
 			workspaceTags: {}, // { [workspacePath]: string[] }
 			projectTags: {}, // { [projectPath]: string[] }
@@ -204,6 +207,9 @@ export const useAppStore = create(
 
 			setUseKittenRemote: useKittenRemote => set({ useKittenRemote }),
 			setTerminalType: terminalType => set({ terminalType }),
+
+			// === 微前端代理 Actions ===
+			setProxyReady: proxyReady => set({ proxyReady }),
 
 			setNodeVersionsCache: versions => {
 				set({

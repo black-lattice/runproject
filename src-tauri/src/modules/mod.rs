@@ -4,5 +4,6 @@ pub mod kitty;
 pub mod nvm_manager;
 pub mod platform;
 pub mod project_scanner;
+pub mod proxy_server;
 pub mod terminal;
 pub mod window_manager;
