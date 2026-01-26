@@ -3,6 +3,7 @@ use std::path::Path;
 // 导入模块
 mod modules;
 use modules::editor;
+use modules::codex;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
@@ -180,6 +181,10 @@ pub fn run() {
             modules::terminal::pty_manager::close_terminal_session,
             modules::terminal::pty_manager::get_terminal_buffer,
             modules::terminal::pty_manager::ping_terminal_session,
+            codex::manager::codex_start_session,
+            codex::manager::codex_send_message,
+            codex::manager::codex_approve_action,
+            codex::manager::codex_stop_session,
             window_manager::open_external_window,
             window_manager::close_external_window,
             window_manager::is_window_open
