@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@hd/cas-login": "^1.0.39",
-    "@micro-zoe/micro-app": "1.0.0-rc.28",
     "@proj-airi/tauri-plugin-mcp": "0.8.0-beta.4",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-label": "^2.1.8",

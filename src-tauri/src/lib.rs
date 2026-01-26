@@ -182,8 +182,7 @@ pub fn run() {
             modules::terminal::pty_manager::ping_terminal_session,
             window_manager::open_external_window,
             window_manager::close_external_window,
-            window_manager::is_window_open,
-            modules::proxy_server::start_proxy_server_command
+            window_manager::is_window_open
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

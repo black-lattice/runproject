@@ -17,11 +17,9 @@ import {
 	BookOpen,
 	Code,
 	Zap,
-	Code2,
-	LayoutGrid
+	Code2
 } from 'lucide-react';
 import { PAGE_CONFIGS } from '@/config/routes';
-import { MICRO_APPS } from '@/config/microApps';
 
 function WelcomePage() {
 	const navigate = useNavigate();
@@ -81,11 +79,6 @@ function WelcomePage() {
 			}))
 		)
 		.slice(0, 5);
-
-	const handleMicroAppOpen = appId => {
-		addTab(appId);
-		navigate(PAGE_CONFIGS[appId].path);
-	};
 
 	return (
 		<div className='h-full bg-gradient-to-br from-blue-50 to-indigo-100 overflow-y-auto'>
@@ -161,63 +154,6 @@ function WelcomePage() {
 						})}
 					</div>
 				</div>
-
-				{MICRO_APPS.length > 0 && (
-					<div className='mb-12'>
-						<h2 className='text-2xl font-semibold text-gray-900 mb-6 flex items-center'>
-							<LayoutGrid className='h-6 w-6 mr-2 text-indigo-600' />
-							子应用入口
-						</h2>
-						<div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6'>
-							{MICRO_APPS.map(app => {
-								const isActive = tabs.includes(app.id);
-
-								return (
-									<Card
-										key={app.id}
-										className='cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105'
-										onClick={() => handleMicroAppOpen(app.id)}>
-										<CardHeader className='pb-4'>
-											<div className='flex items-center justify-between'>
-												<div className='p-3 rounded-lg bg-indigo-500'>
-													<LayoutGrid className='h-6 w-6 text-white' />
-												</div>
-												{isActive && (
-													<Badge
-														variant='secondary'
-														className='text-xs'>
-														已打开
-													</Badge>
-												)}
-											</div>
-											<CardTitle className='text-lg'>
-												{app.title}
-											</CardTitle>
-											<CardDescription>
-												{app.description}
-											</CardDescription>
-										</CardHeader>
-										<CardContent>
-											<Button
-												variant={
-													isActive
-														? 'secondary'
-														: 'default'
-												}
-												className='w-full'
-												onClick={e => {
-													e.stopPropagation();
-													handleMicroAppOpen(app.id);
-												}}>
-												{isActive ? '进入页面' : '立即打开'}
-											</Button>
-										</CardContent>
-									</Card>
-								);
-							})}
-						</div>
-					</div>
-				)}
 
 				{recentProjects.length > 0 && (
 					<div className='mb-12'>

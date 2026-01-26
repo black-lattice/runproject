@@ -3,6 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { listen } from '@tauri-apps/api/event';
 
 const DEFAULT_TABS = [];
+const LEGACY_TABS = new Set(['massage-web']);
+const sanitizeTabs = tabs => (tabs || []).filter(id => !LEGACY_TABS.has(id));
 let commandStatusSyncInitialized = false;
 
 export const useAppStore = create(
@@ -28,9 +30,6 @@ export const useAppStore = create(
 			collapsedWorkspaces: {},
 			useKittenRemote: true,
 			terminalType: 'builtin', // 'builtin' | 'kitty'
-
-			// === 微前端代理状态 ===
-			proxyReady: false,
 
 			// === Workspace 标签 ===
 			workspaceTags: {}, // { [workspacePath]: string[] }
@@ -208,9 +207,6 @@ export const useAppStore = create(
 			setUseKittenRemote: useKittenRemote => set({ useKittenRemote }),
 			setTerminalType: terminalType => set({ terminalType }),
 
-			// === 微前端代理 Actions ===
-			setProxyReady: proxyReady => set({ proxyReady }),
-
 			setNodeVersionsCache: versions => {
 				set({
 					nodeVersionsCache: {
@@ -336,9 +332,10 @@ export const useAppStore = create(
 			addTab: tabId => {
 				const state = get();
 				if (tabId === 'welcome') return;
+				if (LEGACY_TABS.has(tabId)) return;
 
 				if (!state.tabs.includes(tabId)) {
-					set({ tabs: [...state.tabs, tabId] });
+					set({ tabs: sanitizeTabs([...state.tabs, tabId]) });
 				}
 			},
 
@@ -381,13 +378,21 @@ export const useAppStore = create(
 				collapsedWorkspaces: state.collapsedWorkspaces,
 				useKittenRemote: state.useKittenRemote,
 				terminalType: state.terminalType,
-				tabs: state.tabs,
+				tabs: sanitizeTabs(state.tabs),
 				nodeVersionsCache: state.nodeVersionsCache,
 				availableEditorsCache: state.availableEditorsCache,
 				workspaceTags: state.workspaceTags,
 				projectTags: state.projectTags,
 				commandTags: state.commandTags
-			})
+			}),
+			merge: (persistedState, currentState) => {
+				const nextState = {
+					...currentState,
+					...persistedState
+				};
+				nextState.tabs = sanitizeTabs(nextState.tabs);
+				return nextState;
+			}
 		}
 	)
 );

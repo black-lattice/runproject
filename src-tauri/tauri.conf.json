@@ -19,17 +19,6 @@
         "decorations": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
-      },
-      {
-        "label": "massage-web",
-        "title": "按按管理平台",
-        "url": "http://localhost:8080/massage-web/welcome",
-        "width": 1200,
-        "height": 800,
-        "decorations": true,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
-        "visible": false
       }
     ],
     "security": {
