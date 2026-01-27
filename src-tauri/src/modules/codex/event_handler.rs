@@ -109,6 +109,15 @@ fn classify_pending_action(method: &str, params: &Option<Value>) -> Option<Pendi
         });
     }
 
+    if method == "elicitation/create" {
+        if let Some((command, working_dir)) = extract_codex_command(params) {
+            return Some(PendingAction::Command { command, working_dir });
+        }
+        return Some(PendingAction::Other {
+            payload: params.clone().unwrap_or(Value::Null),
+        });
+    }
+
     if let Some(action) = params
         .as_ref()
         .and_then(|value| value.get("action"))
@@ -153,6 +162,23 @@ fn extract_command(params: &Option<Value>) -> Option<(String, std::path::PathBuf
         .or_else(|| params.get("cwd"))
         .and_then(|value| value.as_str())
         .unwrap_or(".");
+    Some((command, std::path::PathBuf::from(cwd)))
+}
+
+fn extract_codex_command(params: &Option<Value>) -> Option<(String, std::path::PathBuf)> {
+    let params = params.as_ref()?;
+    let command_array = params.get("codex_command")?.as_array()?;
+    let command = command_array
+        .iter()
+        .map(|v| v.as_str().unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    let cwd = params
+        .get("codex_cwd")
+        .and_then(|value| value.as_str())
+        .unwrap_or(".");
+
     Some((command, std::path::PathBuf::from(cwd)))
 }
 

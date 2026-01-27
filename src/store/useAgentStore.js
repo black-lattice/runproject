@@ -17,10 +17,11 @@ import {
 const listeners = new Map();
 const MAX_MESSAGES = 500;
 
-const buildMessage = (role, content) => ({
+const buildMessage = (role, content, reasoning = '') => ({
 	id: `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`,
 	role,
 	content,
+	reasoning,
 	createdAt: Date.now()
 });
 
@@ -88,8 +89,6 @@ export const useAgentStore = create((set, get) => ({
 				? await startCodexSession({
 						sessionId,
 						workspace,
-						cliPath: 'codex',
-						cliArgs: ['mcp-server'],
 						onEvent: event => get().handleCodexEvent(sessionId, event),
 						onStatus: status => get().updateStatus(sessionId, status),
 						onFileChange: change => get().handleCodexEvent(sessionId, change)
@@ -147,10 +146,11 @@ export const useAgentStore = create((set, get) => ({
 					throw new Error('Codex 正在加载 MCP，请稍候再发送');
 				}
 				await sendCodexMessage({ sessionId, content });
+				// Codex is async/streaming, so we keep isSending = true until we get a response/done event
 			} else {
 				await sendAgentMessage({ sessionId, content });
+				set({ isSending: false });
 			}
-			set({ isSending: false });
 		} catch (error) {
 			set({ isSending: false });
 			throw error;
@@ -184,19 +184,91 @@ export const useAgentStore = create((set, get) => ({
 				get().setReady(sessionId, true);
 				break;
 			case 'permission-request':
+				const params = payload.params;
+				let requestText = params?.message || '需要执行敏感操作，请确认：';
+				
+				const cmd = params?.codex_command || params?.command;
+				if (cmd) {
+					const cmdStr = Array.isArray(cmd) ? cmd.join(' ') : cmd;
+					requestText += '\n\n```bash\n' + cmdStr + '\n```';
+				} else if (params?.patch) {
+					requestText += '\n\n```diff\n' + params.patch + '\n```';
+				}
+				
+				get().appendMessage(sessionId, 'assistant', requestText);
 				get().appendPendingAction(sessionId, payload);
 				break;
 			case 'stdout':
 				// Codex MCP 的 stdout 是 JSON-RPC 数据流，避免直接渲染导致卡顿
 				break;
 			case 'stderr':
-				get().appendMessage(sessionId, 'system', payload?.text || '未知输出');
+				let stderrText = payload?.text || '';
+				// 去除 ANSI 转义序列
+				stderrText = stderrText.replace(/\x1B\[[0-9;]*[mK]/g, '');
+				
+				if (stderrText.trim()) {
+					// 将所有后台输出都作为系统消息显示，UI 层会将其渲染为低调的状态提示
+					get().appendMessage(sessionId, 'system', stderrText.trim());
+				}
 				break;
 			case 'mcp-error':
 				get().setError(sessionId, payload?.error || 'MCP 错误');
+				set({ isSending: false });
+				break;
+			case 'notification':
+				if (payload?.method === 'codex/event') {
+					const msg = payload.params?.msg;
+					if (msg?.type === 'raw_response_item') {
+						const item = msg.item;
+						if (item?.type === 'message' && item?.role === 'assistant') {
+							const contentItem = item.content?.[0];
+							const type = contentItem?.type;
+							const text = contentItem?.text;
+							
+							if (text) {
+								if (type === 'thought' || type === 'reasoning') {
+									get().appendDelta(sessionId, text, true);
+								} else {
+									get().appendDelta(sessionId, text, false);
+								}
+							}
+						}
+					} else if (msg?.type === 'task_complete') {
+						get().finalizeStream(sessionId);
+						set({ isSending: false });
+					} else if (msg?.type === 'stream_error') {
+						const errorMsg = `Codex 连接中断: ${msg.message || '未知错误'}\n${msg.additional_details || ''}`;
+						get().appendMessage(sessionId, 'system', errorMsg);
+					}
+				}
+				break;
+			case 'response':
+				const content = payload?.result?.content;
+				if (Array.isArray(content)) {
+					const text = content
+						.filter(c => c.type === 'text')
+						.map(c => c.text)
+						.join('');
+					if (text) {
+						// 检查最后一条消息是否已经包含了这段文本（避免重复流式输出和最终输出）
+						const session = get().sessions.find(s => s.id === sessionId);
+						const lastMsg = session?.messages[session.messages.length - 1];
+						const streamingId = session?.streamingMessageId;
+						
+						// 如果正在流式传输且ID匹配，或者最后一条消息是assistant且内容不完全匹配
+						if (!streamingId || lastMsg?.content !== text) {
+                            if (!streamingId) {
+                                get().appendDelta(sessionId, text);
+                            }
+						}
+                        get().finalizeStream(sessionId);
+					}
+				}
+				set({ isSending: false });
 				break;
 			case 'parse-error':
 				get().setError(sessionId, payload?.error || '解析失败');
+				set({ isSending: false });
 				break;
 			default:
 				break;
@@ -237,7 +309,7 @@ export const useAgentStore = create((set, get) => ({
 		}
 	},
 	appendPendingAction: (sessionId, payload) => {
-		if (!payload?.callId) return;
+		if (payload?.callId === undefined || payload?.callId === null) return;
 		set(state => ({
 			sessions: state.sessions.map(session =>
 				session.id === sessionId
@@ -257,7 +329,7 @@ export const useAgentStore = create((set, get) => ({
 				)
 		}));
 	},
-	appendDelta: (sessionId, delta) => {
+	appendDelta: (sessionId, delta, isReasoning = false) => {
 		if (!delta) return;
 		set(state => ({
 			sessions: state.sessions.map(session => {
@@ -266,13 +338,17 @@ export const useAgentStore = create((set, get) => ({
 				let messages = session.messages;
 				let streamingId = session.streamingMessageId;
 				if (!streamingId) {
-					const streamingMessage = buildMessage('assistant', delta);
+					const streamingMessage = isReasoning 
+						? buildMessage('assistant', '', delta)
+						: buildMessage('assistant', delta, '');
 					streamingId = streamingMessage.id;
 					messages = [...messages, streamingMessage];
 				} else {
 					messages = messages.map(message =>
 						message.id === streamingId
-							? { ...message, content: message.content + delta }
+							? isReasoning 
+								? { ...message, reasoning: (message.reasoning || '') + delta }
+								: { ...message, content: (message.content || '') + delta }
 							: message
 					);
 				}
@@ -328,14 +404,18 @@ export const useAgentStore = create((set, get) => ({
 				: status?.status
 					? String(status.status).toLowerCase()
 					: 'unknown';
+		
+		const error = typeof status === 'object' ? (status?.error || status?.payload?.error || null) : null;
+
 		set(state => ({
 			sessions: state.sessions.map(session =>
 				session.id === sessionId
 					? {
 							...session,
 							status: normalized,
+							error: error || session.error,
 							ready:
-								session.provider === 'codex' && normalized === 'sessionactive'
+								session.provider === 'codex' && (normalized === 'sessionactive' || normalized === 'ready')
 									? true
 									: session.ready,
 							lastUpdated: Date.now()

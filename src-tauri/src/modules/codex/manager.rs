@@ -66,6 +66,7 @@ fn codex_start_session_blocking(
     cli_path: Option<String>,
     cli_args: Option<Vec<String>>,
 ) -> Result<String, String> {
+    println!("DEBUG: Starting Codex session: {}, workspace: {}", session_id, workspace);
     let workspace_path = validate_workspace(&workspace)?;
 
     {
@@ -140,12 +141,21 @@ fn codex_start_session_blocking(
         error
     })?;
 
+    println!("DEBUG: Session created successfully");
+
     emit_status(&app, &session_id, CodexStatus::Connected, None);
-    let mut sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
-    sessions.insert(session_id.clone(), session);
+    println!("DEBUG: Acquiring sessions lock...");
+    {
+        let mut sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
+        println!("DEBUG: Sessions lock acquired. Inserting session.");
+        sessions.insert(session_id.clone(), session);
+    } // 锁在这里释放
+    println!("DEBUG: Sessions lock released.");
 
     if is_mcp_server(&cli_args) {
+        println!("DEBUG: Starting MCP handshake...");
         if let Err(error) = start_mcp_handshake(&app, &session_id) {
+            println!("DEBUG: MCP handshake failed: {}", error);
             if let Ok(mut sessions) = SESSIONS.lock() {
                 sessions.remove(&session_id);
             }
@@ -157,6 +167,7 @@ fn codex_start_session_blocking(
             );
             return Err(error);
         }
+        println!("DEBUG: MCP handshake completed.");
     }
 
     Ok(session_id)
@@ -217,6 +228,7 @@ fn is_mcp_server(cli_args: &[String]) -> bool {
 }
 
 fn start_mcp_handshake(app: &AppHandle, session_id: &str) -> Result<(), String> {
+    println!("DEBUG: Inside start_mcp_handshake");
     let init_params = serde_json::json!({
         "protocolVersion": "2024-11-05",
         "capabilities": {},
@@ -234,9 +246,11 @@ fn start_mcp_handshake(app: &AppHandle, session_id: &str) -> Result<(), String> 
         session.connection.clone()
     };
 
+    println!("DEBUG: Waiting for server ready...");
     connection
         .wait_for_server_ready(Duration::from_secs(120))
         .map_err(|e| format!("MCP 未就绪: {}", e))?;
+    println!("DEBUG: Server ready. Sending initialize...");
 
     let init_result = connection.send_request_and_wait(
         "initialize",
@@ -331,16 +345,21 @@ fn handle_mcp_message(app: &AppHandle, session_id: &str, message: &CodexIncoming
 fn detect_mcp_args(cli_path: &str) -> Vec<String> {
     if let Some(version) = detect_codex_version(cli_path) {
         if version >= (0, 40, 0) {
+            println!("DEBUG: Detected newer codex version, using 'mcp-server'");
             return vec!["mcp-server".to_string()];
         }
+        println!("DEBUG: Detected older codex version, using 'mcp serve'");
         return vec!["mcp".to_string(), "serve".to_string()];
     }
+    println!("DEBUG: Failed to detect version, defaulting to 'mcp-server'");
     vec!["mcp-server".to_string()]
 }
 
 fn detect_codex_version(cli_path: &str) -> Option<(u32, u32, u32)> {
+    println!("DEBUG: Detecting codex version for: {}", cli_path);
     let output = Command::new(cli_path).arg("--version").output().ok()?;
     let text = String::from_utf8_lossy(&output.stdout).to_string();
+    println!("DEBUG: Codex version output: {}", text);
     for token in text.split_whitespace() {
         let cleaned = token
             .trim_matches(|c: char| !c.is_ascii_digit() && c != '.')

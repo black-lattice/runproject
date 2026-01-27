@@ -256,17 +256,41 @@ function AgentPage() {
 						<div className='flex flex-col flex-1 min-h-0'>
 							<ScrollArea className='flex-1'>
 								<div className='p-6 space-y-4'>
-									{messages.map(message => (
-										<div
-											key={message.id}
-											className={`rounded-xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
-												message.role === 'user'
-													? 'bg-emerald-600 text-white ml-auto max-w-[85%]'
-													: message.role === 'system'
-														? 'bg-amber-50 text-amber-700 border border-amber-100 max-w-[90%]'
+									{messages.map(message => {
+										if (message.role === 'system') {
+											const isError = /error|fail|中断|拒绝/i.test(message.content);
+											return (
+												<div key={message.id} className="flex justify-center my-2 px-4">
+													<span className={`text-[10px] px-3 py-1 rounded-full border max-w-full truncate ${
+														isError 
+															? 'bg-amber-50 text-amber-600 border-amber-100' 
+															: 'bg-gray-50 text-gray-400 border-gray-100'
+													}`}>
+														{message.content}
+													</span>
+												</div>
+											);
+										}
+										return (
+											<div
+												key={message.id}
+												className={`rounded-xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+													message.role === 'user'
+														? 'bg-emerald-600 text-white ml-auto max-w-[85%]'
 														: 'bg-white text-gray-700 border border-gray-100 max-w-[85%]'
-											}`}
-										>
+												}`}
+											>
+											{message.reasoning && (
+												<div className="mb-3 pb-3 border-b border-gray-100">
+													<div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+														<Bot className="h-3 w-3" />
+														思考过程
+													</div>
+													<div className="text-gray-500 italic text-xs leading-normal bg-gray-50/50 rounded-lg p-3 border border-gray-50">
+														<ReactMarkdown>{message.reasoning}</ReactMarkdown>
+													</div>
+												</div>
+											)}
 											<ReactMarkdown
 												components={{
 													p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -307,10 +331,49 @@ function AgentPage() {
 												{message.content}
 											</ReactMarkdown>
 										</div>
-									))}
+										);
+									})}
 									{messages.length === 0 && (
 										<div className='text-sm text-gray-400'>
 											请输入你的需求，Agent 会流式输出结果
+										</div>
+									)}
+									{isSending && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
+										<div className="flex items-center gap-2 text-gray-400 text-xs px-4 py-2 animate-pulse">
+											<Bot className="h-3 w-3" />
+											<span>Codex 正在思考...</span>
+										</div>
+									)}
+
+									{pendingAction && (
+										<div className="rounded-xl bg-white border border-amber-200 shadow-md p-3 mb-4 mx-auto max-w-[400px] sticky bottom-0 z-10">
+											<div className="flex items-center justify-between gap-4">
+												<div className="flex items-center gap-2 min-w-0">
+													<div className="h-7 w-7 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+														<ShieldCheck className="h-4 w-4 text-amber-600" />
+													</div>
+													<div className="text-xs font-medium text-gray-700 truncate">
+														权限确认请求
+													</div>
+												</div>
+												<div className="flex items-center gap-2">
+													<Button 
+														size="sm" 
+														variant="ghost" 
+														onClick={() => handleApprove('reject')} 
+														className="h-7 px-3 text-[11px] text-gray-500 hover:text-red-600 hover:bg-red-50"
+													>
+														拒绝
+													</Button>
+													<Button 
+														size="sm" 
+														onClick={() => handleApprove('approve')} 
+														className="h-7 px-4 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+													>
+														批准执行
+													</Button>
+												</div>
+											</div>
 										</div>
 									)}
 								</div>
@@ -413,30 +476,6 @@ function AgentPage() {
 					</div>
 				</section>
 			</div>
-
-			<Dialog open={Boolean(pendingAction)}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>需要权限确认</DialogTitle>
-					</DialogHeader>
-					<div className='space-y-3 text-sm'>
-						<p>检测到敏感文件操作，请确认是否允许。</p>
-						<div className='rounded-md bg-gray-50 p-3 text-xs text-gray-600 whitespace-pre-wrap'>
-							{JSON.stringify(pendingAction?.params || {}, null, 2)}
-						</div>
-						<div className='flex items-center justify-between'>
-							<span className='text-xs text-gray-500'>本次会话记住该类型</span>
-							<Switch checked={rememberApproval} onCheckedChange={setRememberApproval} />
-						</div>
-					</div>
-					<DialogFooter className='gap-2'>
-						<Button variant='outline' onClick={() => handleApprove('reject')}>
-							拒绝
-						</Button>
-						<Button onClick={() => handleApprove('approve')}>允许</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
 		</div>
 	);
 }
