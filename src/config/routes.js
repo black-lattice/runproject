@@ -4,7 +4,8 @@ import {
 	Settings,
 	Terminal,
 	Code2,
-	Bot
+	Bot,
+	Sparkles
 } from 'lucide-react';
 
 export const PAGE_CONFIGS = {
@@ -49,6 +50,13 @@ export const PAGE_CONFIGS = {
 		path: '/codex',
 		title: 'AI CLI',
 		icon: Bot,
+		closable: true
+	},
+	agent: {
+		id: 'agent',
+		path: '/agent',
+		title: 'Agent',
+		icon: Sparkles,
 		closable: true
 	}
 };

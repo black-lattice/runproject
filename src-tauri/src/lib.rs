@@ -4,6 +4,7 @@ use std::path::Path;
 mod modules;
 use modules::editor;
 use modules::codex;
+use modules::agent;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
@@ -185,6 +186,12 @@ pub fn run() {
             codex::manager::codex_send_message,
             codex::manager::codex_approve_action,
             codex::manager::codex_stop_session,
+            agent::manager::agent_get_settings,
+            agent::manager::agent_save_settings,
+            agent::manager::agent_start_session,
+            agent::manager::agent_send_message,
+            agent::manager::agent_approve_action,
+            agent::manager::agent_stop_session,
             window_manager::open_external_window,
             window_manager::close_external_window,
             window_manager::is_window_open

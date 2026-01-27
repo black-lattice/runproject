@@ -3,18 +3,28 @@ use serde_json::Value;
 use std::io::{Read, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::{Duration, Instant};
 
 pub struct CodexConnection {
     child: Mutex<Child>,
-    stdin: Mutex<ChildStdin>,
+    stdin: Arc<Mutex<ChildStdin>>,
     next_id: AtomicU64,
+    framing: Framing,
+    waiters: Arc<Mutex<std::collections::HashMap<u64, mpsc::Sender<Result<Value, String>>>>>,
+}
+
+#[derive(Clone, Copy)]
+pub enum Framing {
+    ContentLength,
+    Line,
 }
 
 impl CodexConnection {
     pub fn spawn(
         cli_path: &str,
         cli_args: &[String],
+        framing: Framing,
         on_message: Arc<dyn Fn(CodexIncomingMessage) + Send + Sync>,
         on_stderr: Arc<dyn Fn(String) + Send + Sync>,
     ) -> Result<Arc<Self>, String> {
@@ -23,7 +33,12 @@ impl CodexConnection {
             .args(cli_args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .stderr(Stdio::piped())
+            .env_remove("NODE_OPTIONS")
+            .env_remove("NODE_DEBUG")
+            .env_remove("NODE_INSPECT")
+            .env("CODEX_NO_INTERACTIVE", "1")
+            .env("CODEX_AUTO_CONTINUE", "1");
 
         let mut child = command.spawn().map_err(|e| format!("启动 Codex 失败: {}", e))?;
         let stdin = child
@@ -39,13 +54,18 @@ impl CodexConnection {
             .take()
             .ok_or_else(|| "无法获取 Codex stderr".to_string())?;
 
+        let waiters = Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let stdin = Arc::new(Mutex::new(stdin));
+
         let connection = Arc::new(Self {
             child: Mutex::new(child),
-            stdin: Mutex::new(stdin),
+            stdin: stdin.clone(),
             next_id: AtomicU64::new(1),
+            framing,
+            waiters: waiters.clone(),
         });
 
-        Self::spawn_stdout_reader(stdout, on_message.clone());
+        Self::spawn_stdout_reader(stdout, stdin, waiters, on_message.clone());
         Self::spawn_stderr_reader(stderr, on_stderr);
 
         Ok(connection)
@@ -61,6 +81,63 @@ impl CodexConnection {
         };
         self.write_json(&serde_json::to_value(request).map_err(|e| e.to_string())?)?;
         Ok(id)
+    }
+
+    pub fn send_request_and_wait(
+        &self,
+        method: &str,
+        params: Option<Value>,
+        timeout: Duration,
+    ) -> Result<Value, String> {
+        let (tx, rx) = mpsc::channel();
+        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id,
+            method: method.to_string(),
+            params,
+        };
+        {
+            let mut waiters = self.waiters.lock().map_err(|e| e.to_string())?;
+            waiters.insert(id, tx);
+        }
+        if let Err(error) = self.write_json(&serde_json::to_value(request).map_err(|e| e.to_string())?) {
+            let mut waiters = self.waiters.lock().map_err(|e| e.to_string())?;
+            waiters.remove(&id);
+            return Err(error);
+        }
+        match rx.recv_timeout(timeout) {
+            Ok(result) => result,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                let mut waiters = self.waiters.lock().map_err(|e| e.to_string())?;
+                waiters.remove(&id);
+                Err(format!("请求超时: {}", method))
+            }
+            Err(_) => {
+                let mut waiters = self.waiters.lock().map_err(|e| e.to_string())?;
+                waiters.remove(&id);
+                Err(format!("请求中断: {}", method))
+            }
+        }
+    }
+
+    pub fn ping(&self, timeout: Duration) -> bool {
+        self.send_request_and_wait("ping", None, timeout).is_ok()
+    }
+
+    pub fn wait_for_server_ready(&self, timeout: Duration) -> Result<(), String> {
+        let start = Instant::now();
+        let step = Duration::from_secs(2);
+        let ping_timeout = Duration::from_secs(3);
+        loop {
+            if self.ping(ping_timeout) {
+                return Ok(());
+            }
+            if start.elapsed() >= timeout {
+                return Err("等待 MCP 就绪超时".to_string());
+            }
+            std::thread::sleep(step);
+        }
     }
 
     pub fn send_notification(&self, method: &str, params: Option<Value>) -> Result<(), String> {
@@ -102,11 +179,14 @@ impl CodexConnection {
     fn write_json(&self, value: &Value) -> Result<(), String> {
         let mut stdin = self.stdin.lock().map_err(|e| e.to_string())?;
         let payload = serde_json::to_string(value).map_err(|e| e.to_string())?;
-        let message = format!(
-            "Content-Length: {}\r\n\r\n{}",
-            payload.as_bytes().len(),
-            payload
-        );
+        let message = match self.framing {
+            Framing::ContentLength => format!(
+                "Content-Length: {}\r\n\r\n{}",
+                payload.as_bytes().len(),
+                payload
+            ),
+            Framing::Line => format!("{}\n", payload),
+        };
         stdin
             .write_all(message.as_bytes())
             .map_err(|e| format!("写入 Codex 失败: {}", e))?;
@@ -114,7 +194,12 @@ impl CodexConnection {
         Ok(())
     }
 
-    fn spawn_stdout_reader(stdout: ChildStdout, on_message: Arc<dyn Fn(CodexIncomingMessage) + Send + Sync>) {
+    fn spawn_stdout_reader(
+        stdout: ChildStdout,
+        stdin: Arc<Mutex<ChildStdin>>,
+        waiters: Arc<Mutex<std::collections::HashMap<u64, mpsc::Sender<Result<Value, String>>>>>,
+        on_message: Arc<dyn Fn(CodexIncomingMessage) + Send + Sync>,
+    ) {
         std::thread::spawn(move || {
             let mut reader = stdout;
             let mut buffer: Vec<u8> = Vec::with_capacity(8192);
@@ -129,6 +214,35 @@ impl CodexConnection {
                             match try_parse_message(&buffer) {
                                 Some((message, consumed)) => {
                                     buffer.drain(..consumed);
+                                    if let CodexIncomingMessage::RawText(ref text) = message {
+                                        if text.contains("Press Enter to continue")
+                                            || text.contains("Launching Codex CLI")
+                                        {
+                                            if let Ok(mut stdin) = stdin.lock() {
+                                                let _ = stdin.write_all(b"\n");
+                                                let _ = stdin.flush();
+                                            }
+                                        }
+                                    }
+                                    if let CodexIncomingMessage::Response(ref response) = message {
+                                        if let Some(id) = match response {
+                                            JsonRpcResponse::Ok { id, .. } => Some(*id),
+                                            JsonRpcResponse::Err { id, .. } => Some(*id),
+                                        } {
+                                            if let Ok(mut waiters) = waiters.lock() {
+                                                if let Some(sender) = waiters.remove(&id) {
+                                                    let _ = match response {
+                                                        JsonRpcResponse::Ok { result, .. } => {
+                                                            sender.send(Ok(result.clone()))
+                                                        }
+                                                        JsonRpcResponse::Err { error, .. } => {
+                                                            sender.send(Err(error.message.clone()))
+                                                        }
+                                                    };
+                                                }
+                                            }
+                                        }
+                                    }
                                     on_message(message);
                                 }
                                 None => break,

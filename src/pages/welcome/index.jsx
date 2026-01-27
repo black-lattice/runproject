@@ -18,7 +18,8 @@ import {
 	Code,
 	Zap,
 	Code2,
-	Bot
+	Bot,
+	Sparkles
 } from 'lucide-react';
 import { PAGE_CONFIGS } from '@/config/routes';
 
@@ -68,6 +69,14 @@ function WelcomePage() {
 			icon: Bot,
 			color: 'bg-indigo-500',
 			action: () => handleNavigate('codex')
+		},
+		{
+			id: 'agent',
+			title: 'Agent',
+			description: '多模型智能助理，支持文件操作与审批',
+			icon: Sparkles,
+			color: 'bg-emerald-500',
+			action: () => handleNavigate('agent')
 		},
 		{
 			id: 'settings',

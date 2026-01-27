@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
 	Bot,
 	FolderOpen,
-	Plus,
 	Send,
 	StopCircle,
 	ShieldCheck,
@@ -70,7 +69,6 @@ function CodexPage() {
 	const {
 		sessions,
 		activeSessionId,
-		isStarting,
 		isSending,
 		startSession,
 		stopSession,
@@ -78,14 +76,15 @@ function CodexPage() {
 		sendMessage,
 		approveAction
 	} = useCodexStore();
-	const { workspaces, tabs, addTab } = useAppStore();
+	const { tabs, addTab } = useAppStore();
 
-	const [sessionTitle, setSessionTitle] = useState('');
 	const [workspacePath, setWorkspacePath] = useState('');
-	const [cliPath, setCliPath] = useState('codex');
-	const [cliArgs, setCliArgs] = useState('mcp serve');
+	const [workspaceError, setWorkspaceError] = useState('');
+	const [sendError, setSendError] = useState('');
 	const [messageInput, setMessageInput] = useState('');
 	const [filesInput, setFilesInput] = useState('');
+	const cliPath = 'codex';
+	const cliArgs = 'mcp-server';
 
 	useEffect(() => {
 		if (!tabs.includes('codex')) {
@@ -97,7 +96,12 @@ function CodexPage() {
 		session => session.id === activeSessionId
 	);
 
-	const quickWorkspaces = useMemo(() => workspaces.slice(0, 4), [workspaces]);
+	useEffect(() => {
+		if (!activeSession?.workspace) return;
+		if (activeSession.workspace === workspacePath) return;
+		setWorkspacePath(activeSession.workspace);
+		setWorkspaceError('');
+	}, [activeSession, workspacePath]);
 
 	const handlePickWorkspace = async () => {
 		const directory = await open({
@@ -108,6 +112,8 @@ function CodexPage() {
 
 		if (directory) {
 			setWorkspacePath(String(directory));
+			setWorkspaceError('');
+			setSendError('');
 		}
 	};
 
@@ -124,39 +130,43 @@ function CodexPage() {
 		setFilesInput(list.join(', '));
 	};
 
-	const handleStartSession = async () => {
+	const handleSend = async () => {
 		if (!workspacePath.trim()) {
+			setWorkspaceError('请先选择工作目录');
 			return;
 		}
-		const sessionId = buildSessionId();
-		const title = sessionTitle.trim() || `Codex ${sessions.length + 1}`;
-		const parsedArgs = parseArgs(cliArgs || '');
-
-		await startSession({
-			sessionId,
-			title,
-			workspace: workspacePath.trim(),
-			cliPath: cliPath.trim() || 'codex',
-			cliArgs: parsedArgs.length ? parsedArgs : undefined
-		});
-
-		setSessionTitle('');
-		setMessageInput('');
-	};
-
-	const handleSend = async () => {
-		if (!activeSession || !messageInput.trim()) return;
+		if (!messageInput.trim()) return;
+		setSendError('');
 		const files = filesInput
 			.split(',')
 			.map(item => item.trim())
 			.filter(Boolean);
-		await sendMessage({
-			sessionId: activeSession.id,
-			content: messageInput.trim(),
-			files: files.length ? files : undefined
-		});
-		setMessageInput('');
-		setFilesInput('');
+		let sessionId = activeSession?.id;
+		try {
+			if (!sessionId) {
+				const nextSessionId = buildSessionId();
+				const folderName =
+					workspacePath.trim().split('/').filter(Boolean).pop() || 'Codex';
+				const parsedArgs = parseArgs(cliArgs || '');
+				await startSession({
+					sessionId: nextSessionId,
+					title: folderName,
+					workspace: workspacePath.trim(),
+					cliPath,
+					cliArgs: parsedArgs.length ? parsedArgs : undefined
+				});
+				sessionId = nextSessionId;
+			}
+			await sendMessage({
+				sessionId,
+				content: messageInput.trim(),
+				files: files.length ? files : undefined
+			});
+			setMessageInput('');
+			setFilesInput('');
+		} catch (error) {
+			setSendError(error?.message || String(error));
+		}
 	};
 
 	return (
@@ -169,64 +179,6 @@ function CodexPage() {
 								<Bot className='h-4 w-4 text-blue-600' />
 								Codex 会话
 							</div>
-							<Button
-								variant='ghost'
-								size='sm'
-								className='h-7 w-7 p-0'
-								onClick={handleStartSession}
-								disabled={isStarting || !workspacePath.trim()}>
-								<Plus className='h-4 w-4' />
-							</Button>
-						</div>
-						<div className='mt-3 space-y-2'>
-							<Input
-								value={sessionTitle}
-								onChange={event => setSessionTitle(event.target.value)}
-								placeholder='会话标题 (可选)'
-								className='h-8 text-xs'
-							/>
-							<div className='flex gap-2'>
-								<Input
-									value={workspacePath}
-									onChange={event => setWorkspacePath(event.target.value)}
-									placeholder='工作目录'
-									className='h-8 text-xs'
-								/>
-								<Button
-									variant='outline'
-									size='sm'
-									className='h-8 px-2'
-									onClick={handlePickWorkspace}>
-									<FolderOpen className='h-4 w-4' />
-								</Button>
-							</div>
-							{quickWorkspaces.length > 0 && (
-								<div className='flex flex-wrap gap-1'>
-									{quickWorkspaces.map(workspace => (
-										<button
-											key={workspace.path}
-											type='button'
-											className='text-[10px] px-2 py-1 rounded-full border border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-600'
-											onClick={() =>
-												setWorkspacePath(workspace.path)
-											}>
-											{workspace.name || 'workspace'}
-										</button>
-									))}
-								</div>
-							)}
-							<Input
-								value={cliPath}
-								onChange={event => setCliPath(event.target.value)}
-								placeholder='Codex CLI 路径 (默认 codex)'
-								className='h-8 text-xs'
-							/>
-							<Input
-								value={cliArgs}
-								onChange={event => setCliArgs(event.target.value)}
-								placeholder='CLI 参数 (例如: mcp serve)'
-								className='h-8 text-xs'
-							/>
 						</div>
 					</div>
 
@@ -245,11 +197,11 @@ function CodexPage() {
 										<span className='font-medium text-gray-700 truncate'>
 											{session.title}
 										</span>
-												<Badge
-													variant='outline'
-													className={`text-[10px] ${statusBadgeClass(session.status)}`}>
-													{statusLabel(session.status)}
-												</Badge>
+										<Badge
+											variant='outline'
+											className={`text-[10px] ${statusBadgeClass(session.status)}`}>
+											{statusLabel(session.status)}
+										</Badge>
 									</div>
 									<p className='text-[11px] text-gray-500 mt-1 truncate'>
 										{session.workspace}
@@ -258,7 +210,7 @@ function CodexPage() {
 							))}
 							{sessions.length === 0 && (
 								<div className='text-xs text-gray-400 text-center py-8'>
-									还没有 Codex 会话，配置工作目录后点击 + 创建
+									还没有 Codex 会话，发送消息后会自动创建
 								</div>
 							)}
 						</div>
@@ -278,6 +230,9 @@ function CodexPage() {
 							<p className='text-xs text-gray-500'>
 								{activeSession?.workspace || '请选择或创建 Codex 会话'}
 							</p>
+							{sendError && (
+								<p className='text-xs text-red-500 mt-1'>{sendError}</p>
+							)}
 							{activeSession?.error && (
 								<p className='text-xs text-red-500 mt-1'>
 									{activeSession.error}
@@ -354,38 +309,96 @@ function CodexPage() {
 									<ShieldCheck className='h-3.5 w-3.5 text-blue-500' />
 									发送消息
 								</div>
-								<div className='flex items-center gap-2'>
-									<Input
+								
+								<div className='rounded-lg border border-gray-300 bg-white shadow-sm focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 transition-all'>
+									{/* Toolbar inside the input container */}
+									<div className='flex items-center gap-2 p-2 border-b border-gray-100 bg-gray-50/50 rounded-t-lg'>
+										<Badge variant='outline' className='text-[10px] bg-white'>
+											{cliPath || 'codex'}
+										</Badge>
+										<div className='h-4 w-[1px] bg-gray-200 mx-1' />
+										<Button
+											variant='ghost'
+											size='sm'
+											className='h-6 px-2 text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+											onClick={handlePickWorkspace}
+											disabled={isSending}
+											title="选择工作目录">
+											<FolderOpen className='h-3.5 w-3.5 mr-1.5' />
+											<span className='truncate max-w-[150px]'>
+												{workspacePath ? (
+													workspacePath.split('/').pop()
+												) : (
+													<span className='text-gray-400'>选择工作目录</span>
+												)}
+											</span>
+										</Button>
+										<Button
+											variant='ghost'
+											size='sm'
+											className='h-6 px-2 text-xs text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+											onClick={handlePickFiles}
+											disabled={isSending}
+											title="选择文件上下文">
+											<FileDiff className='h-3.5 w-3.5 mr-1.5' />
+											<span>文件</span>
+											{filesInput && (
+												<span className='ml-1 bg-blue-100 text-blue-700 px-1 rounded-sm text-[9px]'>
+													{filesInput.split(',').length}
+												</span>
+											)}
+										</Button>
+									</div>
+
+									{/* Status/Error messages inside/below toolbar if needed */}
+									{(!workspacePath && workspaceError) && (
+										<div className='px-3 py-1 text-[10px] text-red-500 bg-red-50 border-b border-red-100'>
+											{workspaceError}
+										</div>
+									)}
+									
+									{/* Textarea */}
+									<textarea
 										value={messageInput}
-										onChange={event =>
-											setMessageInput(event.target.value)
-										}
+										onChange={event => setMessageInput(event.target.value)}
 										onKeyDown={event => {
+											if (event.isComposing || event.keyCode === 229) {
+												return;
+											}
 											if (event.key === 'Enter') {
-												handleSend();
+												if (event.metaKey || event.ctrlKey) {
+													// Cmd/Ctrl + Enter: Insert newline
+													event.preventDefault();
+													setMessageInput(prev => prev + '\n');
+												} else if (!event.shiftKey) {
+													// Enter only: Send
+													event.preventDefault();
+													handleSend();
+												}
 											}
 										}}
-										placeholder='输入指令或问题'
-										disabled={!activeSession}
+										placeholder='输入指令或问题 (Enter 发送, Cmd+Enter 换行)'
+										className='w-full min-h-[80px] max-h-[300px] p-3 text-sm resize-none focus:outline-none bg-transparent rounded-b-lg'
+										disabled={isSending}
 									/>
-									<Button
-										variant='outline'
-										onClick={handlePickFiles}
-										disabled={!activeSession}>
-										<FileDiff className='h-4 w-4' />
-									</Button>
-									<Button
-										onClick={handleSend}
-										disabled={!activeSession || isSending}>
-										<Send className='h-4 w-4 mr-2' />
-										发送
-									</Button>
+									
+									{/* Footer info (optional, e.g. full path tooltip or file list) */}
+									{(workspacePath || filesInput) && (
+										<div className='px-3 py-1.5 border-t border-gray-100 bg-gray-50/30 rounded-b-lg flex flex-wrap gap-2'>
+											{workspacePath && (
+												<div className='text-[10px] text-gray-400 truncate max-w-full flex items-center' title={workspacePath}>
+													<span className='opacity-70 mr-1'>PWD:</span> {workspacePath}
+												</div>
+											)}
+											{filesInput && (
+												<div className='text-[10px] text-gray-500 flex items-center w-full'>
+													<span className='opacity-70 mr-1'>Files:</span> 
+													<span className='truncate'>{filesInput}</span>
+												</div>
+											)}
+										</div>
+									)}
 								</div>
-								{filesInput && (
-									<div className='mt-2 text-[11px] text-gray-500'>
-										文件: {filesInput}
-									</div>
-								)}
 							</div>
 						</div>
 
