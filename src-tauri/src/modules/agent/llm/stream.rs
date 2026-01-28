@@ -44,7 +44,11 @@ pub async fn stream_agent_response(
         ensure_mcp_clients(&app, session)?
     };
 
-    let mut messages = build_messages_with_reasoning(&history_snapshot, &content);
+    let system_prompt = settings.system_prompt.clone().unwrap_or_else(|| {
+        "你是桌面端智能助手，必须仅在用户选择的工作目录中操作文件。\n需要写入、删除、移动、创建目录或批量操作时，必须先发起权限审批，未批准不得执行。\n你必须使用工具调用完成文件操作，且按步骤执行。".to_string()
+    });
+
+    let mut messages = build_messages_with_reasoning(&history_snapshot, &content, &system_prompt);
     let mut current_reasoning_map: HashMap<usize, String> = HashMap::new();
 
     let http_client = reqwest::Client::new();

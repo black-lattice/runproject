@@ -1,16 +1,16 @@
 use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager};
 
-use super::tools::default_auto_approve;
-use super::types::{AgentMessage, AgentSession, AgentSessionRecord, AgentSettings, ApprovalState, PendingAction};
-use super::state::SESSIONS;
-use super::utils::{emit_event, now_ms};
-use super::settings::{load_settings, save_settings};
-use super::mcp::{agent_get_mcp_config as mcp_get_config, agent_save_mcp_config as mcp_save_config};
-use super::llm::stream::stream_agent_response;
+use super::super::tools::default_auto_approve;
+use super::super::types::{AgentMessage, AgentSession, AgentSettings, ApprovalState, PendingAction};
+use super::super::state::SESSIONS;
+use super::super::utils::{emit_event, now_ms};
+use super::super::settings::{load_settings, save_settings};
+use super::super::mcp::{agent_get_mcp_config as mcp_get_config, agent_save_mcp_config as mcp_save_config};
+use super::super::llm::stream::stream_agent_response;
+use super::utils::validate_workspace;
+use super::session::{create_session_file, load_session_history, save_session_record};
 
 #[tauri::command]
 pub fn agent_get_settings(app: AppHandle) -> Result<AgentSettings, String> {
@@ -179,57 +179,4 @@ pub fn agent_approve_action(
     }
 
     Ok(())
-}
-
-fn create_session_file(app: &AppHandle, session_id: &str, workspace: &str) -> Result<PathBuf, String> {
-    let dir = session_dir(app)?;
-    fs::create_dir_all(&dir).map_err(|e| format!("创建会话目录失败: {}", e))?;
-    let file_path = dir.join(format!("session-{}.json", session_id));
-    if !file_path.exists() {
-        let settings = load_settings(app)?;
-        let record = AgentSessionRecord {
-            id: session_id.to_string(),
-            created_at_ms: now_ms(),
-            workspace: workspace.to_string(),
-            provider: settings.provider,
-            model: settings.model,
-            messages: Vec::new(),
-        };
-        let content = serde_json::to_string_pretty(&record).map_err(|e| format!("序列化会话失败: {}", e))?;
-        fs::write(&file_path, content).map_err(|e| format!("写入会话失败: {}", e))?;
-    }
-    Ok(file_path)
-}
-
-fn load_session_history(path: &Path) -> Option<Vec<AgentMessage>> {
-    let content = fs::read_to_string(path).ok()?;
-    let record: AgentSessionRecord = serde_json::from_str(&content).ok()?;
-    Some(record.messages)
-}
-
-fn save_session_record(app: &AppHandle, session_id: &str, session: &AgentSession) -> Result<(), String> {
-    let settings = load_settings(app).unwrap_or_default();
-    let record = AgentSessionRecord {
-        id: session_id.to_string(),
-        created_at_ms: now_ms(),
-        workspace: session.workspace.to_string_lossy().to_string(),
-        provider: settings.provider,
-        model: settings.model,
-        messages: session.history.clone(),
-    };
-    let content = serde_json::to_string_pretty(&record).map_err(|e| format!("序列化会话失败: {}", e))?;
-    fs::write(&session.session_file, content).map_err(|e| format!("保存会话失败: {}", e))?;
-    Ok(())
-}
-
-fn session_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data = app.path().app_data_dir().map_err(|e| format!("获取应用数据目录失败: {}", e))?;
-    Ok(app_data.join("agent_sessions"))
-}
-
-fn validate_workspace(path: &str) -> Result<PathBuf, String> {
-    let path = Path::new(path);
-    if !path.exists() { return Err(format!("工作目录不存在: {}", path.display())); }
-    let canonical = path.canonicalize().map_err(|e| format!("工作目录无法解析: {}", e))?;
-    Ok(canonical)
 }

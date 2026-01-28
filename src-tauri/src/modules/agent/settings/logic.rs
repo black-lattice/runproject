@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
-use super::types::AgentSettings;
+use super::super::types::AgentSettings;
 
 pub fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
     let app_data = app.path().app_data_dir().map_err(|e| format!("获取应用数据目录失败: {}", e))?;
