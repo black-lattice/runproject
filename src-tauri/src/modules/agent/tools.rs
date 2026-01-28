@@ -3,24 +3,13 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::oneshot;
 
-#[derive(Debug)]
-pub struct PendingAction {
-    pub action_type: String,
-    pub params: Value,
-    pub responder: oneshot::Sender<bool>,
-}
-
-#[derive(Debug)]
-pub struct ApprovalState {
-    pub next_id: AtomicU64,
-    pub pending: Mutex<HashMap<u64, PendingAction>>,
-    pub auto_approve: Mutex<HashMap<String, bool>>,
-}
+use super::types::{ApprovalState, PendingAction};
+use super::utils::{emit_event, now_ms};
 
 #[derive(Clone)]
 pub struct ToolContext {
@@ -80,24 +69,6 @@ impl ToolContext {
             .and_then(|map| map.get(action_type).copied())
             .unwrap_or(false)
     }
-}
-
-fn emit_event(app: &AppHandle, session_id: &str, kind: &str, payload: Option<Value>) {
-    let _ = app.emit(
-        &format!("agent-event-{}", session_id),
-        serde_json::json!({
-            "kind": kind,
-            "payload": payload,
-            "timestamp_ms": now_ms(),
-        }),
-    );
-}
-
-fn now_ms() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or_default()
 }
 
 fn resolve_existing_path(workspace: &Path, input: &str) -> Result<PathBuf, String> {

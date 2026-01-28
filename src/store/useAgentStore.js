@@ -414,7 +414,12 @@ export const useAgentStore = create(
 						get().appendPendingAction(sessionId, payload);
 						break;
 					case 'delta':
-						get().appendDelta(sessionId, payload?.text || '');
+						if (payload?.reasoning) {
+							get().appendDelta(sessionId, payload.reasoning, true);
+						}
+						if (payload?.text) {
+							get().appendDelta(sessionId, payload.text, false);
+						}
 						break;
 					case 'refusal':
 						get().appendMessage(
