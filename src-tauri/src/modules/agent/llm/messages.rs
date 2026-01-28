@@ -17,10 +17,12 @@ pub fn build_client(settings: &AgentSettings) -> Result<Client<OpenAIConfig>, St
 
 pub fn build_messages_with_reasoning(history: &[AgentMessage], content: &str, system_prompt: &str) -> Vec<ChatCompletionRequestMessage> {
     let mut messages = Vec::new();
-    let system = ChatCompletionRequestSystemMessageArgs::default()
-        .content(ChatCompletionRequestSystemMessageContent::Text(system_prompt.to_string()))
-        .build().unwrap();
-    messages.push(ChatCompletionRequestMessage::System(system));
+    if !system_prompt.trim().is_empty() {
+        let system = ChatCompletionRequestSystemMessageArgs::default()
+            .content(ChatCompletionRequestSystemMessageContent::Text(system_prompt.to_string()))
+            .build().unwrap();
+        messages.push(ChatCompletionRequestMessage::System(system));
+    }
 
     for message in history {
         match message.role.as_str() {
