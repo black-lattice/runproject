@@ -34,16 +34,20 @@ impl CodexConnection {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
-            // .env_remove("NODE_OPTIONS")
-            // .env_remove("NODE_DEBUG")
-            // .env_remove("NODE_INSPECT")
-            // .env("CODEX_NO_INTERACTIVE", "1")
-            // .env("CODEX_AUTO_CONTINUE", "1");
-            // .env_remove("NODE_OPTIONS")
-            // .env_remove("NODE_DEBUG")
-            // .env_remove("NODE_INSPECT")
-            // .env("CODEX_NO_INTERACTIVE", "1")
-            // .env("CODEX_AUTO_CONTINUE", "1");
+
+        Self::spawn_from_command(command, framing, on_message, on_stderr)
+    }
+
+    pub fn spawn_from_command(
+        mut command: Command,
+        framing: Framing,
+        on_message: Arc<dyn Fn(CodexIncomingMessage) + Send + Sync>,
+        on_stderr: Arc<dyn Fn(String) + Send + Sync>,
+    ) -> Result<Arc<Self>, String> {
+        // Ensure standard I/O is piped
+        command.stdin(Stdio::piped());
+        command.stdout(Stdio::piped());
+        command.stderr(Stdio::piped());
 
         let mut child = command.spawn().map_err(|e| format!("启动 Codex 失败: {}", e))?;
         let stdin = child

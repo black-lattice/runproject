@@ -189,6 +189,8 @@ pub fn run() {
             codex::manager::codex_stop_session,
             agent::manager::agent_get_settings,
             agent::manager::agent_save_settings,
+            agent::manager::agent_get_mcp_config,
+            agent::manager::agent_save_mcp_config,
             agent::manager::agent_start_session,
             agent::manager::agent_send_message,
             agent::manager::agent_approve_action,

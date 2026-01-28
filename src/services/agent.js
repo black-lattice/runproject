@@ -9,6 +9,14 @@ export const saveAgentSettings = async settings => {
 	return invoke('agent_save_settings', { settings });
 };
 
+export const getMcpConfig = async () => {
+	return invoke('agent_get_mcp_config');
+};
+
+export const saveMcpConfig = async config => {
+	return invoke('agent_save_mcp_config', { config });
+};
+
 export const startAgentSession = async ({ sessionId, workspace, onEvent }) => {
 	const unlisten = await listen(`agent-event-${sessionId}`, event => {
 		onEvent?.(event.payload);
