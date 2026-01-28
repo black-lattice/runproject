@@ -136,6 +136,21 @@ export const useAgentStore = create((set, get) => ({
 			return { sessions: nextSessions, activeSessionId: nextActive };
 		});
 	},
+	updateSessionWorkspace: (sessionId, newWorkspace) => {
+		const folderName = newWorkspace.trim().split('/').filter(Boolean).pop() || '工作区';
+		set(state => ({
+			sessions: state.sessions.map(session =>
+				session.id === sessionId
+					? {
+							...session,
+							workspace: newWorkspace,
+							title: folderName,
+							lastUpdated: Date.now()
+						}
+					: session
+			)
+		}));
+	},
 	setActiveSession: sessionId => set({ activeSessionId: sessionId }),
 	sendMessage: async ({ sessionId, content }) => {
 		set({ isSending: true });
@@ -145,7 +160,10 @@ export const useAgentStore = create((set, get) => ({
 				if (!session.ready) {
 					throw new Error('Codex 正在加载 MCP，请稍候再发送');
 				}
-				await sendCodexMessage({ sessionId, content });
+				const settingsModel = get().settings?.model;
+				const model = settingsModel === 'codex-cli' ? undefined : settingsModel;
+				
+				await sendCodexMessage({ sessionId, content, model });
 				// Codex is async/streaming, so we keep isSending = true until we get a response/done event
 			} else {
 				await sendAgentMessage({ sessionId, content });
@@ -197,6 +215,15 @@ export const useAgentStore = create((set, get) => ({
 				
 				get().appendMessage(sessionId, 'assistant', requestText);
 				get().appendPendingAction(sessionId, payload);
+				break;
+			case 'command-executed':
+				const { command, stdout, stderr, exitCode } = payload;
+				let outputMsg = `> ${command}\n`;
+				if (stdout) outputMsg += `${stdout}\n`;
+				if (stderr) outputMsg += `Error: ${stderr}\n`;
+				outputMsg += `(Exit Code: ${exitCode})`;
+				
+				get().appendMessage(sessionId, 'system', outputMsg);
 				break;
 			case 'stdout':
 				// Codex MCP 的 stdout 是 JSON-RPC 数据流，避免直接渲染导致卡顿
@@ -256,10 +283,10 @@ export const useAgentStore = create((set, get) => ({
 						const streamingId = session?.streamingMessageId;
 						
 						// 如果正在流式传输且ID匹配，或者最后一条消息是assistant且内容不完全匹配
-						if (!streamingId || lastMsg?.content !== text) {
-                            if (!streamingId) {
-                                get().appendDelta(sessionId, text);
-                            }
+						if (!streamingId) {
+							if (!lastMsg || lastMsg.role !== 'assistant' || lastMsg.content !== text) {
+								get().appendDelta(sessionId, text);
+							}
 						}
                         get().finalizeStream(sessionId);
 					}

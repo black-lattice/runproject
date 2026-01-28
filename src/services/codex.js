@@ -46,8 +46,8 @@ export const startCodexSession = async ({
 	}
 };
 
-export const sendCodexMessage = async ({ sessionId, content, files }) => {
-	return invoke('codex_send_message', { sessionId, content, files });
+export const sendCodexMessage = async ({ sessionId, content, files, model }) => {
+	return invoke('codex_send_message', { sessionId, content, files, model });
 };
 
 export const approveCodexAction = async ({ sessionId, callId, decision }) => {

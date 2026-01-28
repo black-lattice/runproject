@@ -5,6 +5,7 @@ mod modules;
 use modules::editor;
 use modules::codex;
 use modules::agent;
+use modules::file_system;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
@@ -192,6 +193,7 @@ pub fn run() {
             agent::manager::agent_send_message,
             agent::manager::agent_approve_action,
             agent::manager::agent_stop_session,
+            file_system::read_dir,
             window_manager::open_external_window,
             window_manager::close_external_window,
             window_manager::is_window_open

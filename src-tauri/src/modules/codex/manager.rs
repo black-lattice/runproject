@@ -178,10 +178,11 @@ pub fn codex_send_message(
     session_id: String,
     content: String,
     files: Option<Vec<String>>,
+    model: Option<String>,
 ) -> Result<u64, String> {
-    let sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
+    let mut sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
     let session = sessions
-        .get(&session_id)
+        .get_mut(&session_id)
         .ok_or_else(|| format!("会话不存在: {}", session_id))?;
 
     if session.is_mcp {
@@ -189,11 +190,17 @@ pub fn codex_send_message(
             return Err("MCP 工具尚未就绪，请稍候重试".to_string());
         }
 
-        let tool_name = session
-            .selected_tool
-            .clone()
-            .or_else(|| select_tool_name(&session.tools))
-            .ok_or_else(|| "未找到可用的 MCP 工具".to_string())?;
+        let has_codex_reply = session.tools.iter().any(|t| t.name == "codex-reply");
+        
+        let tool_name = if session.conversation_started && has_codex_reply {
+            "codex-reply".to_string()
+        } else {
+            session
+                .selected_tool
+                .clone()
+                .or_else(|| select_tool_name(&session.tools))
+                .ok_or_else(|| "未找到可用的 MCP 工具".to_string())?
+        };
 
         let arguments = build_tool_arguments(
             session
@@ -203,12 +210,29 @@ pub fn codex_send_message(
             &content,
             files.clone(),
             &session.workspace,
+            model.clone(),
         );
 
-        let params = serde_json::json!({
+        let mut params = serde_json::json!({
             "name": tool_name,
             "arguments": arguments,
         });
+
+        if !session.conversation_started {
+            params.as_object_mut().unwrap().insert(
+                "config".to_string(),
+                serde_json::json!({ "conversationId": session.conversation_id }),
+            );
+            session.conversation_started = true;
+        } else if tool_name == "codex-reply" {
+            // Add conversationId to arguments for codex-reply
+            if let Some(args) = params.get_mut("arguments").and_then(|a| a.as_object_mut()) {
+                args.insert(
+                    "conversationId".to_string(),
+                    serde_json::Value::String(session.conversation_id.clone()),
+                );
+            }
+        }
 
         return session.connection.send_request("tools/call", Some(params));
     }
@@ -216,6 +240,7 @@ pub fn codex_send_message(
     let params = serde_json::json!({
         "content": content,
         "files": files,
+        "model": model,
     });
 
     session
@@ -270,75 +295,95 @@ fn start_mcp_handshake(app: &AppHandle, session_id: &str) -> Result<(), String> 
 }
 
 fn handle_mcp_message(app: &AppHandle, session_id: &str, message: &CodexIncomingMessage) {
-    let response = match message {
-        CodexIncomingMessage::Response(response) => response,
-        _ => return,
-    };
-
-    match response {
-        JsonRpcResponse::Ok { result, .. } => {
-            if is_tools_list_result(result) {
-                let tools = extract_tools(result);
-                let selected_tool = select_tool_name(&tools);
-                if let Ok(mut sessions) = SESSIONS.lock() {
-                    if let Some(session) = sessions.get_mut(session_id) {
-                        session.mcp_initialized = true;
-                        session.tools = tools.clone();
-                        session.selected_tool = selected_tool.clone();
-                        session.tools_request_id = None;
-                    }
-                }
-                emit_event(
-                    app,
-                    session_id,
-                    "mcp-tools",
-                    Some(serde_json::json!({
-                        "selectedTool": selected_tool,
-                        "tools": tools
-                    })),
-                );
-                return;
-            }
-
-            if is_initialize_result(result) {
-                if let Ok(mut sessions) = SESSIONS.lock() {
-                    if let Some(session) = sessions.get_mut(session_id) {
-                        if session.mcp_initialized {
-                            return;
+    match message {
+        CodexIncomingMessage::Response(response) => {
+            match response {
+                JsonRpcResponse::Ok { result, .. } => {
+                    if is_tools_list_result(result) {
+                        let tools = extract_tools(result);
+                        let selected_tool = select_tool_name(&tools);
+                        if let Ok(mut sessions) = SESSIONS.lock() {
+                            if let Some(session) = sessions.get_mut(session_id) {
+                                session.mcp_initialized = true;
+                                session.tools = tools.clone();
+                                session.selected_tool = selected_tool.clone();
+                                session.tools_request_id = None;
+                            }
                         }
-                        session.mcp_initialized = true;
+                        emit_event(
+                            app,
+                            session_id,
+                            "mcp-tools",
+                            Some(serde_json::json!({
+                                "selectedTool": selected_tool,
+                                "tools": tools
+                            })),
+                        );
+                        return;
+                    }
+
+                    if is_initialize_result(result) {
+                        if let Ok(mut sessions) = SESSIONS.lock() {
+                            if let Some(session) = sessions.get_mut(session_id) {
+                                if session.mcp_initialized {
+                                    return;
+                                }
+                                session.mcp_initialized = true;
+                            }
+                        }
+                        let connection = {
+                            let sessions = match SESSIONS.lock() {
+                                Ok(sessions) => sessions,
+                                Err(_) => return,
+                            };
+                            let session = match sessions.get(session_id) {
+                                Some(session) => session,
+                                None => return,
+                            };
+                            session.connection.clone()
+                        };
+
+                        let _ = connection.send_notification("initialized", None);
+                        if let Ok(tools_id) = connection.send_request("tools/list", None) {
+                            if let Ok(mut sessions) = SESSIONS.lock() {
+                                if let Some(session) = sessions.get_mut(session_id) {
+                                    session.tools_request_id = Some(tools_id);
+                                }
+                            }
+                        }
                     }
                 }
-                let connection = {
-                    let sessions = match SESSIONS.lock() {
-                        Ok(sessions) => sessions,
-                        Err(_) => return,
-                    };
-                    let session = match sessions.get(session_id) {
-                        Some(session) => session,
-                        None => return,
-                    };
-                    session.connection.clone()
-                };
-
-                let _ = connection.send_notification("initialized", None);
-                if let Ok(tools_id) = connection.send_request("tools/list", None) {
-                    if let Ok(mut sessions) = SESSIONS.lock() {
-                        if let Some(session) = sessions.get_mut(session_id) {
-                            session.tools_request_id = Some(tools_id);
+                JsonRpcResponse::Err { error, .. } => {
+                    emit_event(
+                        app,
+                        session_id,
+                        "mcp-error",
+                        Some(serde_json::json!({ "error": error })),
+                    );
+                }
+            }
+        }
+        CodexIncomingMessage::Notification { method, params } => {
+            if method == "codex/event" {
+                if let Some(params) = params {
+                    if let Some(msg) = params.get("msg") {
+                        if let Some(msg_type) = msg.get("type").and_then(|v| v.as_str()) {
+                            if msg_type == "session_configured" {
+                                if let Some(new_session_id) = msg.get("session_id").and_then(|v| v.as_str()) {
+                                    println!("DEBUG: Session configured with ID: {}", new_session_id);
+                                    if let Ok(mut sessions) = SESSIONS.lock() {
+                                        if let Some(session) = sessions.get_mut(session_id) {
+                                            session.conversation_id = new_session_id.to_string();
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        JsonRpcResponse::Err { error, .. } => {
-            emit_event(
-                app,
-                session_id,
-                "mcp-error",
-                Some(serde_json::json!({ "error": error })),
-            );
-        }
+        _ => {}
     }
 }
 
@@ -435,6 +480,7 @@ fn build_tool_arguments(
     content: &str,
     files: Option<Vec<String>>,
     workspace: &Path,
+    model: Option<String>,
 ) -> Value {
     let mut args = serde_json::Map::new();
     let schema = tool
@@ -457,6 +503,12 @@ fn build_tool_arguments(
             workspace_key,
             Value::String(workspace.to_string_lossy().to_string()),
         );
+    }
+    
+    if let Some(model) = model {
+        if let Some(model_key) = pick_property(schema, &["model", "model_name", "provider_model"]) {
+            args.insert(model_key, Value::String(model));
+        }
     }
 
     Value::Object(args)
@@ -513,16 +565,53 @@ pub fn codex_approve_action(
                     working_dir,
                 } => {
                     let working_dir = resolve_working_dir(&workspace, &working_dir)?;
-                    emit_event(
-                        &app,
-                        &session_id,
-                        "command-approved",
-                        Some(serde_json::json!({
-                            "callId": call_id,
-                            "command": command,
-                            "workingDir": working_dir.to_string_lossy(),
-                        })),
-                    );
+                    
+                    println!("DEBUG: Executing command: '{}' in '{}'", command, working_dir.display());
+                    
+                    // 在 MacOS/Linux 上使用 sh -c 执行
+                    // Windows 上可能需要 cmd /c 或 powershell
+                    #[cfg(target_os = "windows")]
+                    let shell = "cmd";
+                    #[cfg(target_os = "windows")]
+                    let arg = "/C";
+                    
+                    #[cfg(not(target_os = "windows"))]
+                    let shell = "sh";
+                    #[cfg(not(target_os = "windows"))]
+                    let arg = "-c";
+
+                    let output_result = std::process::Command::new(shell)
+                        .arg(arg)
+                        .arg(&command)
+                        .current_dir(&working_dir)
+                        .output();
+
+                    match output_result {
+                        Ok(output) => {
+                            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                            let exit_code = output.status.code().unwrap_or(-1);
+
+                            println!("DEBUG: Command executed. Exit: {}, Stdout len: {}, Stderr len: {}", exit_code, stdout.len(), stderr.len());
+
+                            emit_event(
+                                &app,
+                                &session_id,
+                                "command-executed",
+                                Some(serde_json::json!({
+                                    "callId": call_id,
+                                    "command": command,
+                                    "workingDir": working_dir.to_string_lossy(),
+                                    "stdout": stdout,
+                                    "stderr": stderr,
+                                    "exitCode": exit_code
+                                })),
+                            );
+                        }
+                        Err(e) => {
+                            return Err(format!("命令执行失败: {}", e));
+                        }
+                    }
                 }
                 PendingAction::Other { .. } => {
                     emit_event(
@@ -543,7 +632,8 @@ pub fn codex_approve_action(
         }
     }
 
-    let result = serde_json::json!({ "approved": approved });
+    let decision_str = if approved { "approved" } else { "rejected" };
+    let result = serde_json::json!({ "decision": decision_str });
     connection.send_response(call_id, result)?;
     Ok(())
 }

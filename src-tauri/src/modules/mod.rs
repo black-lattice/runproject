@@ -8,3 +8,4 @@ pub mod terminal;
 pub mod window_manager;
 pub mod codex;
 pub mod agent;
+pub mod file_system;
