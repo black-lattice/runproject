@@ -144,13 +144,10 @@ fn codex_start_session_blocking(
     println!("DEBUG: Session created successfully");
 
     emit_status(&app, &session_id, CodexStatus::Connected, None);
-    println!("DEBUG: Acquiring sessions lock...");
     {
         let mut sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
-        println!("DEBUG: Sessions lock acquired. Inserting session.");
         sessions.insert(session_id.clone(), session);
     } // 锁在这里释放
-    println!("DEBUG: Sessions lock released.");
 
     if is_mcp_server(&cli_args) {
         println!("DEBUG: Starting MCP handshake...");
@@ -250,10 +247,11 @@ pub fn codex_send_message(
 
 fn is_mcp_server(cli_args: &[String]) -> bool {
     cli_args.iter().any(|arg| arg == "mcp-server")
+        || (cli_args.len() >= 2 && cli_args[0] == "mcp" && cli_args[1] == "serve")
 }
 
 fn start_mcp_handshake(app: &AppHandle, session_id: &str) -> Result<(), String> {
-    println!("DEBUG: Inside start_mcp_handshake");
+    println!("[CODEX] Starting MCP handshake for session: {}", session_id);
     let init_params = serde_json::json!({
         "protocolVersion": "2024-11-05",
         "capabilities": {},
@@ -271,12 +269,11 @@ fn start_mcp_handshake(app: &AppHandle, session_id: &str) -> Result<(), String> 
         session.connection.clone()
     };
 
-    println!("DEBUG: Waiting for server ready...");
     connection
         .wait_for_server_ready(Duration::from_secs(120))
         .map_err(|e| format!("MCP 未就绪: {}", e))?;
-    println!("DEBUG: Server ready. Sending initialize...");
 
+    println!("[CODEX] MCP server ready, sending initialize...");
     let init_result = connection.send_request_and_wait(
         "initialize",
         Some(init_params),
@@ -284,6 +281,7 @@ fn start_mcp_handshake(app: &AppHandle, session_id: &str) -> Result<(), String> 
     );
 
     if let Err(init_error) = init_result {
+        println!("[CODEX] MCP initialize failed, trying tools/list fallback: {}", init_error);
         let tools_result =
             connection.send_request_and_wait("tools/list", None, Duration::from_secs(10));
         if let Err(tools_error) = tools_result {
@@ -291,6 +289,7 @@ fn start_mcp_handshake(app: &AppHandle, session_id: &str) -> Result<(), String> 
         }
     }
 
+    println!("[CODEX] MCP handshake initiated successfully.");
     Ok(())
 }
 
@@ -591,8 +590,6 @@ pub fn codex_approve_action(
                             let stdout = String::from_utf8_lossy(&output.stdout).to_string();
                             let stderr = String::from_utf8_lossy(&output.stderr).to_string();
                             let exit_code = output.status.code().unwrap_or(-1);
-
-                            println!("DEBUG: Command executed. Exit: {}, Stdout len: {}, Stderr len: {}", exit_code, stdout.len(), stderr.len());
 
                             emit_event(
                                 &app,

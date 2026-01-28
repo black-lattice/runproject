@@ -18,7 +18,6 @@ import {
 	Code,
 	Zap,
 	Code2,
-	Bot,
 	Sparkles
 } from 'lucide-react';
 import { PAGE_CONFIGS } from '@/config/routes';
@@ -61,14 +60,6 @@ function WelcomePage() {
 			icon: Code2,
 			color: 'bg-orange-500',
 			action: () => handleNavigate('formatter')
-		},
-		{
-			id: 'codex',
-			title: 'AI CLI',
-			description: '启动 Codex 会话并查看事件流',
-			icon: Bot,
-			color: 'bg-indigo-500',
-			action: () => handleNavigate('codex')
 		},
 		{
 			id: 'agent',

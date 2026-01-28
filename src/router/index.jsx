@@ -9,7 +9,6 @@ import ProjectPage from '../pages/project/index';
 import SettingsPage from '../pages/settings/index';
 import TerminalPage from '../pages/terminal/index';
 import FormatterPage from '../pages/formatter/index';
-import CodexPage from '../pages/codex/index';
 import AgentPage from '../pages/agent/index';
 import { PAGE_CONFIGS } from '../config/routes';
 
@@ -44,10 +43,6 @@ export const AppRouter = () => {
 			<Route
 				path={PAGE_CONFIGS.formatter.path}
 				element={<FormatterPage />}
-			/>
-			<Route
-				path={PAGE_CONFIGS.codex.path}
-				element={<CodexPage />}
 			/>
 			<Route
 				path={PAGE_CONFIGS.agent.path}

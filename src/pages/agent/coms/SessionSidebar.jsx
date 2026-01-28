@@ -1,11 +1,17 @@
-import { Bot, PlusCircle } from 'lucide-react';
+import { Bot, PlusCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useAgentStore } from '@/store/useAgentStore';
 
 export function SessionSidebar({ onNewSession }) {
-	const { sessions, activeSessionId, setActiveSession } = useAgentStore();
+	const { sessions, activeSessionId, setActiveSession, stopSession } =
+		useAgentStore();
+
+	const handleDelete = (e, sessionId) => {
+		e.stopPropagation();
+		stopSession(sessionId);
+	};
 
 	return (
 		<aside className='border-r border-gray-200 bg-white flex flex-col'>
@@ -31,24 +37,27 @@ export function SessionSidebar({ onNewSession }) {
 					{sessions.map(session => (
 						<div
 							key={session.id}
-							className={`rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${
+							className={`group rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${
 								session.id === activeSessionId
 									? 'border-emerald-300 bg-emerald-50'
 									: 'border-gray-200 hover:border-emerald-200 hover:bg-emerald-50/50'
 							}`}
 							onClick={() => setActiveSession(session.id)}
 						>
-							<div className='flex items-center justify-between'>
+							<div className='flex items-center justify-between gap-2'>
 								<span className='font-medium text-gray-700 truncate'>
 									{session.title}
 								</span>
-								<Badge variant='outline' className='text-[10px]'>
-									{session.status || 'idle'}
-								</Badge>
+								<Button
+									size='icon'
+									variant='ghost'
+									className='h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 hover:text-red-600'
+									onClick={e => handleDelete(e, session.id)}
+									title='删除会话'
+								>
+									<Trash2 className='h-3 w-3' />
+								</Button>
 							</div>
-							<p className='text-[11px] text-gray-500 mt-1 truncate'>
-								{session.workspace}
-							</p>
 						</div>
 					))}
 					{sessions.length === 0 && (

@@ -126,38 +126,6 @@ export function ChatArea({
 									<span>Codex 正在思考...</span>
 								</div>
 							)}
-
-						{pendingAction && (
-							<div className='rounded-xl bg-white border border-amber-200 shadow-md p-3 mb-4 mx-auto max-w-[400px] sticky bottom-0 z-10'>
-								<div className='flex items-center justify-between gap-4'>
-									<div className='flex items-center gap-2 min-w-0'>
-										<div className='h-7 w-7 rounded-full bg-amber-50 flex items-center justify-center shrink-0'>
-											<ShieldCheck className='h-4 w-4 text-amber-600' />
-										</div>
-										<div className='text-xs font-medium text-gray-700 truncate'>
-											权限确认请求
-										</div>
-									</div>
-									<div className='flex items-center gap-2'>
-										<Button
-											size='sm'
-											variant='ghost'
-											onClick={() => onApprove('reject')}
-											className='h-7 px-3 text-[11px] text-gray-500 hover:text-red-600 hover:bg-red-50'
-										>
-											拒绝
-										</Button>
-										<Button
-											size='sm'
-											onClick={() => onApprove('approve')}
-											className='h-7 px-4 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white border-0'
-										>
-											批准执行
-										</Button>
-									</div>
-								</div>
-						</div>
-					)}
 					</div>
 				</ScrollArea>
 			</div>

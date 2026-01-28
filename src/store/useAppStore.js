@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { listen } from '@tauri-apps/api/event';
 
 const DEFAULT_TABS = [];
-const LEGACY_TABS = new Set(['massage-web']);
+const LEGACY_TABS = new Set(['massage-web', 'codex']);
 const sanitizeTabs = tabs => (tabs || []).filter(id => !LEGACY_TABS.has(id));
 let commandStatusSyncInitialized = false;
 

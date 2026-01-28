@@ -28,8 +28,6 @@ impl CodexConnection {
         on_message: Arc<dyn Fn(CodexIncomingMessage) + Send + Sync>,
         on_stderr: Arc<dyn Fn(String) + Send + Sync>,
     ) -> Result<Arc<Self>, String> {
-        println!("DEBUG: Spawning process: {} with args: {:?}", cli_path, cli_args);
-        
         let mut command = Command::new(cli_path);
         command
             .args(cli_args)
@@ -48,7 +46,6 @@ impl CodexConnection {
             // .env("CODEX_AUTO_CONTINUE", "1");
 
         let mut child = command.spawn().map_err(|e| format!("启动 Codex 失败: {}", e))?;
-        println!("DEBUG: Codex process spawned with PID: {}", child.id());
         let stdin = child
             .stdin
             .take()
@@ -195,7 +192,6 @@ impl CodexConnection {
             ),
             Framing::Line => format!("{}\n", payload),
         };
-        println!("DEBUG: Writing to Codex stdin: {:?}", message);
         stdin
             .write_all(message.as_bytes())
             .map_err(|e| format!("写入 Codex 失败: {}", e))?;
@@ -218,8 +214,6 @@ impl CodexConnection {
                 match reader.read(&mut chunk) {
                     Ok(0) => break,
                     Ok(n) => {
-                        let raw_output = String::from_utf8_lossy(&chunk[..n]).to_string();
-                        println!("DEBUG: Codex stdout read {} bytes: {:?}", n, raw_output);
                         buffer.extend_from_slice(&chunk[..n]);
                         loop {
                             match try_parse_message(&buffer) {
@@ -277,7 +271,7 @@ impl CodexConnection {
                     Ok(_) => {
                         let trimmed = line.trim_end().to_string();
                         if !trimmed.is_empty() {
-                            println!("DEBUG: Codex stderr: {}", trimmed);
+                            println!("[CODEX] stderr: {}", trimmed);
                             on_stderr(trimmed);
                         }
                     }

@@ -12,35 +12,6 @@ import { InputArea } from './coms/InputArea';
 
 const buildSessionId = () => `agent-${Date.now()}`;
 
-const modelGroups = [
-	{
-		label: 'OpenAI',
-		models: [
-			{ value: 'gpt-4.1', label: 'gpt-4.1' },
-			{ value: 'gpt-4.1-mini', label: 'gpt-4.1-mini' },
-			{ value: 'gpt-4.1-nano', label: 'gpt-4.1-nano' }
-		]
-	},
-	{
-		label: 'DeepSeek',
-		models: [
-			{ value: 'deepseek-chat', label: 'deepseek-chat' },
-			{ value: 'deepseek-reasoner', label: 'deepseek-reasoner' }
-		]
-	},
-	{
-		label: 'CLI',
-		models: [{ value: 'codex-cli', label: 'codex (CLI)' }]
-	}
-];
-
-const inferProvider = model => {
-	if (!model) return 'openai';
-	if (model === 'codex-cli') return 'codex';
-	return model.toLowerCase().startsWith('deepseek-') ? 'deepseek' : 'openai';
-};
-const DEFAULT_DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
-
 function AgentPage() {
 	const {
 		settings,
@@ -54,7 +25,8 @@ function AgentPage() {
 		sendMessage,
 		appendMessage,
 		approveAction,
-		updateSessionWorkspace
+		updateSessionWorkspace,
+		savedModels
 	} = useAgentStore();
 	const { tabs, addTab } = useAppStore();
 
@@ -66,6 +38,42 @@ function AgentPage() {
 
 	const [files, setFiles] = useState([]);
 	const [filesLoading, setFilesLoading] = useState(false);
+	const [dirChildrenMap, setDirChildrenMap] = useState({});
+	const [dirLoadingMap, setDirLoadingMap] = useState({});
+	const [expandedDirs, setExpandedDirs] = useState(() => new Set());
+
+	// Group models dynamically
+	const dynamicModelGroups = useMemo(() => {
+		const groups = [
+			{
+				label: 'CLI',
+				models: [{ value: 'codex-cli', label: 'codex (CLI)' }]
+			}
+		];
+
+		// Filter saved models that have an API key
+		const configuredModels = savedModels.filter(m => m.api_key && m.model !== 'codex-cli');
+		
+		if (configuredModels.length > 0) {
+			const openaiModels = configuredModels.filter(m => m.provider === 'openai');
+			const deepseekModels = configuredModels.filter(m => m.provider === 'deepseek');
+
+			if (openaiModels.length > 0) {
+				groups.push({
+					label: 'OpenAI',
+					models: openaiModels.map(m => ({ value: m.id, label: m.model }))
+				});
+			}
+			if (deepseekModels.length > 0) {
+				groups.push({
+					label: 'DeepSeek',
+					models: deepseekModels.map(m => ({ value: m.id, label: m.model }))
+				});
+			}
+		}
+
+		return groups;
+	}, [savedModels]);
 
 	// Mention & IME states
 	const [showMentions, setShowMentions] = useState(false);
@@ -74,12 +82,7 @@ function AgentPage() {
 	const [mentionNavIndex, setMentionNavIndex] = useState(0);
 	const isComposing = useRef(false);
 	const textareaRef = useRef(null);
-
-	useEffect(() => {
-		if (!tabs.includes('agent')) {
-			addTab('agent');
-		}
-	}, [tabs, addTab]);
+	const hasAutoCreated = useRef(false);
 
 	useEffect(() => {
 		loadSettings().catch(() => null);
@@ -90,11 +93,31 @@ function AgentPage() {
 	);
 
 	useEffect(() => {
-		if (activeSession?.workspace) {
-			setWorkspacePath(activeSession.workspace);
+		if (activeSession) {
+			setWorkspacePath(activeSession.workspace || '');
 			setWorkspaceError('');
 		}
-	}, [activeSessionId]);
+	}, [activeSessionId, activeSession?.workspace]);
+
+	useEffect(() => {
+		setDirChildrenMap({});
+		setDirLoadingMap({});
+		setExpandedDirs(new Set());
+	}, [workspacePath]);
+
+	// Auto-create initial session ONLY on mount and ONLY after settings are loaded
+	useEffect(() => {
+		const hasEmpty = sessions.some(s => s.title === '新会话' && !s.workspace);
+		if (sessions.length === 0 && settings && !hasAutoCreated.current && !hasEmpty) {
+			hasAutoCreated.current = true;
+			const nextSessionId = buildSessionId();
+			startSession({
+				sessionId: nextSessionId,
+				title: '新会话',
+				workspace: ''
+			});
+		}
+	}, [settings, sessions.length, startSession]);
 
 	const fetchFiles = useCallback(async () => {
 		if (!workspacePath) {
@@ -117,15 +140,79 @@ function AgentPage() {
 		fetchFiles();
 	}, [fetchFiles]);
 
+	const loadDirChildren = useCallback(
+		async dirPath => {
+			if (dirChildrenMap[dirPath] || dirLoadingMap[dirPath]) {
+				return;
+			}
+			setDirLoadingMap(prev => ({ ...prev, [dirPath]: true }));
+			try {
+				const entries = await invoke('read_dir', { path: dirPath });
+				setDirChildrenMap(prev => ({ ...prev, [dirPath]: entries }));
+			} catch (error) {
+				console.error('Failed to read dir:', error);
+				setDirChildrenMap(prev => ({ ...prev, [dirPath]: [] }));
+			} finally {
+				setDirLoadingMap(prev => ({ ...prev, [dirPath]: false }));
+			}
+		},
+		[dirChildrenMap, dirLoadingMap]
+	);
+
+	const handleToggleDir = useCallback(
+		async dirPath => {
+			let shouldLoad = false;
+			setExpandedDirs(prev => {
+				const next = new Set(prev);
+				if (next.has(dirPath)) {
+					next.delete(dirPath);
+				} else {
+					next.add(dirPath);
+					shouldLoad = true;
+				}
+				return next;
+			});
+
+			if (shouldLoad) {
+				await loadDirChildren(dirPath);
+			}
+		},
+		[loadDirChildren]
+	);
+
+	const handleDragStart = useCallback((event, entry) => {
+		const payload = JSON.stringify({
+			name: entry.name,
+			path: entry.path,
+			isDir: entry.isDir
+		});
+		event.dataTransfer.setData('application/json', payload);
+		event.dataTransfer.setData('text/plain', payload);
+		event.dataTransfer.effectAllowed = 'copy';
+	}, []);
+
 	const pendingAction = activeSession?.pendingActions?.[0] || null;
+
+	const knownFiles = useMemo(() => {
+		const map = new Map();
+		files.forEach(f => {
+			map.set(f.path, f);
+		});
+		Object.values(dirChildrenMap).forEach(list => {
+			(list || []).forEach(f => {
+				map.set(f.path, f);
+			});
+		});
+		return Array.from(map.values());
+	}, [files, dirChildrenMap]);
 
 	// Filtered files for mention dropdown
 	const filteredFiles = useMemo(() => {
-		if (!mentionQuery) return files;
-		return files.filter(f =>
+		if (!mentionQuery) return knownFiles;
+		return knownFiles.filter(f =>
 			f.name.toLowerCase().includes(mentionQuery.toLowerCase())
 		);
-	}, [files, mentionQuery]);
+	}, [knownFiles, mentionQuery]);
 
 	const handlePickWorkspace = async () => {
 		const directory = await open({
@@ -179,8 +266,13 @@ function AgentPage() {
 
 			// Scan messageInput for mentioned files
 			// Simple logic: check if '@filename' is present in the text
-			const filesToSend = files
-				.filter(f => messageInput.includes(`@${f.name}`))
+			const mentionedNames = new Set(
+				(messageInput.match(/@([\\w\\u4e00-\\u9fa5\\.\\-\\/]+)/g) || []).map(
+					item => item.slice(1)
+				)
+			);
+			const filesToSend = knownFiles
+				.filter(f => mentionedNames.has(f.name))
 				.map(f => f.path);
 
 			appendMessage(sessionId, 'user', messageInput.trim());
@@ -196,17 +288,26 @@ function AgentPage() {
 	};
 
 	const handleNewSession = async () => {
-		if (!workspacePath.trim()) {
-			setWorkspaceError('请先选择工作目录');
+		// Check if there's already an empty session (title is '新会话' and workspace is empty)
+		const existingEmptySession = sessions.find(
+			s => s.title === '新会话' && !s.workspace
+		);
+
+		if (existingEmptySession) {
+			setActiveSession(existingEmptySession.id);
+			setWorkspacePath('');
+			setWorkspaceError('');
 			return;
 		}
+
+		setWorkspacePath('');
+		setWorkspaceError('');
+
 		const nextSessionId = buildSessionId();
-		const folderName =
-			workspacePath.trim().split('/').filter(Boolean).pop() || '工作区';
 		await startSession({
 			sessionId: nextSessionId,
-			title: folderName,
-			workspace: workspacePath.trim()
+			title: '新会话',
+			workspace: ''
 		});
 	};
 
@@ -228,19 +329,41 @@ function AgentPage() {
 
 	const handleModelChange = async value => {
 		try {
-			const newProvider = inferProvider(value);
-			const baseUrl =
-				newProvider === 'deepseek' ? DEFAULT_DEEPSEEK_BASE_URL : '';
-			await saveSettings({
-				...settings,
-				model: value,
-				provider: newProvider,
-				base_url: baseUrl || settings?.base_url || null
-			});
+			if (value === 'codex-cli') {
+				await saveSettings({
+					...settings,
+					model: 'codex-cli',
+					provider: 'codex'
+				});
+				return;
+			}
+
+			// Find config from saved models
+			const modelConfig = savedModels.find(m => m.id === value);
+			if (modelConfig) {
+				await saveSettings({
+					provider: modelConfig.provider,
+					model: modelConfig.model,
+					api_key: modelConfig.api_key,
+					base_url: modelConfig.base_url || null
+				});
+			}
 		} catch (error) {
 			console.error('Failed to update model:', error);
 		}
 	};
+
+	// Determine currently selected value for UI
+	const currentModelValue = useMemo(() => {
+		if (settings?.model === 'codex-cli') return 'codex-cli';
+		// Find ID of saved model that matches current active settings
+		const matched = savedModels.find(m => 
+			m.model === settings?.model && 
+			m.api_key === settings?.api_key && 
+			(m.base_url || '') === (settings?.base_url || '')
+		);
+		return matched?.id || settings?.model || 'codex-cli';
+	}, [settings, savedModels]);
 
 	const handleSelectFile = file => {
 		const beforeMention = messageInput.slice(0, mentionCursorIndex);
@@ -256,6 +379,37 @@ function AgentPage() {
 		setMentionQuery('');
 		textareaRef.current?.focus();
 	};
+
+	const insertMentionAtCursor = useCallback(name => {
+		const input = textareaRef.current;
+		setMessageInput(prev => {
+			const start = input?.selectionStart ?? prev.length;
+			const end = input?.selectionEnd ?? prev.length;
+			const before = prev.slice(0, start);
+			const after = prev.slice(end);
+			const insertText = `@${name}`;
+			const spaceBefore = before && !before.endsWith(' ') ? ' ' : '';
+			const spaceAfter = after && !after.startsWith(' ') ? ' ' : ' ';
+			const next = `${before}${spaceBefore}${insertText}${spaceAfter}${after}`;
+
+			requestAnimationFrame(() => {
+				if (!input) return;
+				const cursor = (before + spaceBefore + insertText + ' ').length;
+				input.focus();
+				input.setSelectionRange(cursor, cursor);
+			});
+
+			return next;
+		});
+	}, []);
+
+	const handleDropEntry = useCallback(
+		entry => {
+			if (!entry?.name) return;
+			insertMentionAtCursor(entry.name);
+		},
+		[insertMentionAtCursor]
+	);
 
 	const handleKeyDown = e => {
 		if (isComposing.current && e.key === 'Enter') {
@@ -356,10 +510,6 @@ function AgentPage() {
 						activeSession={activeSession}
 						messages={messages}
 						isSending={isSending}
-						pendingAction={pendingAction}
-						onApprove={handleApprove}
-						rememberApproval={rememberApproval}
-						setRememberApproval={setRememberApproval}
 					/>
 
 					<InputArea
@@ -374,16 +524,19 @@ function AgentPage() {
 						messages={messages}
 						settings={settings}
 						onModelChange={handleModelChange}
-						modelGroups={modelGroups}
+						modelGroups={dynamicModelGroups}
+						currentModelValue={currentModelValue}
 						showMentions={showMentions}
 						filteredFiles={filteredFiles}
-					
-mentionNavIndex={mentionNavIndex}
+						mentionNavIndex={mentionNavIndex}
 						onSelectFile={handleSelectFile}
 						textareaRef={textareaRef}
 						onPickWorkspace={handlePickWorkspace}
 						onCompositionStart={() => (isComposing.current = true)}
 						onCompositionEnd={() => (isComposing.current = false)}
+						pendingAction={pendingAction}
+						onApprove={handleApprove}
+						onDropEntry={handleDropEntry}
 					/>
 				</section>
 
@@ -392,6 +545,11 @@ mentionNavIndex={mentionNavIndex}
 					filesLoading={filesLoading}
 					workspacePath={workspacePath}
 					onRefresh={fetchFiles}
+					expandedDirs={expandedDirs}
+					dirChildrenMap={dirChildrenMap}
+					dirLoadingMap={dirLoadingMap}
+					onToggleDir={handleToggleDir}
+					onDragStartEntry={handleDragStart}
 				/>
 			</div>
 		</div>

@@ -4,7 +4,6 @@ import {
 	Settings,
 	Terminal,
 	Code2,
-	Bot,
 	Sparkles
 } from 'lucide-react';
 
@@ -43,13 +42,6 @@ export const PAGE_CONFIGS = {
 		path: '/formatter',
 		title: '数据格式化',
 		icon: Code2,
-		closable: true
-	},
-	codex: {
-		id: 'codex',
-		path: '/codex',
-		title: 'AI CLI',
-		icon: Bot,
 		closable: true
 	},
 	agent: {
