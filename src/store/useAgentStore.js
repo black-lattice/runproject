@@ -14,6 +14,7 @@ import {
 	approveCodexAction,
 	stopCodexSession
 } from '@/services/codex';
+import { getActionDescription } from '@/lib/utils';
 
 const listeners = new Map();
 const MAX_MESSAGES = 500;
@@ -266,6 +267,16 @@ export const useAgentStore = create(
 				}
 			},
 			approveAction: async ({ sessionId, callId, decision, remember }) => {
+				// Record the decision in the chat history
+				const currentSession = get().sessions.find(s => s.id === sessionId);
+				const action = currentSession?.pendingActions?.find(a => a.callId === callId);
+				if (action) {
+					const desc = getActionDescription(action);
+					const icon = decision === 'approve' ? '✅' : '❌';
+					const statusText = decision === 'approve' ? '已批准' : '已拒绝';
+					get().appendMessage(sessionId, 'system', `${icon} ${statusText}: ${desc}`);
+				}
+
 				set(state => ({
 					sessions: state.sessions.map(session =>
 						session.id === sessionId

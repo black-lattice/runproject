@@ -17,6 +17,7 @@ import {
 	SelectValue
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { getActionDescription } from '@/lib/utils';
 
 export function InputArea({
 	workspacePath,
@@ -161,14 +162,21 @@ export function InputArea({
 							</div>
 						</div>
 						
-						{pendingAction.params && (
-							<div className='bg-gray-50 rounded-md p-3 font-mono text-xs text-gray-600 overflow-x-auto border border-gray-100'>
-								{pendingAction.params.codex_command 
-									? `> ${Array.isArray(pendingAction.params.codex_command) ? pendingAction.params.codex_command.join(' ') : pendingAction.params.codex_command}`
-									: JSON.stringify(pendingAction.params, null, 2)
-								}
+						<div className='bg-amber-50/50 rounded-lg p-3 text-sm text-gray-700 border border-amber-100 flex items-start gap-2'>
+							<div className='shrink-0 mt-0.5'>👉</div>
+							<div className='break-all leading-relaxed flex flex-col gap-1'>
+								{(pendingAction.params?.command || pendingAction.params?.codex_command) && (
+									<div className='font-mono text-[11px] text-amber-900 font-bold opacity-80'>
+										{Array.isArray(pendingAction.params?.command || pendingAction.params?.codex_command) 
+											? (pendingAction.params?.command || pendingAction.params?.codex_command).join(' ') 
+											: (pendingAction.params?.command || pendingAction.params?.codex_command)}
+									</div>
+								)}
+								<div className='font-medium'>
+									{getActionDescription(pendingAction)}
+								</div>
 							</div>
-						)}
+						</div>
 
 						<div className='flex gap-2 pt-1'>
 							<button
@@ -178,7 +186,7 @@ export function InputArea({
 								onClick={() => onApprove('reject')}
 							>
 								<X className='w-4 h-4' />
-								拒绝 (Reject)
+								拒绝
 							</button>
 							<button
 								className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${permissionSelection === 'approve'
@@ -187,7 +195,7 @@ export function InputArea({
 								onClick={() => onApprove('approve')}
 							>
 								<Check className='w-4 h-4' />
-								批准 (Approve)
+								批准
 							</button>
 						</div>
 						

@@ -23,8 +23,8 @@ export function FileSidebar({
 			return (
 				<div key={entry.path}>
 					<div
-						className='flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 rounded cursor-default group'
-						style={{ paddingLeft: 8 + depth * 12 }}
+						className='flex flex-row-reverse items-center gap-2 px-2 py-1.5 hover:bg-gray-100 rounded cursor-default group'
+						style={{ paddingRight: 8 + depth * 12 }}
 						title={entry.path}
 						draggable
 						onDragStart={e => onDragStartEntry?.(e, entry)}
@@ -37,7 +37,7 @@ export function FileSidebar({
 								{isExpanded ? (
 									<ChevronDown className='h-3.5 w-3.5' />
 								) : (
-									<ChevronRight className='h-3.5 w-3.5' />
+									<ChevronRight className='h-3.5 w-3.5 rotate-180' />
 								)}
 							</span>
 						) : (
@@ -49,14 +49,14 @@ export function FileSidebar({
 							<FileIcon className='h-3.5 w-3.5 text-gray-400 shrink-0' />
 						)}
 						<span
-							className={`text-[11px] truncate ${
+							className={`text-[11px] truncate flex-1 text-right ${
 								isDir ? 'text-gray-700 font-medium' : 'text-gray-600'
 							}`}
 						>
 							{entry.name}
 						</span>
 						{isDir && isLoading && (
-							<RefreshCw className='h-3 w-3 text-gray-300 animate-spin ml-auto' />
+							<RefreshCw className='h-3 w-3 text-gray-300 animate-spin mr-auto' />
 						)}
 					</div>
 					{isDir && isExpanded && children?.length > 0 && (
@@ -64,8 +64,8 @@ export function FileSidebar({
 					)}
 					{isDir && isExpanded && !isLoading && children?.length === 0 && (
 						<div
-							className='text-[10px] text-gray-400 py-1'
-							style={{ paddingLeft: 8 + (depth + 1) * 12 }}
+							className='text-[10px] text-gray-400 py-1 text-right'
+							style={{ paddingRight: 8 + (depth + 1) * 12 }}
 						>
 							空目录
 						</div>
@@ -77,12 +77,12 @@ export function FileSidebar({
 
 	return (
 		<aside className='border-l border-gray-200 bg-white flex flex-col min-h-0'>
-			<div className='p-3 border-b border-gray-100 flex items-center justify-between h-[52px]'>
-				<div className='text-xs font-semibold text-gray-600 flex items-center gap-1.5'>
+			<div className='p-3 border-b border-gray-100 flex flex-row-reverse items-center justify-between h-[52px]'>
+				<div className='text-xs font-semibold text-gray-600 flex flex-row-reverse items-center gap-1.5'>
 					<FolderOpen className='h-3.5 w-3.5 text-gray-500' />
 					文件列表
 				</div>
-				<div className='flex items-center gap-2'>
+				<div className='flex flex-row-reverse items-center gap-2'>
 					{workspacePath && (
 						<div className='text-[10px] text-gray-400'>
 							{files.length} items

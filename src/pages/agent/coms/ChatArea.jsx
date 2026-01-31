@@ -12,7 +12,8 @@ export function ChatArea({
 	pendingAction,
 	onApprove,
 	rememberApproval,
-	setRememberApproval
+	setRememberApproval,
+	settings
 }) {
 	return (
 		<div className='flex-1 flex flex-col min-h-0'>
@@ -22,6 +23,10 @@ export function ChatArea({
 						{messages.map(message => {
 							if (message.role === 'system') {
 								const isError = /error|fail|中断|拒绝/i.test(message.content);
+								// 在 codex 模式下隐藏报错信息
+								if (isError && settings?.provider === 'codex') {
+									return null;
+								}
 								return (
 									<div
 										key={message.id}

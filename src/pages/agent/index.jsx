@@ -161,23 +161,23 @@ function AgentPage() {
 
 	const handleToggleDir = useCallback(
 		async dirPath => {
-			let shouldLoad = false;
+			const isExpanded = expandedDirs.has(dirPath);
+
 			setExpandedDirs(prev => {
 				const next = new Set(prev);
-				if (next.has(dirPath)) {
+				if (prev.has(dirPath)) {
 					next.delete(dirPath);
 				} else {
 					next.add(dirPath);
-					shouldLoad = true;
 				}
 				return next;
 			});
 
-			if (shouldLoad) {
+			if (!isExpanded) {
 				await loadDirChildren(dirPath);
 			}
 		},
-		[loadDirChildren]
+		[loadDirChildren, expandedDirs]
 	);
 
 	const handleDragStart = useCallback((event, entry) => {
@@ -510,6 +510,7 @@ function AgentPage() {
 						activeSession={activeSession}
 						messages={messages}
 						isSending={isSending}
+						settings={settings}
 					/>
 
 					<InputArea
