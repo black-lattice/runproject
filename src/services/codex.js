@@ -57,3 +57,19 @@ export const approveCodexAction = async ({ sessionId, callId, decision }) => {
 export const stopCodexSession = async ({ sessionId }) => {
 	return invoke('codex_stop_session', { sessionId });
 };
+
+export const getCodexAccountList = async () => {
+	return invoke('codex_account_list');
+};
+
+export const importCurrentCodexAccount = async ({ name }) => {
+	return invoke('codex_account_import_current', { name: name || null });
+};
+
+export const syncCurrentCodexAccount = async ({ profileName }) => {
+	return invoke('codex_account_sync_current', { profileName });
+};
+
+export const switchCodexAccount = async ({ profileName }) => {
+	return invoke('codex_account_switch', { profileName });
+};

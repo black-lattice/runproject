@@ -2,9 +2,9 @@ use std::path::Path;
 
 // 导入模块
 mod modules;
-use modules::editor;
-use modules::codex;
 use modules::agent;
+use modules::codex;
+use modules::editor;
 use modules::file_system;
 use modules::nvm_manager;
 use modules::platform;
@@ -183,6 +183,10 @@ pub fn run() {
             modules::terminal::pty_manager::close_terminal_session,
             modules::terminal::pty_manager::get_terminal_buffer,
             modules::terminal::pty_manager::ping_terminal_session,
+            codex::accounts::codex_account_list,
+            codex::accounts::codex_account_import_current,
+            codex::accounts::codex_account_sync_current,
+            codex::accounts::codex_account_switch,
             codex::manager::codex_start_session,
             codex::manager::codex_send_message,
             codex::manager::codex_approve_action,

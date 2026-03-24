@@ -5,11 +5,13 @@ import {
 	Layout,
 	Info,
 	Cpu,
-	Layers
+	Layers,
+	Users
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { AiSettings } from './coms/AiSettings';
+import { CodexAccountSettings } from './coms/CodexAccountSettings';
 import { McpSettings } from './coms/McpSettings';
 import { TerminalSettings } from './coms/TerminalSettings';
 import { TabSettings } from './coms/TabSettings';
@@ -17,6 +19,7 @@ import { AboutSettings } from './coms/AboutSettings';
 
 const NAV_ITEMS = [
 	{ id: 'ai', label: 'AI 模型', icon: Cpu, component: AiSettings },
+	{ id: 'codex-accounts', label: 'Codex 账号', icon: Users, component: CodexAccountSettings },
 	{ id: 'mcp', label: 'MCP 扩展', icon: Layers, component: McpSettings },
 	{ id: 'terminal', label: '终端设置', icon: Terminal, component: TerminalSettings },
 	{ id: 'tabs', label: '页签管理', icon: Layout, component: TabSettings },
