@@ -8,6 +8,7 @@ import {
   Repeat,
   Users,
   ArrowRightLeft,
+  WandSparkles,
   X,
   SlidersHorizontal,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import {
   exportAllCodexAccounts,
   importCodexAccountArchive,
   switchCodexAccount,
+  switchCodexAccountToAvailable,
   syncCurrentCodexAccount,
 } from "@/services/codex";
 import { Button } from "@/components/ui/button";
@@ -55,11 +57,42 @@ const formatExpiryTs = (value) => {
 const formatPercent = (value) =>
   typeof value === "number" && Number.isFinite(value) ? `${value}%` : "未知";
 
+const getRemainingPercent = (windowInfo) =>
+  typeof windowInfo?.remainingPercent === "number" &&
+  Number.isFinite(windowInfo.remainingPercent)
+    ? Math.max(0, Math.min(100, windowInfo.remainingPercent))
+    : null;
+
 const getQuotaTone = (remainingPercent) => {
   if (typeof remainingPercent !== "number") return "text-gray-500";
   if (remainingPercent <= 10) return "text-rose-600";
   if (remainingPercent <= 30) return "text-amber-600";
   return "text-emerald-600";
+};
+
+const getQuotaAvailability = (status) => {
+  const primaryRemaining = getRemainingPercent(status?.primary);
+  const secondaryRemaining = getRemainingPercent(status?.secondary);
+  const hasAnyWindow = primaryRemaining !== null || secondaryRemaining !== null;
+
+  if (!hasAnyWindow) {
+    return {
+      label: "暂无额度数据",
+      className: "border-gray-200 bg-gray-50 text-gray-500",
+    };
+  }
+
+  if (primaryRemaining === 0 || secondaryRemaining === 0) {
+    return {
+      label: "额度已耗尽",
+      className: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+  }
+
+  return {
+    label: "还有额度",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  };
 };
 
 const summarizeProfileNames = (profileNames) => {
@@ -177,6 +210,33 @@ export function CodexAccountSettings() {
       setError(String(err));
       toast({
         title: "同步失败",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAutoSwitch = async () => {
+    setSubmitting(true);
+    setError("");
+    try {
+      const previousProfileName = data.currentProfileName;
+      const profile = await switchCodexAccountToAvailable();
+      await loadAccounts();
+      toast({
+        title:
+          previousProfileName === profile.name ? "无需切换" : "自动切换成功",
+        description:
+          previousProfileName === profile.name
+            ? `当前账号 ${profile.name} 仍有额度，已保留当前登录。`
+            : `已自动切换到账号 ${profile.name}。`,
+      });
+    } catch (err) {
+      setError(String(err));
+      toast({
+        title: "自动切换失败",
         description: String(err),
         variant: "destructive",
       });
@@ -445,6 +505,26 @@ export function CodexAccountSettings() {
               </Button>
             </div>
 
+            <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-sm font-medium text-gray-900">
+                  自动切到有额度的账号
+                </div>
+                <div className="mt-1 text-xs text-gray-600">
+                  优先保留当前仍可用的账号；否则按周剩余、5H
+                  剩余和最近采样时间，切到最合适的已导入账号。
+                </div>
+              </div>
+              <Button
+                onClick={handleAutoSwitch}
+                disabled={submitting || loading || data.profiles.length === 0}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+              >
+                <WandSparkles className="h-4 w-4" />
+                自动切换
+              </Button>
+            </div>
+
             <div className="flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="text-sm font-medium text-gray-900">
@@ -507,9 +587,16 @@ export function CodexAccountSettings() {
           >
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <h3 className="truncate text-base font-semibold text-gray-900">
-                  {profile.name}
-                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="truncate text-base font-semibold text-gray-900">
+                    {profile.name}
+                  </h3>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getQuotaAvailability(profile.status).className}`}
+                  >
+                    {getQuotaAvailability(profile.status).label}
+                  </span>
+                </div>
                 <div className="mt-1 text-xs text-gray-500">
                   <p>
                     到期时间:{" "}

@@ -2,14 +2,10 @@ use std::path::Path;
 
 // 导入模块
 mod modules;
-use modules::agent;
-use modules::codex;
 use modules::editor;
-use modules::file_system;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
-use modules::window_manager;
 use tauri_plugin_mcp::Builder as McpBuilder;
 
 #[tauri::command]
@@ -189,28 +185,29 @@ pub fn run() {
             modules::terminal::pty_manager::close_terminal_session,
             modules::terminal::pty_manager::get_terminal_buffer,
             modules::terminal::pty_manager::ping_terminal_session,
-            codex::accounts::codex_account_list,
-            codex::accounts::codex_account_import_current,
-            codex::accounts::codex_account_export_all,
-            codex::accounts::codex_account_import_archive,
-            codex::accounts::codex_account_sync_current,
-            codex::accounts::codex_account_switch,
-            codex::manager::codex_start_session,
-            codex::manager::codex_send_message,
-            codex::manager::codex_approve_action,
-            codex::manager::codex_stop_session,
-            agent::manager::agent_get_settings,
-            agent::manager::agent_save_settings,
-            agent::manager::agent_get_mcp_config,
-            agent::manager::agent_save_mcp_config,
-            agent::manager::agent_start_session,
-            agent::manager::agent_send_message,
-            agent::manager::agent_approve_action,
-            agent::manager::agent_stop_session,
-            file_system::read_dir,
-            window_manager::open_external_window,
-            window_manager::close_external_window,
-            window_manager::is_window_open
+            modules::codex::accounts::commands::codex_account_list,
+            modules::codex::accounts::commands::codex_account_import_current,
+            modules::codex::accounts::commands::codex_account_export_all,
+            modules::codex::accounts::commands::codex_account_import_archive,
+            modules::codex::accounts::commands::codex_account_sync_current,
+            modules::codex::accounts::commands::codex_account_switch,
+            modules::codex::accounts::commands::codex_account_switch_to_available,
+            modules::codex::manager::commands::codex_start_session,
+            modules::codex::manager::commands::codex_send_message,
+            modules::codex::manager::commands::codex_approve_action,
+            modules::codex::manager::commands::codex_stop_session,
+            modules::agent::manager::commands::agent_get_settings,
+            modules::agent::manager::commands::agent_save_settings,
+            modules::agent::manager::commands::agent_get_mcp_config,
+            modules::agent::manager::commands::agent_save_mcp_config,
+            modules::agent::manager::commands::agent_start_session,
+            modules::agent::manager::commands::agent_send_message,
+            modules::agent::manager::commands::agent_approve_action,
+            modules::agent::manager::commands::agent_stop_session,
+            modules::file_system::read_dir,
+            modules::window_manager::open_external_window,
+            modules::window_manager::close_external_window,
+            modules::window_manager::is_window_open
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

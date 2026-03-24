@@ -89,3 +89,7 @@ export const syncCurrentCodexAccount = async ({ profileName }) => {
 export const switchCodexAccount = async ({ profileName }) => {
   return invoke("codex_account_switch", { profileName });
 };
+
+export const switchCodexAccountToAvailable = async () => {
+  return invoke("codex_account_switch_to_available");
+};
