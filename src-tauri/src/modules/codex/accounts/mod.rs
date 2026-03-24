@@ -1,6 +1,7 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeSet;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,6 +18,7 @@ pub struct CodexAccountMeta {
     pub email: Option<String>,
     pub display_name: Option<String>,
     pub plan_type: Option<String>,
+    pub subscription_active_until: Option<String>,
     pub account_id: Option<String>,
     pub user_id: Option<String>,
 }
@@ -63,8 +65,38 @@ pub struct CodexAccountProfile {
 #[serde(rename_all = "camelCase")]
 pub struct CodexAccountListResponse {
     pub current_global: Option<CodexAccountMeta>,
+    pub current_global_status: Option<CodexStatusSnapshot>,
     pub current_profile_name: Option<String>,
     pub profiles: Vec<CodexAccountProfile>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CodexAccountArchiveItem {
+    pub record: CodexAccountProfileRecord,
+    pub auth_text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CodexAccountArchiveFile {
+    pub version: u32,
+    pub exported_at: u64,
+    pub profiles: Vec<CodexAccountArchiveItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexAccountExportResult {
+    pub path: String,
+    pub exported_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexAccountImportResult {
+    pub imported_count: usize,
+    pub profile_names: Vec<String>,
 }
 
 #[tauri::command]
@@ -80,7 +112,6 @@ pub fn codex_account_import_current(
     let global_home = global_codex_home()?;
     let auth_text = read_auth_text(&global_home)?;
     let meta = read_meta_from_auth_text(&auth_text)?;
-    let status = read_status_from_home(&global_home)?;
 
     let preferred_name = name
         .as_deref()
@@ -96,6 +127,9 @@ pub fn codex_account_import_current(
 
     let profile_name = sanitize_profile_name(&preferred_name);
     let existing = load_profile_record(&app, &profile_name).ok();
+    let status = read_fresh_status_from_home(&global_home)?
+        .or_else(|| existing.as_ref().map(|item| item.status.clone()))
+        .unwrap_or_default();
     let record = CodexAccountProfileRecord {
         name: profile_name.clone(),
         created_at: existing
@@ -124,7 +158,8 @@ pub fn codex_account_sync_current(
     let global_home = global_codex_home()?;
     let auth_text = read_auth_text(&global_home)?;
     let meta = read_meta_from_auth_text(&auth_text)?;
-    let status = read_status_from_home(&global_home)?;
+    let status =
+        read_fresh_status_from_home(&global_home)?.unwrap_or_else(|| existing.status.clone());
     let record = CodexAccountProfileRecord {
         name: profile_name.clone(),
         created_at: existing.created_at,
@@ -179,27 +214,116 @@ pub fn codex_account_switch(
     Ok(to_profile_dto(target_record, true))
 }
 
+#[tauri::command]
+pub fn codex_account_export_all(
+    app: AppHandle,
+    path: String,
+) -> Result<CodexAccountExportResult, String> {
+    let archive = build_account_archive(&app)?;
+    let archive_path = PathBuf::from(&path);
+    if let Some(parent) = archive_path.parent() {
+        fs::create_dir_all(parent).map_err(|error| format!("创建导出目录失败: {}", error))?;
+    }
+
+    let content = serde_json::to_string_pretty(&archive)
+        .map_err(|error| format!("序列化账号备份失败: {}", error))?;
+    fs::write(&archive_path, content).map_err(|error| format!("写入账号备份失败: {}", error))?;
+
+    Ok(CodexAccountExportResult {
+        path,
+        exported_count: archive.profiles.len(),
+    })
+}
+
+#[tauri::command]
+pub fn codex_account_import_archive(
+    app: AppHandle,
+    path: String,
+) -> Result<CodexAccountImportResult, String> {
+    let content =
+        fs::read_to_string(&path).map_err(|error| format!("读取账号备份失败: {}", error))?;
+    let archive = serde_json::from_str::<CodexAccountArchiveFile>(&content)
+        .map_err(|error| format!("解析账号备份失败: {}", error))?;
+
+    if archive.version != 1 {
+        return Err(format!("不支持的账号备份版本: {}", archive.version));
+    }
+
+    let mut profile_names = BTreeSet::new();
+    for item in archive.profiles {
+        if item.auth_text.trim().is_empty() {
+            return Err("账号备份缺少 auth.json 内容".to_string());
+        }
+
+        let mut record = item.record;
+        let profile_name = sanitize_profile_name(&record.name);
+        record.name = profile_name.clone();
+        if record.created_at == 0 {
+            record.created_at = now_ts();
+        }
+        if record.updated_at == 0 {
+            record.updated_at = now_ts();
+        }
+
+        save_profile_snapshot(&app, &record, &item.auth_text)?;
+        profile_names.insert(profile_name);
+    }
+
+    Ok(CodexAccountImportResult {
+        imported_count: profile_names.len(),
+        profile_names: profile_names.into_iter().collect(),
+    })
+}
+
 fn build_list_response(app: &AppHandle) -> Result<CodexAccountListResponse, String> {
     let records = load_all_profile_records(app)?;
     let current_global = read_current_global_meta(app).ok();
+    let current_global_status = read_current_global_status().ok().flatten();
     let current_profile_name = current_global
         .as_ref()
         .and_then(|meta| match_profile_name(&records, meta));
 
     let profiles = records
         .into_iter()
-        .map(|record| {
+        .map(|mut record| {
             let is_active = current_profile_name
                 .as_ref()
                 .map(|name| name == &record.name)
                 .unwrap_or(false);
+            if is_active {
+                if let Some(current_meta) = current_global.as_ref() {
+                    record.meta = current_meta.clone();
+                }
+                if let Some(status) = current_global_status.as_ref() {
+                    record.status = status.clone();
+                }
+            }
             to_profile_dto(record, is_active)
         })
         .collect();
 
     Ok(CodexAccountListResponse {
         current_global,
+        current_global_status,
         current_profile_name,
+        profiles,
+    })
+}
+
+fn build_account_archive(app: &AppHandle) -> Result<CodexAccountArchiveFile, String> {
+    let records = load_all_profile_records(app)?;
+    let mut profiles = Vec::with_capacity(records.len());
+
+    for record in records {
+        let auth_path = profile_auth_path(app, &record.name)?;
+        let auth_text = fs::read_to_string(&auth_path)
+            .map_err(|error| format!("读取账号认证失败: {}", error))?;
+        profiles.push(CodexAccountArchiveItem { record, auth_text });
+    }
+
+    Ok(CodexAccountArchiveFile {
+        version: 1,
+        exported_at: now_ts(),
         profiles,
     })
 }
@@ -221,7 +345,9 @@ fn read_current_managed_snapshot(
     let records = load_all_profile_records(app)?;
     let current_name = match_profile_name(&records, &current_meta)
         .ok_or_else(|| "当前全局 Codex 账号未纳入管理".to_string())?;
-    let current_status = read_status_from_home(&global_home)?;
+    let current_record = load_profile_record(app, &current_name)?;
+    let current_status =
+        read_fresh_status_from_home(&global_home)?.unwrap_or_else(|| current_record.status.clone());
     Ok((current_name, auth_text, current_status, current_meta))
 }
 
@@ -235,6 +361,11 @@ fn read_current_global_meta(app: &AppHandle) -> Result<CodexAccountMeta, String>
             error
         )
     })
+}
+
+fn read_current_global_status() -> Result<Option<CodexStatusSnapshot>, String> {
+    let global_home = global_codex_home()?;
+    read_fresh_status_from_home(&global_home)
 }
 
 fn match_profile_name(
@@ -390,6 +521,10 @@ fn read_meta_from_auth_text(auth_text: &str) -> Result<CodexAccountMeta, String>
             id_auth.get("chatgpt_plan_type"),
             access_auth.get("chatgpt_plan_type"),
         ]),
+        subscription_active_until: first_string(&[
+            id_auth.get("chatgpt_subscription_active_until"),
+            access_auth.get("chatgpt_subscription_active_until"),
+        ]),
         account_id: first_string(&[
             id_auth.get("chatgpt_account_id"),
             access_auth.get("chatgpt_account_id"),
@@ -418,10 +553,23 @@ fn decode_jwt_payload(token: &str) -> Result<Value, String> {
         .map_err(|error| format!("解析 JWT payload 失败: {}", error))
 }
 
-fn read_status_from_home(home_dir: &Path) -> Result<CodexStatusSnapshot, String> {
+fn read_fresh_status_from_home(home_dir: &Path) -> Result<Option<CodexStatusSnapshot>, String> {
+    let auth_modified_at = fs::metadata(home_dir.join(AUTH_FILE))
+        .and_then(|meta| meta.modified())
+        .map_err(|error| format!("读取当前 Codex 认证时间失败: {}", error))?;
+    let (snapshot, status_modified_at) = read_status_from_home_with_source(home_dir)?;
+
+    Ok(status_modified_at
+        .filter(|modified_at| *modified_at >= auth_modified_at)
+        .map(|_| snapshot))
+}
+
+fn read_status_from_home_with_source(
+    home_dir: &Path,
+) -> Result<(CodexStatusSnapshot, Option<SystemTime>), String> {
     let sessions_dir = home_dir.join("sessions");
     if !sessions_dir.exists() {
-        return Ok(CodexStatusSnapshot::default());
+        return Ok((CodexStatusSnapshot::default(), None));
     }
 
     let mut jsonl_files = Vec::new();
@@ -429,8 +577,10 @@ fn read_status_from_home(home_dir: &Path) -> Result<CodexStatusSnapshot, String>
 
     let mut latest_timestamp: Option<String> = None;
     let mut latest_snapshot = CodexStatusSnapshot::default();
+    let mut latest_status_modified_at: Option<SystemTime> = None;
 
     for file in jsonl_files {
+        let file_modified_at = fs::metadata(&file).and_then(|meta| meta.modified()).ok();
         let content =
             fs::read_to_string(&file).map_err(|error| format!("读取会话文件失败: {}", error))?;
         for line in content.lines() {
@@ -471,6 +621,7 @@ fn read_status_from_home(home_dir: &Path) -> Result<CodexStatusSnapshot, String>
 
             if should_replace {
                 latest_timestamp = Some(timestamp.clone());
+                latest_status_modified_at = file_modified_at;
                 latest_snapshot = CodexStatusSnapshot {
                     sampled_at: Some(timestamp),
                     primary: parse_window(rate_limits.get("primary")),
@@ -480,7 +631,7 @@ fn read_status_from_home(home_dir: &Path) -> Result<CodexStatusSnapshot, String>
         }
     }
 
-    Ok(latest_snapshot)
+    Ok((latest_snapshot, latest_status_modified_at))
 }
 
 fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {

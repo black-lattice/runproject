@@ -27,6 +27,51 @@ pub struct Workspace {
     pub projects: Vec<Project>,
 }
 
+fn read_project(path: &Path) -> Result<Project, String> {
+    if !path.exists() {
+        return Err(format!("项目路径不存在: {}", path.display()));
+    }
+
+    if !path.is_dir() {
+        return Err(format!("项目路径不是目录: {}", path.display()));
+    }
+
+    let package_json_path = path.join("package.json");
+    if !package_json_path.exists() {
+        return Err(format!(
+            "未找到 package.json: {}",
+            package_json_path.display()
+        ));
+    }
+
+    let content = fs::read_to_string(&package_json_path)
+        .map_err(|error| format!("读取 package.json 失败: {}", error))?;
+    let package_json = serde_json::from_str::<serde_json::Value>(&content)
+        .map_err(|error| format!("解析 package.json 失败: {}", error))?;
+
+    let name = package_json
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or(
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown"),
+        )
+        .to_string();
+
+    let node_version = detect_node_version(path);
+    let package_manager = detect_package_manager(path);
+    let commands = extract_scripts(&content);
+
+    Ok(Project {
+        name,
+        path: path.to_string_lossy().to_string(),
+        node_version,
+        package_manager,
+        commands,
+    })
+}
+
 // 检测包管理器类型
 pub fn detect_package_manager(dir: &Path) -> String {
     if dir.join("pnpm-lock.yaml").exists() {
@@ -107,39 +152,11 @@ pub fn scan_workspace(workspace_path: &str) -> Result<Vec<Project>, String> {
 
                 // 只处理目录
                 if path.is_dir() {
-                    let package_json_path = path.join("package.json");
-
-                    if package_json_path.exists() {
-                        // 读取package.json
-                        match fs::read_to_string(&package_json_path) {
-                            Ok(content) => {
-                                match serde_json::from_str::<serde_json::Value>(&content) {
-                                    Ok(package_json) => {
-                                        let name = package_json
-                                            .get("name")
-                                            .and_then(|n| n.as_str())
-                                            .unwrap_or(path.file_name().unwrap().to_str().unwrap())
-                                            .to_string();
-
-                                        let node_version = detect_node_version(&path);
-                                        let package_manager = detect_package_manager(&path);
-                                        let commands = extract_scripts(&content);
-
-                                        projects.push(Project {
-                                            name,
-                                            path: path.to_str().unwrap().to_string(),
-                                            node_version,
-                                            package_manager,
-                                            commands,
-                                        });
-                                    }
-                                    Err(_) => {
-                                        eprintln!("无法解析package.json: {:?}", package_json_path);
-                                    }
-                                }
-                            }
-                            Err(_) => {
-                                eprintln!("无法读取package.json: {:?}", package_json_path);
+                    if path.join("package.json").exists() {
+                        match read_project(&path) {
+                            Ok(project) => projects.push(project),
+                            Err(error) => {
+                                eprintln!("读取项目失败 {:?}: {}", path, error);
                             }
                         }
                     }
@@ -149,4 +166,8 @@ pub fn scan_workspace(workspace_path: &str) -> Result<Vec<Project>, String> {
     }
 
     Ok(projects)
+}
+
+pub fn scan_project(project_path: &str) -> Result<Project, String> {
+    read_project(&PathBuf::from(project_path))
 }

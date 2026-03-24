@@ -1,328 +1,553 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, RefreshCw, Import, Repeat, Users } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useMemo, useState } from "react";
 import {
-	getCodexAccountList,
-	importCurrentCodexAccount,
-	switchCodexAccount,
-	syncCurrentCodexAccount
-} from '@/services/codex';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+  AlertCircle,
+  RefreshCw,
+  Import,
+  Download,
+  Upload,
+  Repeat,
+  Users,
+  ArrowRightLeft,
+  X,
+  SlidersHorizontal,
+} from "lucide-react";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle
-} from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+  getCodexAccountList,
+  importCurrentCodexAccount,
+  exportAllCodexAccounts,
+  importCodexAccountArchive,
+  switchCodexAccount,
+  syncCurrentCodexAccount,
+} from "@/services/codex";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow
-} from '@/components/ui/table';
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-const formatTs = ts => {
-	if (!ts) return '未知';
-	return new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false });
+const formatTs = (ts) => {
+  if (!ts) return "未知";
+  return new Date(ts * 1000).toLocaleString("zh-CN", { hour12: false });
 };
 
-const formatPercent = windowInfo => {
-	if (!windowInfo) return '未知';
-	return `${windowInfo.remainingPercent}%`;
+const formatSampleTs = (value) => {
+  if (!value) return "未知";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", { hour12: false });
+};
+
+const formatExpiryTs = (value) => {
+  if (!value) return "未知";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("zh-CN");
+};
+
+const formatPercent = (value) =>
+  typeof value === "number" && Number.isFinite(value) ? `${value}%` : "未知";
+
+const getQuotaTone = (remainingPercent) => {
+  if (typeof remainingPercent !== "number") return "text-gray-500";
+  if (remainingPercent <= 10) return "text-rose-600";
+  if (remainingPercent <= 30) return "text-amber-600";
+  return "text-emerald-600";
+};
+
+const summarizeProfileNames = (profileNames) => {
+  if (!Array.isArray(profileNames) || profileNames.length === 0) {
+    return "未导入任何账号";
+  }
+
+  if (profileNames.length <= 3) {
+    return profileNames.join("、");
+  }
+
+  return `${profileNames.slice(0, 3).join("、")} 等 ${profileNames.length} 个账号`;
 };
 
 export function CodexAccountSettings() {
-	const { toast } = useToast();
-	const [accountName, setAccountName] = useState('');
-	const [loading, setLoading] = useState(true);
-	const [submitting, setSubmitting] = useState(false);
-	const [error, setError] = useState('');
-	const [data, setData] = useState({
-		currentGlobal: null,
-		currentProfileName: null,
-		profiles: []
-	});
+  const { toast } = useToast();
+  const [accountName, setAccountName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [data, setData] = useState({
+    currentGlobal: null,
+    currentGlobalStatus: null,
+    currentProfileName: null,
+    profiles: [],
+  });
 
-	const currentLabel = useMemo(() => {
-		const current = data.currentGlobal;
-		if (!current) return '未检测到当前全局 Codex 登录';
-		return current.email || current.accountId || '已登录，但无法识别邮箱';
-	}, [data.currentGlobal]);
+  const currentLabel = useMemo(() => {
+    const current = data.currentGlobal;
+    if (!current) return "未检测到当前全局 Codex 登录";
+    return current.email || current.accountId || "已登录，但无法识别邮箱";
+  }, [data.currentGlobal]);
 
-	const loadAccounts = async () => {
-		setLoading(true);
-		setError('');
-		try {
-			const result = await getCodexAccountList();
-			setData({
-				currentGlobal: result.currentGlobal || null,
-				currentProfileName: result.currentProfileName || null,
-				profiles: result.profiles || []
-			});
-		} catch (err) {
-			setError(String(err));
-		} finally {
-			setLoading(false);
-		}
-	};
+  const loadAccounts = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const result = await getCodexAccountList();
+      setData({
+        currentGlobal: result.currentGlobal || null,
+        currentGlobalStatus: result.currentGlobalStatus || null,
+        currentProfileName: result.currentProfileName || null,
+        profiles: result.profiles || [],
+      });
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-	useEffect(() => {
-		loadAccounts();
-	}, []);
+  useEffect(() => {
+    loadAccounts();
+  }, []);
 
-	const handleImport = async () => {
-		setSubmitting(true);
-		setError('');
-		try {
-			const profile = await importCurrentCodexAccount({
-				name: accountName.trim() || null
-			});
-			await loadAccounts();
-			setAccountName(profile.name);
-			toast({
-				title: '导入成功',
-				description: `账号 ${profile.name} 已保存到工具内。`
-			});
-		} catch (err) {
-			setError(String(err));
-			toast({
-				title: '导入失败',
-				description: String(err),
-				variant: 'destructive'
-			});
-		} finally {
-			setSubmitting(false);
-		}
-	};
+  const handleImport = async () => {
+    setSubmitting(true);
+    setError("");
+    try {
+      const profile = await importCurrentCodexAccount({
+        name: accountName.trim() || null,
+      });
+      await loadAccounts();
+      setAccountName(profile.name);
+      toast({
+        title: "导入成功",
+        description: `账号 ${profile.name} 已保存到工具内。`,
+      });
+    } catch (err) {
+      setError(String(err));
+      toast({
+        title: "导入失败",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-	const handleSwitch = async profileName => {
-		setSubmitting(true);
-		setError('');
-		try {
-			await switchCodexAccount({ profileName });
-			await loadAccounts();
-			toast({
-				title: '切换成功',
-				description: `本机 Codex 已切换到账号 ${profileName}。`
-			});
-		} catch (err) {
-			setError(String(err));
-			toast({
-				title: '切换失败',
-				description: String(err),
-				variant: 'destructive'
-			});
-		} finally {
-			setSubmitting(false);
-		}
-	};
+  const handleSwitch = async (profileName) => {
+    setSubmitting(true);
+    setError("");
+    try {
+      await switchCodexAccount({ profileName });
+      await loadAccounts();
+      toast({
+        title: "切换成功",
+        description: `本机 Codex 已切换到账号 ${profileName}。`,
+      });
+    } catch (err) {
+      setError(String(err));
+      toast({
+        title: "切换失败",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-	const handleSync = async profileName => {
-		setSubmitting(true);
-		setError('');
-		try {
-			await syncCurrentCodexAccount({ profileName });
-			await loadAccounts();
-			toast({
-				title: '同步成功',
-				description: `已用当前全局 Codex 登录信息刷新 ${profileName}。`
-			});
-		} catch (err) {
-			setError(String(err));
-			toast({
-				title: '同步失败',
-				description: String(err),
-				variant: 'destructive'
-			});
-		} finally {
-			setSubmitting(false);
-		}
-	};
+  const handleSync = async (profileName) => {
+    setSubmitting(true);
+    setError("");
+    try {
+      await syncCurrentCodexAccount({ profileName });
+      await loadAccounts();
+      toast({
+        title: "同步成功",
+        description: `已用当前全局 Codex 登录信息刷新 ${profileName}。`,
+      });
+    } catch (err) {
+      setError(String(err));
+      toast({
+        title: "同步失败",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-	return (
-		<div className='space-y-6'>
-			<Card className='shadow-sm border-gray-200'>
-				<CardHeader className='pb-4'>
-					<div className='flex items-start justify-between gap-4'>
-						<div>
-							<CardTitle className='text-xl'>Codex 账号切换</CardTitle>
-							<CardDescription className='mt-1'>
-								这个面板直接管理本机 <code>~/.codex/auth.json</code>，
-								切换后你终端里的原生 <code>codex</code> 命令会立刻使用新的账号。
-							</CardDescription>
-						</div>
-						<Button
-							variant='outline'
-							size='sm'
-							onClick={loadAccounts}
-							disabled={loading || submitting}
-						>
-							<RefreshCw
-								className={`w-4 h-4 mr-2 ${
-									loading ? 'animate-spin' : ''
-								}`}
-							/>
-							刷新
-						</Button>
-					</div>
-				</CardHeader>
-				<CardContent className='space-y-4'>
-					<Alert>
-						<AlertCircle className='h-4 w-4' />
-						<AlertTitle>使用方式</AlertTitle>
-						<AlertDescription>
-							先在终端用官方 <code>codex login</code> 登录目标账号，再点“导入当前账号快照”。
-							切换时工具只回写本机当前的认证文件，不接管你项目里的 Codex 会话逻辑。
-						</AlertDescription>
-					</Alert>
+  const handleExportAll = async () => {
+    setError("");
+    const path = await save({
+      title: "导出 Codex 账号备份",
+      defaultPath: `codex-accounts-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [
+        {
+          name: "JSON",
+          extensions: ["json"],
+        },
+      ],
+    });
 
-					<div className='rounded-xl border border-gray-200 bg-gray-50/70 p-4'>
-						<div className='flex flex-wrap items-center gap-3'>
-							<Badge variant='secondary'>当前本机账号</Badge>
-							<span className='text-sm font-medium text-gray-900'>
-								{currentLabel}
-							</span>
-							{data.currentGlobal?.planType && (
-								<Badge variant='outline'>
-									套餐: {data.currentGlobal.planType}
-								</Badge>
-							)}
-							{data.currentProfileName && (
-								<Badge className='bg-emerald-600 hover:bg-emerald-600'>
-									已纳入管理: {data.currentProfileName}
-								</Badge>
-							)}
-						</div>
-					</div>
+    if (!path) {
+      return;
+    }
 
-					<div className='flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-4 md:flex-row md:items-center'>
-						<Input
-							value={accountName}
-							onChange={event => setAccountName(event.target.value)}
-							placeholder='可选：给当前账号起一个别名'
-							className='md:max-w-sm'
-						/>
-						<Button
-							onClick={handleImport}
-							disabled={submitting}
-							className='gap-2 bg-emerald-600 hover:bg-emerald-700'
-						>
-							<Import className='w-4 h-4' />
-							导入当前账号快照
-						</Button>
-					</div>
+    setSubmitting(true);
+    try {
+      const result = await exportAllCodexAccounts({ path });
+      toast({
+        title: "导出成功",
+        description: `已导出 ${result.exportedCount} 个账号到 ${result.path}。`,
+      });
+    } catch (err) {
+      setError(String(err));
+      toast({
+        title: "导出失败",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-					{error && (
-						<Alert variant='destructive'>
-							<AlertCircle className='h-4 w-4' />
-							<AlertTitle>操作失败</AlertTitle>
-							<AlertDescription>{error}</AlertDescription>
-						</Alert>
-					)}
-				</CardContent>
-			</Card>
+  const handleImportArchive = async () => {
+    setError("");
+    const selected = await open({
+      title: "选择 Codex 账号备份",
+      multiple: false,
+      directory: false,
+      filters: [
+        {
+          name: "JSON",
+          extensions: ["json"],
+        },
+      ],
+    });
 
-			<Card className='shadow-sm border-gray-200'>
-				<CardHeader className='pb-4'>
-					<CardTitle className='text-xl'>已管理账号</CardTitle>
-					<CardDescription>
-						切换会直接影响本机终端里的 <code>codex</code> 登录账号。
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div className='rounded-lg border border-gray-100 overflow-hidden'>
-						<Table>
-							<TableHeader className='bg-gray-50/50'>
-								<TableRow>
-									<TableHead>账号</TableHead>
-									<TableHead>套餐</TableHead>
-									<TableHead>5h 剩余</TableHead>
-									<TableHead>周剩余</TableHead>
-									<TableHead>最近同步</TableHead>
-									<TableHead className='text-right'>操作</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{!loading && data.profiles.length === 0 && (
-									<TableRow>
-										<TableCell colSpan={6} className='py-12 text-center text-gray-400'>
-											<div className='flex flex-col items-center gap-2'>
-												<Users className='w-8 h-8 opacity-20' />
-												<p>还没有导入任何 Codex 账号</p>
-											</div>
-										</TableCell>
-									</TableRow>
-								)}
-								{data.profiles.map(profile => (
-									<TableRow key={profile.name}>
-										<TableCell>
-											<div className='flex flex-col gap-1'>
-												<div className='flex items-center gap-2'>
-													<span className='font-medium text-gray-900'>
-														{profile.name}
-													</span>
-													{profile.isActive && (
-														<Badge className='bg-emerald-600 hover:bg-emerald-600'>
-															当前
-														</Badge>
-													)}
-												</div>
-												<span className='text-xs text-gray-500'>
-													{profile.meta?.email || '未知邮箱'}
-												</span>
-											</div>
-										</TableCell>
-										<TableCell className='text-sm text-gray-600'>
-											{profile.meta?.planType || '未知'}
-										</TableCell>
-										<TableCell className='text-sm text-gray-600'>
-											{formatPercent(profile.status?.primary)}
-										</TableCell>
-										<TableCell className='text-sm text-gray-600'>
-											{formatPercent(profile.status?.secondary)}
-										</TableCell>
-										<TableCell className='text-xs text-gray-500'>
-											<div>{formatTs(profile.updatedAt)}</div>
-											<div>
-												5h 重置: {formatTs(profile.status?.primary?.resetsAt)}
-											</div>
-										</TableCell>
-										<TableCell>
-											<div className='flex justify-end gap-2'>
-												<Button
-													variant='outline'
-													size='sm'
-													onClick={() => handleSync(profile.name)}
-													disabled={submitting}
-												>
-													<Repeat className='w-4 h-4 mr-1.5' />
-													同步当前登录
-												</Button>
-												<Button
-													size='sm'
-													onClick={() => handleSwitch(profile.name)}
-													disabled={submitting || profile.isActive}
-													className='bg-emerald-600 hover:bg-emerald-700'
-												>
-													切换到本机 Codex
-												</Button>
-											</div>
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
-	);
+    if (!selected || Array.isArray(selected)) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await importCodexAccountArchive({ path: selected });
+      await loadAccounts();
+      toast({
+        title: "导入成功",
+        description: `已导入 ${result.importedCount} 个账号：${summarizeProfileNames(result.profileNames)}。`,
+      });
+    } catch (err) {
+      setError(String(err));
+      toast({
+        title: "导入失败",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderQuotaCell = (windowInfo) => {
+    if (!windowInfo) {
+      return <span className="text-sm text-gray-400">暂无数据</span>;
+    }
+
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span
+          className={`text-sm font-semibold ${getQuotaTone(windowInfo.remainingPercent)}`}
+        >
+          {formatPercent(windowInfo.remainingPercent)} 剩余
+        </span>
+        <span className="text-xs text-gray-500">
+          已用 {formatPercent(windowInfo.usedPercent)}
+        </span>
+        <span className="text-xs text-gray-400">
+          重置: {formatTs(windowInfo.resetsAt)}
+        </span>
+      </div>
+    );
+  };
+
+  const renderQuotaBar = (label, windowInfo) => {
+    if (!windowInfo) {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-gray-700">{label}</span>
+            <span className="text-sm text-gray-400">暂无数据</span>
+          </div>
+          <div className="h-2 rounded-full bg-gray-100" />
+        </div>
+      );
+    }
+
+    const remaining = Math.max(
+      0,
+      Math.min(100, windowInfo.remainingPercent ?? 0),
+    );
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium text-gray-700">{label}</span>
+          <span className={`text-sm font-semibold ${getQuotaTone(remaining)}`}>
+            {formatPercent(remaining)}
+          </span>
+        </div>
+        <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
+          <div
+            className={`h-full rounded-full transition-all ${
+              remaining <= 10
+                ? "bg-rose-500"
+                : remaining <= 30
+                  ? "bg-amber-500"
+                  : "bg-emerald-500"
+            }`}
+            style={{ width: `${remaining}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
+          <span>已用 {formatPercent(windowInfo.usedPercent)}</span>
+          <span>重置 {formatTs(windowInfo.resetsAt)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-gray-900">Codex 账号</h2>
+          <Button
+            variant="outline"
+            size="icon"
+            title="打开 Codex 账号切换"
+            onClick={() => setManagerOpen(true)}
+            className="h-9 w-9"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
+        <div>
+          <p className="mt-1 text-sm text-gray-500">
+            当前账号显示实时额度，切换和导入放在右侧弹窗里。
+          </p>
+        </div>
+      </div>
+
+      <Dialog open={managerOpen} onOpenChange={setManagerOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader className="flex items-center justify-between gap-4 bg-white">
+            <div>
+              <DialogTitle className="text-lg">Codex 账号切换</DialogTitle>
+              <p className="mt-1 text-sm text-gray-500">
+                这个面板直接管理本机 <code>~/.codex/auth.json</code>，
+                切换后你终端里的原生 <code>codex</code> 命令会立刻使用新的账号。
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={loadAccounts}
+              disabled={loading || submitting}
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+              />
+            </Button>
+            <DialogClose className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+              <X className="h-4 w-4" />
+            </DialogClose>
+          </DialogHeader>
+          <div className="space-y-4 p-6">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>使用方式</AlertTitle>
+              <AlertDescription>
+                先在终端用官方 <code>codex login</code>{" "}
+                登录目标账号，再点“导入当前账号快照”。
+                切换时工具只回写本机当前的认证文件，不接管你项目里的 Codex
+                会话逻辑。
+              </AlertDescription>
+            </Alert>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="secondary">当前本机账号</Badge>
+                <span className="text-sm font-medium text-gray-900">
+                  {currentLabel}
+                </span>
+                {data.currentGlobal?.planType && (
+                  <Badge variant="outline">
+                    套餐: {data.currentGlobal.planType}
+                  </Badge>
+                )}
+                {data.currentProfileName && (
+                  <Badge className="bg-emerald-600 hover:bg-emerald-600">
+                    已纳入管理: {data.currentProfileName}
+                  </Badge>
+                )}
+              </div>
+              {data.currentGlobalStatus && (
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-lg border border-gray-200 bg-white p-3">
+                    <div className="text-xs text-gray-500">当前 5h 剩余</div>
+                    <div className="mt-1">
+                      {renderQuotaCell(data.currentGlobalStatus.primary)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white p-3">
+                    <div className="text-xs text-gray-500">当前周剩余</div>
+                    <div className="mt-1">
+                      {renderQuotaCell(data.currentGlobalStatus.secondary)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white p-3">
+                    <div className="text-xs text-gray-500">实时状态采样</div>
+                    <div className="mt-1 text-sm font-medium text-gray-900">
+                      {formatSampleTs(data.currentGlobalStatus.sampledAt)}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400">
+                      当前登录账号这里显示的是 <code>~/.codex</code> 实时额度
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-4 md:flex-row md:items-center">
+              <Input
+                value={accountName}
+                onChange={(event) => setAccountName(event.target.value)}
+                placeholder="可选：给当前账号起一个别名"
+                className="md:max-w-sm"
+              />
+              <Button
+                onClick={handleImport}
+                disabled={submitting}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Import className="w-4 h-4" />
+                导入当前账号快照
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="text-sm font-medium text-gray-900">
+                  批量备份与恢复
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  导出的 JSON 会包含账号认证信息，请只保存在你信任的位置。
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleExportAll}
+                  disabled={submitting}
+                  className="gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  批量导出
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleImportArchive}
+                  disabled={submitting}
+                  className="gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  批量导入
+                </Button>
+              </div>
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>操作失败</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {!loading && data.profiles.length === 0 && (
+        <div className="rounded-lg border border-dashed border-gray-200 py-12 text-center text-gray-400">
+          <div className="flex flex-col items-center gap-2">
+            <Users className="w-8 h-8 opacity-20" />
+            <p>还没有导入任何 Codex 账号</p>
+          </div>
+        </div>
+      )}
+      <div className="grid gap-4 xl:grid-cols-3">
+        {data.profiles.map((profile) => (
+          <div
+            key={profile.name}
+            className={`rounded-xl bg-white p-5 shadow-sm ${
+              profile.isActive
+                ? "border-2 border-emerald-500 shadow-emerald-100"
+                : "border border-gray-200"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-semibold text-gray-900">
+                  {profile.name}
+                </h3>
+                <div className="mt-1 text-xs text-gray-500">
+                  <p>
+                    到期时间:{" "}
+                    {formatExpiryTs(profile.meta?.subscriptionActiveUntil)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  title="同步当前登录"
+                  onClick={() => handleSync(profile.name)}
+                  disabled={submitting}
+                >
+                  <Repeat className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  title="切换到本机 Codex"
+                  onClick={() => handleSwitch(profile.name)}
+                  disabled={submitting || profile.isActive}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              {renderQuotaBar("5H 剩余用量", profile.status?.primary)}
+              {renderQuotaBar("周剩余用量", profile.status?.secondary)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default CodexAccountSettings;

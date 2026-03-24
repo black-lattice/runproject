@@ -230,6 +230,7 @@ function ProjectPage() {
 		setIsLoading(true);
 		try {
 			const workspace = workspaces[index];
+			const currentSelectedProject = useAppStore.getState().selectedProject;
 			const refreshedWorkspace = await invoke('add_workspace', {
 				path: workspace.path
 			});
@@ -237,6 +238,16 @@ function ProjectPage() {
 			const newWorkspaces = [...workspaces];
 			newWorkspaces[index] = normalizedWorkspace;
 			saveWorkspaces(newWorkspaces);
+
+			if (currentSelectedProject?.path) {
+				const refreshedSelectedProject = normalizedWorkspace.projects?.find(
+					project => project.path === currentSelectedProject.path
+				);
+				if (refreshedSelectedProject) {
+					setSelectedProject(refreshedSelectedProject);
+				}
+			}
+
 			toast({
 				title: '刷新成功',
 				description: 'Workspace已刷新',

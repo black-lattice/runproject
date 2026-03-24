@@ -43,6 +43,11 @@ fn scan_workspace_projects(
 }
 
 #[tauri::command]
+fn scan_project(project_path: String) -> Result<project_scanner::Project, String> {
+    project_scanner::scan_project(&project_path)
+}
+
+#[tauri::command]
 fn get_nvm_status() -> Result<serde_json::Value, String> {
     nvm_manager::get_nvm_status()
 }
@@ -160,6 +165,7 @@ pub fn run() {
             greet,
             add_workspace,
             scan_workspace_projects,
+            scan_project,
             get_nvm_status,
             ensure_node_version,
             switch_to_highest_version,
@@ -185,6 +191,8 @@ pub fn run() {
             modules::terminal::pty_manager::ping_terminal_session,
             codex::accounts::codex_account_list,
             codex::accounts::codex_account_import_current,
+            codex::accounts::codex_account_export_all,
+            codex::accounts::codex_account_import_archive,
             codex::accounts::codex_account_sync_current,
             codex::accounts::codex_account_switch,
             codex::manager::codex_start_session,
