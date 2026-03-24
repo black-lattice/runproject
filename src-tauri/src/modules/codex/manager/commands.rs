@@ -4,15 +4,15 @@ use std::time::Duration;
 use tauri::AppHandle;
 use tokio::time::timeout;
 
-use super::super::event_handler::{emit_event, emit_status, handle_incoming_message};
 use super::super::connection::Framing;
+use super::super::event_handler::{emit_event, emit_status, handle_incoming_message};
 use super::super::session::CodexSession;
 use super::super::types::{CodexStatus, PendingAction};
-use super::discovery::{detect_mcp_args, is_mcp_server};
-use super::utils::{validate_workspace, resolve_working_dir};
-use super::mcp::{handle_mcp_message, start_mcp_handshake};
-use super::tools::{select_tool_name, build_tool_arguments};
 use super::actions::apply_patch;
+use super::discovery::{detect_mcp_args, is_mcp_server};
+use super::mcp::{handle_mcp_message, start_mcp_handshake};
+use super::tools::{build_tool_arguments, select_tool_name};
+use super::utils::{resolve_working_dir, validate_workspace};
 use super::SESSIONS;
 
 #[tauri::command]
@@ -63,7 +63,10 @@ fn codex_start_session_blocking(
     cli_path: Option<String>,
     cli_args: Option<Vec<String>>,
 ) -> Result<String, String> {
-    println!("DEBUG: Starting Codex session: {}, workspace: {}", session_id, workspace);
+    println!(
+        "DEBUG: Starting Codex session: {}, workspace: {}",
+        session_id, workspace
+    );
     let workspace_path = validate_workspace(&workspace)?;
 
     {
@@ -185,7 +188,7 @@ pub fn codex_send_message(
         }
 
         let has_codex_reply = session.tools.iter().any(|t| t.name == "codex-reply");
-        
+
         let tool_name = if session.conversation_started && has_codex_reply {
             "codex-reply".to_string()
         } else {
@@ -197,10 +200,7 @@ pub fn codex_send_message(
         };
 
         let arguments = build_tool_arguments(
-            session
-                .tools
-                .iter()
-                .find(|tool| tool.name == tool_name),
+            session.tools.iter().find(|tool| tool.name == tool_name),
             &content,
             files.clone(),
             &session.workspace,
@@ -284,14 +284,18 @@ pub fn codex_approve_action(
                     working_dir,
                 } => {
                     let working_dir = resolve_working_dir(&workspace, &working_dir)?;
-                    
-                    println!("DEBUG: Executing command: '{}' in '{}'", command, working_dir.display());
-                    
+
+                    println!(
+                        "DEBUG: Executing command: '{}' in '{}'",
+                        command,
+                        working_dir.display()
+                    );
+
                     #[cfg(target_os = "windows")]
                     let shell = "cmd";
                     #[cfg(target_os = "windows")]
                     let arg = "/C";
-                    
+
                     #[cfg(not(target_os = "windows"))]
                     let shell = "sh";
                     #[cfg(not(target_os = "windows"))]

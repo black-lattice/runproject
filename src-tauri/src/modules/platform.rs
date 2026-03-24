@@ -12,7 +12,11 @@ pub fn build_shell_command(command: &str) -> Command {
 
     #[cfg(not(target_os = "windows"))]
     {
-        let default_shell = if cfg!(target_os = "macos") { "zsh" } else { "bash" };
+        let default_shell = if cfg!(target_os = "macos") {
+            "zsh"
+        } else {
+            "bash"
+        };
         let shell_path = env::var("SHELL").unwrap_or_else(|_| default_shell.to_string());
         let shell_name = Path::new(&shell_path)
             .file_name()

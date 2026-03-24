@@ -1,8 +1,8 @@
+use super::context::ToolContext;
+use super::paths::{resolve_existing_path, resolve_new_path};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
-use super::context::ToolContext;
-use super::paths::{resolve_existing_path, resolve_new_path};
 
 #[derive(Debug, Deserialize)]
 pub struct ReadFileArgs {

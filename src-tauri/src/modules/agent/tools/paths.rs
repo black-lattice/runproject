@@ -31,9 +31,7 @@ pub fn resolve_new_path(workspace: &Path, input: &str) -> Result<PathBuf, String
         workspace_canon.join(input)
     };
 
-    let parent = candidate
-        .parent()
-        .ok_or_else(|| "父目录无效".to_string())?;
+    let parent = candidate.parent().ok_or_else(|| "父目录无效".to_string())?;
     let parent_canon = parent
         .canonicalize()
         .map_err(|_| "父目录不存在".to_string())?;

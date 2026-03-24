@@ -1,5 +1,5 @@
-use serde_json::Value;
 use crate::modules::codex::types::PendingAction;
+use serde_json::Value;
 
 pub fn classify_pending_action(method: &str, params: &Option<Value>) -> Option<PendingAction> {
     if method_contains(method, "apply") && method_contains(method, "patch") {
@@ -10,7 +10,10 @@ pub fn classify_pending_action(method: &str, params: &Option<Value>) -> Option<P
 
     if method_contains(method, "execute") && method_contains(method, "command") {
         if let Some((command, working_dir)) = extract_command(params) {
-            return Some(PendingAction::Command { command, working_dir });
+            return Some(PendingAction::Command {
+                command,
+                working_dir,
+            });
         }
         return Some(PendingAction::Other {
             payload: params.clone().unwrap_or(Value::Null),
@@ -19,7 +22,10 @@ pub fn classify_pending_action(method: &str, params: &Option<Value>) -> Option<P
 
     if method == "elicitation/create" {
         if let Some((command, working_dir)) = extract_codex_command(params) {
-            return Some(PendingAction::Command { command, working_dir });
+            return Some(PendingAction::Command {
+                command,
+                working_dir,
+            });
         }
         return Some(PendingAction::Other {
             payload: params.clone().unwrap_or(Value::Null),
@@ -38,7 +44,10 @@ pub fn classify_pending_action(method: &str, params: &Option<Value>) -> Option<P
         }
         if action == "execute_command" {
             if let Some((command, working_dir)) = extract_command(params) {
-                return Some(PendingAction::Command { command, working_dir });
+                return Some(PendingAction::Command {
+                    command,
+                    working_dir,
+                });
             }
             return Some(PendingAction::Other {
                 payload: params.clone().unwrap_or(Value::Null),

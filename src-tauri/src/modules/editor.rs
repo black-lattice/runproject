@@ -138,7 +138,11 @@ fn find_app_bundle_path(app_name: &str) -> Option<PathBuf> {
         };
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("app")) != Some(true) {
+            if p.extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.eq_ignore_ascii_case("app"))
+                != Some(true)
+            {
                 continue;
             }
             let Some(fname) = p.file_name().and_then(|s| s.to_str()) else {

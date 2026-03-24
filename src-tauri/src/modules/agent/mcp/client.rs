@@ -1,11 +1,11 @@
+use super::super::types::AgentSession;
+use super::config::{agent_get_mcp_config, McpConfig};
+use crate::modules::codex::connection::{CodexConnection, Framing};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use serde_json::Value;
 use tauri::AppHandle;
-use crate::modules::codex::connection::{CodexConnection, Framing};
-use super::super::types::AgentSession;
-use super::config::{agent_get_mcp_config, McpConfig};
 
 pub fn ensure_mcp_clients(
     app: &AppHandle,
@@ -39,24 +39,19 @@ pub fn ensure_mcp_clients(
                 }
             }
 
-            match CodexConnection::spawn_from_command(
-                cmd,
-                Framing::Line,
-                on_message,
-                on_stderr,
-            ) {
+            match CodexConnection::spawn_from_command(cmd, Framing::Line, on_message, on_stderr) {
                 Ok(client) => {
                     let handshake_result = (|| -> Result<(), String> {
                         if let Err(e) = client.wait_for_server_ready(Duration::from_secs(10)) {
                             println!("[AGENT] MCP server {} not responding to ping, attempting initialize anyway: {}", name, e);
                         }
-                        
+
                         let init_params = serde_json::json!({
                             "protocolVersion": "2024-11-05",
                             "capabilities": {},
                             "clientInfo": { "name": "runproject-agent", "version": "1.0.0" }
                         });
-                        
+
                         client.send_request_and_wait(
                             "initialize",
                             Some(init_params),
@@ -73,20 +68,25 @@ pub fn ensure_mcp_clients(
                     }
 
                     clients.insert(name.clone(), client);
-                },
+                }
                 Err(e) => {
-                    println!("[AGENT] Failed to spawn MCP server {}: {}. Skipping.", name, e);
+                    println!(
+                        "[AGENT] Failed to spawn MCP server {}: {}. Skipping.",
+                        name, e
+                    );
                     continue;
                 }
             }
         }
 
         if let Some(client) = clients.get(&name) {
-            let mut tools_result = client.send_request_and_wait("tools/list", None, Duration::from_secs(5));
-            
+            let mut tools_result =
+                client.send_request_and_wait("tools/list", None, Duration::from_secs(5));
+
             if tools_result.is_err() {
                 std::thread::sleep(Duration::from_millis(500));
-                tools_result = client.send_request_and_wait("tools/list", None, Duration::from_secs(5));
+                tools_result =
+                    client.send_request_and_wait("tools/list", None, Duration::from_secs(5));
             }
 
             if let Ok(result) = tools_result {
@@ -95,13 +95,30 @@ pub fn ensure_mcp_clients(
                     all_tools.insert(name.clone(), tools.clone());
                 }
             } else {
-                println!("[AGENT] Failed to fetch tools from {}: {:?}", name, tools_result.err());
+                println!(
+                    "[AGENT] Failed to fetch tools from {}: {:?}",
+                    name,
+                    tools_result.err()
+                );
             }
         }
     }
 
-    let all_names: Vec<String> = all_tools.values().flat_map(|v| v.iter().filter_map(|t| t.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()))).collect();
-    println!("[AGENT] Total discovery: {} MCP tools: {:?}", all_names.len(), all_names);
+    let all_names: Vec<String> = all_tools
+        .values()
+        .flat_map(|v| {
+            v.iter().filter_map(|t| {
+                t.get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|s| s.to_string())
+            })
+        })
+        .collect();
+    println!(
+        "[AGENT] Total discovery: {} MCP tools: {:?}",
+        all_names.len(),
+        all_names
+    );
 
     Ok(all_tools)
 }

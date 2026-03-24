@@ -31,7 +31,8 @@ impl CodexSession {
         on_message: Arc<dyn Fn(CodexIncomingMessage) + Send + Sync>,
         on_stderr: Arc<dyn Fn(String) + Send + Sync>,
     ) -> Result<Self, String> {
-        let connection = CodexConnection::spawn(cli_path, cli_args, framing, on_message, on_stderr)?;
+        let connection =
+            CodexConnection::spawn(cli_path, cli_args, framing, on_message, on_stderr)?;
         Ok(Self {
             session_id,
             conversation_id: Uuid::new_v4().to_string(),

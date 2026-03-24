@@ -1,6 +1,6 @@
+use super::rpc::JsonRpcResponse;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use super::rpc::JsonRpcResponse;
 
 #[derive(Debug, Clone)]
 pub enum CodexIncomingMessage {

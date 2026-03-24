@@ -74,7 +74,10 @@ fn parse_json_message(payload: &[u8], allow_raw: bool) -> CodexIncomingMessage {
 }
 
 fn find_header_end(buffer: &[u8]) -> Option<usize> {
-    buffer.windows(4).position(|window| window == b"\r\n\r\n").map(|pos| pos + 4)
+    buffer
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .map(|pos| pos + 4)
 }
 
 fn parse_content_length(header: &[u8]) -> Option<usize> {

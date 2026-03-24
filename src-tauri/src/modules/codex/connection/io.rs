@@ -1,11 +1,11 @@
-use std::io::Read;
-use std::process::ChildStdout;
-use std::sync::{mpsc, Arc, Mutex};
-use std::process::ChildStdin;
-use std::io::Write;
-use serde_json::Value;
 use super::super::types::{CodexIncomingMessage, JsonRpcResponse};
 use super::parsing::try_parse_message;
+use serde_json::Value;
+use std::io::Read;
+use std::io::Write;
+use std::process::ChildStdin;
+use std::process::ChildStdout;
+use std::sync::{mpsc, Arc, Mutex};
 
 pub fn spawn_stdout_reader(
     stdout: ChildStdout,
@@ -68,7 +68,10 @@ pub fn spawn_stdout_reader(
     });
 }
 
-pub fn spawn_stderr_reader(stderr: std::process::ChildStderr, on_stderr: Arc<dyn Fn(String) + Send + Sync>) {
+pub fn spawn_stderr_reader(
+    stderr: std::process::ChildStderr,
+    on_stderr: Arc<dyn Fn(String) + Send + Sync>,
+) {
     std::thread::spawn(move || {
         let mut reader = std::io::BufReader::new(stderr);
         let mut line = String::new();

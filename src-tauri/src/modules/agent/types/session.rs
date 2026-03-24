@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use super::super::super::codex::connection::CodexConnection;
-use super::chat::AgentMessage;
 use super::approval::ApprovalState;
+use super::chat::AgentMessage;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 pub struct AgentSession {
     pub workspace: PathBuf,

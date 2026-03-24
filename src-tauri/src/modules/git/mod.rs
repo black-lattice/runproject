@@ -9,14 +9,7 @@
 pub mod branch;
 
 pub use branch::{
-    __cmd__list_branches,
-    __cmd__switch_branch,
-    __cmd__list_worktrees,
-    __cmd__create_worktree,
-    __cmd__remove_worktree,
-    list_branches,
+    __cmd__create_worktree, __cmd__list_branches, __cmd__list_worktrees, __cmd__remove_worktree,
+    __cmd__switch_branch, create_worktree, list_branches, list_worktrees, remove_worktree,
     switch_branch,
-    list_worktrees,
-    create_worktree,
-    remove_worktree,
 };

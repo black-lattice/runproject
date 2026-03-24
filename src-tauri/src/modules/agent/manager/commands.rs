@@ -2,15 +2,19 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager};
 
-use super::super::tools::default_auto_approve;
-use super::super::types::{AgentMessage, AgentSession, AgentSettings, ApprovalState, PendingAction};
-use super::super::state::SESSIONS;
-use super::super::utils::{emit_event, now_ms};
-use super::super::settings::{load_settings, save_settings};
-use super::super::mcp::{agent_get_mcp_config as mcp_get_config, agent_save_mcp_config as mcp_save_config};
 use super::super::llm::stream::stream_agent_response;
-use super::utils::validate_workspace;
+use super::super::mcp::{
+    agent_get_mcp_config as mcp_get_config, agent_save_mcp_config as mcp_save_config,
+};
+use super::super::settings::{load_settings, save_settings};
+use super::super::state::SESSIONS;
+use super::super::tools::default_auto_approve;
+use super::super::types::{
+    AgentMessage, AgentSession, AgentSettings, ApprovalState, PendingAction,
+};
+use super::super::utils::{emit_event, now_ms};
 use super::session::{create_session_file, load_session_history, save_session_record};
+use super::utils::validate_workspace;
 
 #[tauri::command]
 pub fn agent_get_settings(app: AppHandle) -> Result<AgentSettings, String> {
@@ -70,7 +74,11 @@ pub fn agent_stop_session(app: AppHandle, session_id: String) -> Result<(), Stri
     let mut sessions = SESSIONS.lock().map_err(|_| "获取会话锁失败".to_string())?;
     if let Some(session) = sessions.remove(&session_id) {
         if let Ok(mcp_clients) = session.mcp_clients.lock() {
-            println!("[AGENT] Cleaning up {} MCP clients for session {}", mcp_clients.len(), session_id);
+            println!(
+                "[AGENT] Cleaning up {} MCP clients for session {}",
+                mcp_clients.len(),
+                session_id
+            );
             for (name, client) in mcp_clients.iter() {
                 println!("[AGENT] Terminating MCP server: {}", name);
                 let _ = client.terminate();
@@ -82,7 +90,11 @@ pub fn agent_stop_session(app: AppHandle, session_id: String) -> Result<(), Stri
 }
 
 #[tauri::command]
-pub fn agent_send_message(app: AppHandle, session_id: String, content: String) -> Result<(), String> {
+pub fn agent_send_message(
+    app: AppHandle,
+    session_id: String,
+    content: String,
+) -> Result<(), String> {
     let (workspace, approvals, history_snapshot) = {
         let mut sessions = SESSIONS.lock().map_err(|_| "获取会话锁失败".to_string())?;
         let session = sessions
@@ -157,8 +169,11 @@ pub fn agent_approve_action(
         pending.remove(&call_id)
     };
 
-    if let Some(PendingAction { action_type, responder, .. })
-        = action
+    if let Some(PendingAction {
+        action_type,
+        responder,
+        ..
+    }) = action
     {
         if remember && approved {
             if let Ok(mut map) = session.approvals.auto_approve.lock() {

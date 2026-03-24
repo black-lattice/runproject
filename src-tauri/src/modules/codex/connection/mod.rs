@@ -1,5 +1,5 @@
 pub mod io;
-pub mod parsing;
 pub mod manager;
+pub mod parsing;
 
 pub use manager::{CodexConnection, Framing};

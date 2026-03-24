@@ -1,6 +1,6 @@
+use super::utils::now_ms;
 use std::fs;
 use std::path::Path;
-use super::utils::now_ms;
 
 pub fn apply_patch(workspace: &Path, patch: &str) -> Result<(), String> {
     if patch.trim().is_empty() {
@@ -54,7 +54,10 @@ pub fn apply_patch(workspace: &Path, patch: &str) -> Result<(), String> {
 
 fn validate_patch_paths(patch: &str) -> Result<(), String> {
     for line in patch.lines() {
-        if let Some(path) = line.strip_prefix("+++ ").or_else(|| line.strip_prefix("--- ")) {
+        if let Some(path) = line
+            .strip_prefix("+++ ")
+            .or_else(|| line.strip_prefix("--- "))
+        {
             let path = path.trim();
             if path.starts_with('/') || path.contains("..") {
                 return Err(format!("patch 路径不安全: {}", path));

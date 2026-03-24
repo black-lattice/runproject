@@ -1,7 +1,7 @@
-pub mod rpc;
 pub mod codex;
 pub mod mcp;
+pub mod rpc;
 
-pub use rpc::*;
 pub use codex::*;
 pub use mcp::*;
+pub use rpc::*;

@@ -1,11 +1,11 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
-use tauri::AppHandle;
-use serde_json::Value;
-use tokio::sync::oneshot;
 use super::super::types::{ApprovalState, PendingAction};
 use super::super::utils::emit_event;
+use serde_json::Value;
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
+use tauri::AppHandle;
+use tokio::sync::oneshot;
 
 #[derive(Clone)]
 pub struct ToolContext {
@@ -21,10 +21,7 @@ impl ToolContext {
             return Ok(true);
         }
 
-        let call_id = self
-            .approvals
-            .next_id
-            .fetch_add(1, Ordering::SeqCst);
+        let call_id = self.approvals.next_id.fetch_add(1, Ordering::SeqCst);
         let (tx, rx) = oneshot::channel();
 
         {

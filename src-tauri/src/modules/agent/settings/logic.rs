@@ -1,10 +1,13 @@
+use super::super::types::AgentSettings;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
-use super::super::types::AgentSettings;
 
 pub fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data = app.path().app_data_dir().map_err(|e| format!("获取应用数据目录失败: {}", e))?;
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("获取应用数据目录失败: {}", e))?;
     Ok(app_data.join("settings.json"))
 }
 
@@ -24,7 +27,8 @@ pub fn save_settings(app: &AppHandle, settings: &AgentSettings) -> Result<(), St
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("创建设置目录失败: {}", e))?;
     }
-    let content = serde_json::to_string_pretty(settings).map_err(|e| format!("序列化设置失败: {}", e))?;
+    let content =
+        serde_json::to_string_pretty(settings).map_err(|e| format!("序列化设置失败: {}", e))?;
     fs::write(&path, content).map_err(|e| format!("写入设置失败: {}", e))?;
     Ok(())
 }

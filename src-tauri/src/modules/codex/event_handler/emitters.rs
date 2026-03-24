@@ -1,7 +1,7 @@
-use serde_json::Value;
-use tauri::{AppHandle, Emitter};
 use super::super::types::{CodexEvent, CodexStatus};
 use super::utils::now_ms;
+use serde_json::Value;
+use tauri::{AppHandle, Emitter};
 
 pub fn emit_status(app: &AppHandle, session_id: &str, status: CodexStatus, detail: Option<Value>) {
     let payload = serde_json::json!({

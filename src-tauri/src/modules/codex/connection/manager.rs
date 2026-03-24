@@ -50,7 +50,9 @@ impl CodexConnection {
         command.stdout(Stdio::piped());
         command.stderr(Stdio::piped());
 
-        let mut child = command.spawn().map_err(|e| format!("启动 Codex 失败: {}", e))?;
+        let mut child = command
+            .spawn()
+            .map_err(|e| format!("启动 Codex 失败: {}", e))?;
         let stdin = child
             .stdin
             .take()
@@ -111,7 +113,9 @@ impl CodexConnection {
             let mut waiters = self.waiters.lock().map_err(|e| e.to_string())?;
             waiters.insert(id, tx);
         }
-        if let Err(error) = self.write_json(&serde_json::to_value(request).map_err(|e| e.to_string())?) {
+        if let Err(error) =
+            self.write_json(&serde_json::to_value(request).map_err(|e| e.to_string())?)
+        {
             let mut waiters = self.waiters.lock().map_err(|e| e.to_string())?;
             waiters.remove(&id);
             return Err(error);
@@ -141,7 +145,7 @@ impl CodexConnection {
         let ping_timeout = Duration::from_secs(3);
         loop {
             if self.ping(ping_timeout) {
-                return Ok(())
+                return Ok(());
             }
             if start.elapsed() >= timeout {
                 return Err("等待 MCP 就绪超时".to_string());
@@ -182,7 +186,9 @@ impl CodexConnection {
 
     pub fn terminate(&self) -> Result<(), String> {
         let mut child = self.child.lock().map_err(|e| e.to_string())?;
-        child.kill().map_err(|e| format!("终止 Codex 失败: {}", e))?;
+        child
+            .kill()
+            .map_err(|e| format!("终止 Codex 失败: {}", e))?;
         Ok(())
     }
 
@@ -200,7 +206,9 @@ impl CodexConnection {
         stdin
             .write_all(message.as_bytes())
             .map_err(|e| format!("写入 Codex 失败: {}", e))?;
-        stdin.flush().map_err(|e| format!("刷新 Codex 失败: {}", e))?;
+        stdin
+            .flush()
+            .map_err(|e| format!("刷新 Codex 失败: {}", e))?;
         Ok(())
     }
 }

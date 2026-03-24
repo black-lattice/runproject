@@ -1,14 +1,14 @@
-pub mod emitters;
 pub mod classification;
+pub mod emitters;
 pub mod utils;
 
 pub use emitters::{emit_event, emit_file_change, emit_status};
 
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
-use serde_json::Value;
 
 use super::types::{CodexIncomingMessage, PendingAction};
 use classification::classify_pending_action;
@@ -70,11 +70,21 @@ pub fn handle_incoming_message(
         }
         CodexIncomingMessage::RawText(text) => {
             if !text.is_empty() {
-                emit_event(app, session_id, "stdout", Some(serde_json::json!({ "text": text })));
+                emit_event(
+                    app,
+                    session_id,
+                    "stdout",
+                    Some(serde_json::json!({ "text": text })),
+                );
             }
         }
         CodexIncomingMessage::ParseError(error) => {
-            emit_event(app, session_id, "parse-error", Some(serde_json::json!({ "error": error })));
+            emit_event(
+                app,
+                session_id,
+                "parse-error",
+                Some(serde_json::json!({ "error": error })),
+            );
         }
     }
 }
