@@ -24,7 +24,6 @@ import {
   syncCurrentCodexAccount,
 } from "@/services/codex";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -109,7 +108,6 @@ const summarizeProfileNames = (profileNames) => {
 
 export function CodexAccountSettings() {
   const { toast } = useToast();
-  const [accountName, setAccountName] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -153,11 +151,8 @@ export function CodexAccountSettings() {
     setSubmitting(true);
     setError("");
     try {
-      const profile = await importCurrentCodexAccount({
-        name: accountName.trim() || null,
-      });
+      const profile = await importCurrentCodexAccount();
       await loadAccounts();
-      setAccountName(profile.name);
       toast({
         title: "导入成功",
         description: `账号 ${profile.name} 已保存到工具内。`,
@@ -203,13 +198,13 @@ export function CodexAccountSettings() {
       await syncCurrentCodexAccount({ profileName });
       await loadAccounts();
       toast({
-        title: "同步成功",
-        description: `已用当前全局 Codex 登录信息刷新 ${profileName}。`,
+        title: "刷新成功",
+        description: `已刷新 ${profileName} 的当前账号信息。`,
       });
     } catch (err) {
       setError(String(err));
       toast({
-        title: "同步失败",
+        title: "刷新失败",
         description: String(err),
         variant: "destructive",
       });
@@ -394,7 +389,17 @@ export function CodexAccountSettings() {
           <Button
             variant="outline"
             size="icon"
-            title="打开 Codex 账号切换"
+            title="刷新账号列表"
+            onClick={loadAccounts}
+            disabled={loading || submitting}
+            className="h-9 w-9"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            title="查看使用说明"
             onClick={() => setManagerOpen(true)}
             className="h-9 w-9"
           >
@@ -403,31 +408,21 @@ export function CodexAccountSettings() {
         </div>
         <div>
           <p className="mt-1 text-sm text-gray-500">
-            当前账号显示实时额度，切换和导入放在右侧弹窗里。
+            当前账号显示实时额度，账号导入、切换与备份都在本页完成。
           </p>
         </div>
       </div>
 
       <Dialog open={managerOpen} onOpenChange={setManagerOpen}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader className="flex items-center justify-between gap-4 bg-white">
             <div>
-              <DialogTitle className="text-lg">Codex 账号切换</DialogTitle>
+              <DialogTitle className="text-lg">使用说明</DialogTitle>
               <p className="mt-1 text-sm text-gray-500">
                 这个面板直接管理本机 <code>~/.codex/auth.json</code>，
                 切换后你终端里的原生 <code>codex</code> 命令会立刻使用新的账号。
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={loadAccounts}
-              disabled={loading || submitting}
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-              />
-            </Button>
             <DialogClose className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
               <X className="h-4 w-4" />
             </DialogClose>
@@ -443,129 +438,129 @@ export function CodexAccountSettings() {
                 会话逻辑。
               </AlertDescription>
             </Alert>
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="secondary">当前本机账号</Badge>
-                <span className="text-sm font-medium text-gray-900">
-                  {currentLabel}
-                </span>
-                {data.currentGlobal?.planType && (
-                  <Badge variant="outline">
-                    套餐: {data.currentGlobal.planType}
-                  </Badge>
-                )}
-                {data.currentProfileName && (
-                  <Badge className="bg-emerald-600 hover:bg-emerald-600">
-                    已纳入管理: {data.currentProfileName}
-                  </Badge>
-                )}
-              </div>
-              {data.currentGlobalStatus && (
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  <div className="rounded-lg border border-gray-200 bg-white p-3">
-                    <div className="text-xs text-gray-500">当前 5h 剩余</div>
-                    <div className="mt-1">
-                      {renderQuotaCell(data.currentGlobalStatus.primary)}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-white p-3">
-                    <div className="text-xs text-gray-500">当前周剩余</div>
-                    <div className="mt-1">
-                      {renderQuotaCell(data.currentGlobalStatus.secondary)}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-white p-3">
-                    <div className="text-xs text-gray-500">实时状态采样</div>
-                    <div className="mt-1 text-sm font-medium text-gray-900">
-                      {formatSampleTs(data.currentGlobalStatus.sampledAt)}
-                    </div>
-                    <div className="mt-1 text-xs text-gray-400">
-                      当前登录账号这里显示的是 <code>~/.codex</code> 实时额度
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+              <p>1. 先在终端执行 <code>codex login</code> 登录目标账号。</p>
+              <p className="mt-2">
+                2. 回到本页点击“导入当前账号快照”，工具会按账号信息自动命名并保存。
+              </p>
+              <p className="mt-2">
+                3. 在下方账号卡片中可以直接切换、同步，也可以自动切到仍有额度的账号。
+              </p>
             </div>
-
-            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-4 md:flex-row md:items-center">
-              <Input
-                value={accountName}
-                onChange={(event) => setAccountName(event.target.value)}
-                placeholder="可选：给当前账号起一个别名"
-                className="md:max-w-sm"
-              />
-              <Button
-                onClick={handleImport}
-                disabled={submitting}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Import className="w-4 h-4" />
-                导入当前账号快照
-              </Button>
-            </div>
-
-            <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="text-sm font-medium text-gray-900">
-                  自动切到有额度的账号
-                </div>
-                <div className="mt-1 text-xs text-gray-600">
-                  优先保留当前仍可用的账号；否则按周剩余、5H
-                  剩余和最近采样时间，切到最合适的已导入账号。
-                </div>
-              </div>
-              <Button
-                onClick={handleAutoSwitch}
-                disabled={submitting || loading || data.profiles.length === 0}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-              >
-                <WandSparkles className="h-4 w-4" />
-                自动切换
-              </Button>
-            </div>
-
-            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-gray-300 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="text-sm font-medium text-gray-900">
-                  批量备份与恢复
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  导出的 JSON 会包含账号认证信息，请只保存在你信任的位置。
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleExportAll}
-                  disabled={submitting}
-                  className="gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  批量导出
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleImportArchive}
-                  disabled={submitting}
-                  className="gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  批量导入
-                </Button>
-              </div>
-            </div>
-
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>操作失败</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
           </div>
         </DialogContent>
       </Dialog>
+
+      <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="secondary">当前本机账号</Badge>
+          <span className="text-sm font-medium text-gray-900">
+            {currentLabel}
+          </span>
+          {data.currentGlobal?.planType && (
+            <Badge variant="outline">套餐: {data.currentGlobal.planType}</Badge>
+          )}
+          {data.currentProfileName && (
+            <Badge className="bg-emerald-600 hover:bg-emerald-600">
+              已纳入管理: {data.currentProfileName}
+            </Badge>
+          )}
+        </div>
+        {data.currentGlobalStatus && (
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 bg-white p-3">
+              <div className="text-xs text-gray-500">当前 5h 剩余</div>
+              <div className="mt-1">
+                {renderQuotaCell(data.currentGlobalStatus.primary)}
+              </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white p-3">
+              <div className="text-xs text-gray-500">当前周剩余</div>
+              <div className="mt-1">
+                {renderQuotaCell(data.currentGlobalStatus.secondary)}
+              </div>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white p-3">
+              <div className="text-xs text-gray-500">实时状态采样</div>
+              <div className="mt-1 text-sm font-medium text-gray-900">
+                {formatSampleTs(data.currentGlobalStatus.sampledAt)}
+              </div>
+              <div className="mt-1 text-xs text-gray-400">
+                当前登录账号这里显示的是 <code>~/.codex</code> 实时额度
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-4">
+          <div className="text-sm font-medium text-gray-900">导入当前账号快照</div>
+          <div className="mt-1 text-xs text-gray-500">
+            自动读取当前 <code>~/.codex/auth.json</code> 的账号信息命名并保存。
+          </div>
+          <Button
+            onClick={handleImport}
+            disabled={submitting}
+            className="mt-4 gap-2 bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Import className="w-4 h-4" />
+            导入当前账号快照
+          </Button>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+          <div className="text-sm font-medium text-gray-900">
+            自动切到有额度的账号
+          </div>
+          <div className="mt-1 text-xs text-gray-600">
+            优先保留当前仍可用的账号；否则按周剩余、5H 剩余和最近采样时间自动选择。
+          </div>
+          <Button
+            onClick={handleAutoSwitch}
+            disabled={submitting || loading || data.profiles.length === 0}
+            className="mt-4 gap-2 bg-emerald-600 hover:bg-emerald-700"
+          >
+            <WandSparkles className="h-4 w-4" />
+            自动切换
+          </Button>
+        </div>
+
+        <div className="rounded-xl border border-dashed border-gray-300 bg-white p-4">
+          <div className="text-sm font-medium text-gray-900">批量备份与恢复</div>
+          <div className="mt-1 text-xs text-gray-500">
+            导出的 JSON 会包含账号认证信息，请只保存在你信任的位置。
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={handleExportAll}
+              disabled={submitting}
+              className="gap-2"
+            >
+              <Download className="w-4 h-4" />
+              批量导出
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleImportArchive}
+              disabled={submitting}
+              className="gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              批量导入
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>操作失败</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {!loading && data.profiles.length === 0 && (
         <div className="rounded-lg border border-dashed border-gray-200 py-12 text-center text-gray-400">
@@ -608,7 +603,7 @@ export function CodexAccountSettings() {
                 <Button
                   variant="outline"
                   size="icon"
-                  title="同步当前登录"
+                  title="刷新当前账号信息"
                   onClick={() => handleSync(profile.name)}
                   disabled={submitting}
                 >

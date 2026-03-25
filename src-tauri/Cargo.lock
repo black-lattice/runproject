@@ -3686,6 +3686,7 @@ dependencies = [
  "async-openai",
  "async-trait",
  "base64 0.21.7",
+ "chrono",
  "futures",
  "json5",
  "lazy_static",

@@ -70,8 +70,8 @@ export const getCodexAccountList = async () => {
   return invoke("codex_account_list");
 };
 
-export const importCurrentCodexAccount = async ({ name }) => {
-  return invoke("codex_account_import_current", { name: name || null });
+export const importCurrentCodexAccount = async () => {
+  return invoke("codex_account_import_current");
 };
 
 export const exportAllCodexAccounts = async ({ path }) => {

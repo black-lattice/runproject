@@ -1,16 +1,19 @@
 use crate::modules::codex::accounts::auth::read_meta_from_auth_text;
 use crate::modules::codex::accounts::logic::{
-    build_account_archive, build_list_response, is_profile_active, read_current_managed_snapshot,
-    select_available_profile,
+    build_account_archive, build_list_response, is_profile_active, metas_match,
+    read_current_managed_snapshot, select_available_profile,
 };
-use crate::modules::codex::accounts::status::read_fresh_status_from_home;
+use crate::modules::codex::accounts::status::{
+    read_fresh_status_from_home, read_latest_status_from_home,
+};
 use crate::modules::codex::accounts::storage::{
-    global_codex_home, load_profile_record, now_ts, read_auth_text, read_profile_auth_text,
-    sanitize_profile_name, save_profile_snapshot, write_global_auth_text,
+    build_unique_profile_name, global_codex_home, load_all_profile_records, load_profile_record,
+    now_ts, read_auth_text, read_profile_auth_text, sanitize_profile_name, save_profile_snapshot,
+    write_global_auth_text,
 };
 use crate::modules::codex::accounts::types::{
     to_profile_dto, CodexAccountArchiveFile, CodexAccountExportResult, CodexAccountImportResult,
-    CodexAccountListResponse, CodexAccountProfile, CodexAccountProfileRecord,
+    CodexAccountListResponse, CodexAccountMeta, CodexAccountProfile, CodexAccountProfileRecord,
 };
 use std::collections::BTreeSet;
 use std::fs;
@@ -23,28 +26,26 @@ pub fn codex_account_list(app: AppHandle) -> Result<CodexAccountListResponse, St
 }
 
 #[tauri::command]
-pub fn codex_account_import_current(
-    app: AppHandle,
-    name: Option<String>,
-) -> Result<CodexAccountProfile, String> {
+pub fn codex_account_import_current(app: AppHandle) -> Result<CodexAccountProfile, String> {
     let global_home = global_codex_home()?;
     let auth_text = read_auth_text(&global_home)?;
     let meta = read_meta_from_auth_text(&auth_text)?;
-
-    let preferred_name = name
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(|value| value.to_string())
+    let all_records = load_all_profile_records(&app)?;
+    let matched_record = all_records
+        .iter()
+        .find(|record| metas_match(&record.meta, &meta))
+        .cloned();
+    let profile_name = matched_record
+        .as_ref()
+        .map(|record| record.name.clone())
         .unwrap_or_else(|| {
-            meta.email
-                .clone()
-                .or(meta.account_id.clone())
-                .unwrap_or_else(|| format!("账号-{}", now_ts()))
+            let existing_names = all_records
+                .iter()
+                .map(|record| record.name.clone())
+                .collect::<Vec<_>>();
+            build_unique_profile_name(&existing_names, &derive_profile_name(&meta))
         });
-
-    let profile_name = sanitize_profile_name(&preferred_name);
-    let existing = load_profile_record(&app, &profile_name).ok();
+    let existing = matched_record.or_else(|| load_profile_record(&app, &profile_name).ok());
     let status = read_fresh_status_from_home(&global_home)?
         .or_else(|| existing.as_ref().map(|item| item.status.clone()))
         .unwrap_or_default();
@@ -66,6 +67,15 @@ pub fn codex_account_import_current(
     ))
 }
 
+fn derive_profile_name(meta: &CodexAccountMeta) -> String {
+    meta.email
+        .clone()
+        .or(meta.account_id.clone())
+        .map(|value| sanitize_profile_name(&value))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| format!("账号-{}", now_ts()))
+}
+
 #[tauri::command]
 pub fn codex_account_sync_current(
     app: AppHandle,
@@ -76,8 +86,15 @@ pub fn codex_account_sync_current(
     let global_home = global_codex_home()?;
     let auth_text = read_auth_text(&global_home)?;
     let meta = read_meta_from_auth_text(&auth_text)?;
-    let status =
-        read_fresh_status_from_home(&global_home)?.unwrap_or_else(|| existing.status.clone());
+    if !metas_match(&existing.meta, &meta) {
+        return Err(format!(
+            "当前登录账号与卡片账号不一致，无法刷新 {}。请先切换到对应账号后再刷新。",
+            profile_name
+        ));
+    }
+    let status = read_latest_status_from_home(&global_home)?.ok_or_else(|| {
+        "当前 Codex 会话还没有可用额度数据，请先在终端产生一次请求后再刷新。".to_string()
+    })?;
     let record = CodexAccountProfileRecord {
         name: profile_name.clone(),
         created_at: existing.created_at,

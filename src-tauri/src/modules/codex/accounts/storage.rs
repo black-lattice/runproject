@@ -131,6 +131,22 @@ pub(crate) fn sanitize_profile_name(input: &str) -> String {
     }
 }
 
+pub(crate) fn build_unique_profile_name(existing_names: &[String], preferred_name: &str) -> String {
+    let base_name = sanitize_profile_name(preferred_name);
+    if !existing_names.iter().any(|name| name == &base_name) {
+        return base_name;
+    }
+
+    let mut index = 2usize;
+    loop {
+        let candidate = format!("{}-{}", base_name, index);
+        if !existing_names.iter().any(|name| name == &candidate) {
+            return candidate;
+        }
+        index += 1;
+    }
+}
+
 pub(crate) fn now_ts() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

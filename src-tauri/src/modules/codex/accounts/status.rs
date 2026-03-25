@@ -1,9 +1,10 @@
 use crate::modules::codex::accounts::storage::AUTH_FILE;
 use crate::modules::codex::accounts::types::{CodexRateWindow, CodexStatusSnapshot};
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(crate) fn read_fresh_status_from_home(
     home_dir: &Path,
@@ -11,14 +12,21 @@ pub(crate) fn read_fresh_status_from_home(
     let auth_modified_at = fs::metadata(home_dir.join(AUTH_FILE))
         .and_then(|meta| meta.modified())
         .map_err(|error| format!("读取当前 Codex 认证时间失败: {}", error))?;
-    let (snapshot, status_modified_at) = read_status_from_home_with_source(home_dir)?;
+    let (snapshot, status_event_at) = read_latest_status_from_home_with_source(home_dir)?;
 
-    Ok(status_modified_at
-        .filter(|modified_at| *modified_at >= auth_modified_at)
+    Ok(status_event_at
+        .filter(|event_at| *event_at >= auth_modified_at)
         .map(|_| snapshot))
 }
 
-fn read_status_from_home_with_source(
+pub(crate) fn read_latest_status_from_home(
+    home_dir: &Path,
+) -> Result<Option<CodexStatusSnapshot>, String> {
+    let (snapshot, status_event_at) = read_latest_status_from_home_with_source(home_dir)?;
+    Ok(status_event_at.map(|_| snapshot))
+}
+
+fn read_latest_status_from_home_with_source(
     home_dir: &Path,
 ) -> Result<(CodexStatusSnapshot, Option<SystemTime>), String> {
     let sessions_dir = home_dir.join("sessions");
@@ -31,10 +39,9 @@ fn read_status_from_home_with_source(
 
     let mut latest_timestamp: Option<String> = None;
     let mut latest_snapshot = CodexStatusSnapshot::default();
-    let mut latest_status_modified_at: Option<SystemTime> = None;
+    let mut latest_status_event_at: Option<SystemTime> = None;
 
     for file in jsonl_files {
-        let file_modified_at = fs::metadata(&file).and_then(|meta| meta.modified()).ok();
         let content =
             fs::read_to_string(&file).map_err(|error| format!("读取会话文件失败: {}", error))?;
         for line in content.lines() {
@@ -74,7 +81,8 @@ fn read_status_from_home_with_source(
 
             if should_replace {
                 latest_timestamp = Some(timestamp.clone());
-                latest_status_modified_at = file_modified_at;
+                latest_status_event_at = parse_timestamp_to_system_time(&timestamp)
+                    .or_else(|| fs::metadata(&file).and_then(|meta| meta.modified()).ok());
                 latest_snapshot = CodexStatusSnapshot {
                     sampled_at: Some(timestamp),
                     primary: parse_window(rate_limits.get("primary")),
@@ -84,7 +92,7 @@ fn read_status_from_home_with_source(
         }
     }
 
-    Ok((latest_snapshot, latest_status_modified_at))
+    Ok((latest_snapshot, latest_status_event_at))
 }
 
 fn collect_jsonl_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), String> {
@@ -120,4 +128,15 @@ fn extract_u64(value: Option<&Value>) -> Option<u64> {
             .or_else(|| number.as_f64().map(|item| item.max(0.0) as u64)),
         _ => None,
     }
+}
+
+// 优先使用 token_count 事件自身的时间，避免只看文件修改时间导致错过最新额度状态。
+fn parse_timestamp_to_system_time(value: &str) -> Option<SystemTime> {
+    let parsed = DateTime::parse_from_rfc3339(value).ok()?;
+    let timestamp = parsed.with_timezone(&Utc).timestamp();
+    if timestamp < 0 {
+        return None;
+    }
+
+    Some(UNIX_EPOCH + std::time::Duration::from_secs(timestamp as u64))
 }

@@ -237,7 +237,7 @@ fn match_profile_name(
         .map(|record| record.name.clone())
 }
 
-fn metas_match(left: &CodexAccountMeta, right: &CodexAccountMeta) -> bool {
+pub(crate) fn metas_match(left: &CodexAccountMeta, right: &CodexAccountMeta) -> bool {
     let left_account = left.account_id.as_deref().unwrap_or("").trim();
     let right_account = right.account_id.as_deref().unwrap_or("").trim();
     if !left_account.is_empty() && !right_account.is_empty() && left_account == right_account {
