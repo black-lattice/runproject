@@ -6,6 +6,7 @@ use modules::editor;
 use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
+use modules::tray;
 use tauri_plugin_mcp::Builder as McpBuilder;
 
 #[tauri::command]
@@ -14,33 +15,40 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn add_workspace(path: String) -> Result<project_scanner::Workspace, String> {
-    let workspace_name = Path::new(&path)
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+async fn add_workspace(path: String) -> Result<project_scanner::Workspace, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let workspace_name = Path::new(&path)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("workspace")
+            .to_string();
 
-    let projects = project_scanner::scan_workspace(&path)?;
+        let projects = project_scanner::scan_workspace(&path)?;
 
-    Ok(project_scanner::Workspace {
-        path,
-        name: workspace_name,
-        projects,
+        Ok(project_scanner::Workspace {
+            path,
+            name: workspace_name,
+            projects,
+        })
     })
+    .await
+    .map_err(|error| format!("扫描 workspace 任务失败: {}", error))?
 }
 
 #[tauri::command]
-fn scan_workspace_projects(
+async fn scan_workspace_projects(
     workspace_path: String,
 ) -> Result<Vec<project_scanner::Project>, String> {
-    project_scanner::scan_workspace(&workspace_path)
+    tauri::async_runtime::spawn_blocking(move || project_scanner::scan_workspace(&workspace_path))
+        .await
+        .map_err(|error| format!("扫描 workspace 项目任务失败: {}", error))?
 }
 
 #[tauri::command]
-fn scan_project(project_path: String) -> Result<project_scanner::Project, String> {
-    project_scanner::scan_project(&project_path)
+async fn scan_project(project_path: String) -> Result<project_scanner::Project, String> {
+    tauri::async_runtime::spawn_blocking(move || project_scanner::scan_project(&project_path))
+        .await
+        .map_err(|error| format!("扫描项目任务失败: {}", error))?
 }
 
 #[tauri::command]
@@ -157,6 +165,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(McpBuilder::default().build())
+        .manage(tray::TrayState::default())
+        .setup(|app| {
+            tray::setup(app)?;
+            Ok(())
+        })
+        .on_window_event(tray::handle_window_event)
         .invoke_handler(tauri::generate_handler![
             greet,
             add_workspace,
@@ -170,6 +184,8 @@ pub fn run() {
             open_project_in_editor,
             open_in_finder,
             build_execution_command,
+            tray::sync_tray_projects,
+            tray::set_tray_theme,
             modules::kitty::executor::execute_command_in_kitty,
             modules::kitty::executor::execute_command_with_kitten,
             modules::kitty::process::terminate_command,

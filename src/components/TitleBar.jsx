@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import AppLogo from './AppLogo';
 
 /**
  * 自定义标题栏组件
@@ -35,13 +36,18 @@ function TitleBar({ children }) {
 	return (
 		<div
 			ref={titleBarRef}
-			className='flex items-center h-[32px] flex-shrink-0 select-none overflow-hidden border-b border-gray-200'
-		>
+			className='flex items-center h-[32px] flex-shrink-0 select-none overflow-hidden border-b border-gray-200'>
 			{/* macOS 原生控制按钮区域（红/黄/绿按钮）- Overlay 模式下原生按钮已存在 */}
 			<div
 				className='w-20 h-full flex-shrink-0 bg-white'
 				data-tauri-drag-region
 			/>
+
+			<div
+				className='h-full flex items-center pr-2 bg-white'
+				data-tauri-drag-region>
+				<AppLogo className='block h-5 w-5 flex-shrink-0' />
+			</div>
 
 			{/* 标题栏内容区域（包含 TabBar）- 宽度根据内容自动撑大 */}
 			<div className='overflow-hidden'>{children}</div>

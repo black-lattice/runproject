@@ -45,8 +45,24 @@ function ProjectPage() {
 	const { toast } = useToast();
 	const navigate = useNavigate();
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+	const [refreshingWorkspacePaths, setRefreshingWorkspacePaths] = useState({});
 	const getCommandKey = (project, command) =>
 		`${project.path}::${command.name}`;
+
+	const setWorkspaceRefreshing = (workspacePath, refreshing) => {
+		setRefreshingWorkspacePaths(current => {
+			if (!workspacePath) return current;
+			if (refreshing) {
+				return {
+					...current,
+					[workspacePath]: true
+				};
+			}
+			const next = { ...current };
+			delete next[workspacePath];
+			return next;
+		});
+	};
 
 	useEffect(() => {
 		const savedWorkspaces = localStorage.getItem('nodejs-workspaces');
@@ -67,9 +83,7 @@ function ProjectPage() {
 
 	const clearCacheAndReload = () => {
 		if (
-			confirm(
-				'确定要清除所有缓存并重新加载吗？这将刷新所有workspace数据。'
-			)
+			confirm('确定要清除所有缓存并重新加载吗？这将刷新所有workspace数据。')
 		) {
 			localStorage.removeItem('nodejs-workspaces');
 			localStorage.removeItem('nodejs-workspaces-version');
@@ -128,10 +142,7 @@ function ProjectPage() {
 			'nodejs-workspaces',
 			JSON.stringify(workspacesWithVersion)
 		);
-		localStorage.setItem(
-			'nodejs-workspaces-version',
-			currentTime.toString()
-		);
+		localStorage.setItem('nodejs-workspaces-version', currentTime.toString());
 		setWorkspaces(workspacesWithVersion);
 	};
 
@@ -227,16 +238,36 @@ function ProjectPage() {
 	};
 
 	const refreshWorkspace = async index => {
-		setIsLoading(true);
+		const workspace = useAppStore.getState().workspaces[index];
+		if (!workspace?.path) {
+			toast({
+				title: '刷新失败',
+				description: '未找到要刷新的workspace',
+				variant: 'destructive'
+			});
+			return;
+		}
+
+		if (refreshingWorkspacePaths[workspace.path]) return;
+
+		setWorkspaceRefreshing(workspace.path, true);
 		try {
-			const workspace = workspaces[index];
 			const currentSelectedProject = useAppStore.getState().selectedProject;
 			const refreshedWorkspace = await invoke('add_workspace', {
 				path: workspace.path
 			});
 			const normalizedWorkspace = normalizeWorkspace(refreshedWorkspace);
-			const newWorkspaces = [...workspaces];
-			newWorkspaces[index] = normalizedWorkspace;
+			const currentWorkspaces = useAppStore.getState().workspaces;
+			const workspaceIndex = currentWorkspaces.findIndex(
+				item => item.path === workspace.path
+			);
+
+			if (workspaceIndex === -1) {
+				return;
+			}
+
+			const newWorkspaces = [...currentWorkspaces];
+			newWorkspaces[workspaceIndex] = normalizedWorkspace;
 			saveWorkspaces(newWorkspaces);
 
 			if (currentSelectedProject?.path) {
@@ -260,7 +291,7 @@ function ProjectPage() {
 				variant: 'destructive'
 			});
 		} finally {
-			setIsLoading(false);
+			setWorkspaceRefreshing(workspace.path, false);
 		}
 	};
 
@@ -362,8 +393,7 @@ function ProjectPage() {
 
 				const result = await invoke('get_nvm_status');
 				const versions =
-					result?.available &&
-					Array.isArray(result.installed_versions)
+					result?.available && Array.isArray(result.installed_versions)
 						? result.installed_versions
 						: [];
 
@@ -385,9 +415,7 @@ function ProjectPage() {
 		const userSelected = preferences[projectKey]?.nodeVersion || null;
 
 		if (userSelected) {
-			console.log(
-				`📋 [${project.name}] 使用用户选择Node版本: ${userSelected}`
-			);
+			console.log(`📋 [${project.name}] 使用用户选择Node版本: ${userSelected}`);
 			return userSelected;
 		}
 
@@ -471,9 +499,7 @@ function ProjectPage() {
 			const doneMarker = '__RUNPROJECT_CMD_DONE__';
 			const commandWithMarker = `${fullCommand.trimEnd()}; echo ${doneMarker}:${runId}:$?\n`;
 			const encoded = btoa(
-				String.fromCharCode(
-					...new TextEncoder().encode(commandWithMarker)
-				)
+				String.fromCharCode(...new TextEncoder().encode(commandWithMarker))
 			);
 			await invoke('write_to_terminal', { sessionId, data: encoded });
 
@@ -485,7 +511,7 @@ function ProjectPage() {
 				createdAt: Date.now()
 			});
 
-			addTab(`terminal-${sessionId}`);
+			addTab('terminal');
 
 			navigate(
 				`/terminal?sessionId=${sessionId}&title=${project.name}-${command.name}&cwd=${encodeURIComponent(project.path)}`
@@ -518,8 +544,7 @@ function ProjectPage() {
 			project.packageManager || project.package_manager || 'npm';
 		const effectiveNodeVersion = getEffectiveNodeVersion(project);
 		const existingTerminal = projectTerminals[projectName];
-		const shouldReuseTerminal =
-			Boolean(existingTerminal) && !useKittenRemote;
+		const shouldReuseTerminal = Boolean(existingTerminal) && !useKittenRemote;
 		const commandId = useKittenRemote
 			? `${projectName}-kitty`
 			: `${projectName}-${command.name}-${Date.now()}`;
@@ -570,9 +595,7 @@ function ProjectPage() {
 			setCommandRunning(commandKey, { project, command, id: commandId });
 
 			try {
-				const result = await runBackendCommand(
-					'execute_command_in_kitty'
-				);
+				const result = await runBackendCommand('execute_command_in_kitty');
 
 				if (result.success) {
 					toast({
@@ -650,7 +673,7 @@ function ProjectPage() {
 	};
 
 	return (
-		<div className='h-full flex flex-col overflow-hidden bg-gray-100'>
+		<div className='project-page h-full flex flex-col overflow-hidden bg-gray-100'>
 			{/* <Header
 				onAddWorkspace={handleAddWorkspace}
 				useKittenRemote={useKittenRemote}
@@ -661,6 +684,7 @@ function ProjectPage() {
 					workspaces={workspaces}
 					selectedProject={selectedProject}
 					isLoading={isLoading}
+					refreshingWorkspacePaths={refreshingWorkspacePaths}
 					onAddWorkspace={handleAddWorkspace}
 					onRefreshWorkspace={refreshWorkspace}
 					onRemoveWorkspace={removeWorkspace}

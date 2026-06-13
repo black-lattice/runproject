@@ -8,7 +8,11 @@ import { XtermTerminal } from '@/components/Terminal';
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir } from '@tauri-apps/api/path';
 import { invoke } from '@tauri-apps/api/core';
-import { emit } from '@tauri-apps/api/event';
+import { emit, listen } from '@tauri-apps/api/event';
+import {
+	TERMINAL_PAGE_STORAGE_KEY,
+	readTerminalPageState
+} from '@/utils/terminalPageState';
 import {
 	Tooltip,
 	TooltipContent,
@@ -16,21 +20,14 @@ import {
 	TooltipTrigger
 } from '@/components/ui/tooltip';
 
-const STORAGE_KEY = 'terminal_page_state';
-
 const getInitialTerminalState = () => {
 	if (typeof window === 'undefined') {
 		return { terminals: [], activeTerminalId: null };
 	}
 
 	try {
-		const stored = window.localStorage.getItem(STORAGE_KEY);
-		if (!stored) return { terminals: [], activeTerminalId: null };
-
-		const parsed = JSON.parse(stored);
-		const storedTerminals = Array.isArray(parsed.terminals)
-			? parsed.terminals
-			: [];
+		const parsed = readTerminalPageState();
+		const storedTerminals = parsed.terminals;
 		const hydratedTerminals = storedTerminals.map((terminal, index) => ({
 			...terminal,
 			existingSession: true,
@@ -60,9 +57,7 @@ function TerminalPage() {
 	if (!initialStateRef.current) {
 		initialStateRef.current = getInitialTerminalState();
 	}
-	const [terminals, setTerminals] = useState(
-		initialStateRef.current.terminals
-	);
+	const [terminals, setTerminals] = useState(initialStateRef.current.terminals);
 	const [activeTerminalId, setActiveTerminalId] = useState(
 		initialStateRef.current.activeTerminalId
 	);
@@ -97,9 +92,52 @@ function TerminalPage() {
 		}
 	}, [searchParams, setSearchParams]);
 
+	useEffect(() => {
+		let unlisten = null;
+		let cancelled = false;
+
+		const setupListener = async () => {
+			const dispose = await listen('tray-command-started', event => {
+				const payload = event?.payload;
+				if (!payload?.sessionId || !payload?.project?.path) return;
+
+				const newTerminal = {
+					id: payload.sessionId,
+					title:
+						payload.title ||
+						`${payload.project.name}-${payload.command?.name || 'script'}`,
+					cwd: payload.project.path,
+					existingSession: true
+				};
+
+				setTerminals(prev => {
+					const exists = prev.some(item => item.id === newTerminal.id);
+					return exists
+						? prev.map(item =>
+								item.id === newTerminal.id ? { ...item, ...newTerminal } : item
+							)
+						: [...prev, newTerminal];
+				});
+				setActiveTerminalId(newTerminal.id);
+			});
+
+			if (cancelled) {
+				dispose();
+				return;
+			}
+			unlisten = dispose;
+		};
+
+		setupListener();
+
+		return () => {
+			cancelled = true;
+			if (unlisten) unlisten();
+		};
+	}, []);
+
 	const handleAddTerminal = async (customCwd = null) => {
-		const title =
-			newTerminalName.trim() || `Terminal ${terminals.length + 1}`;
+		const title = newTerminalName.trim() || `Terminal ${terminals.length + 1}`;
 
 		let cwd = customCwd;
 		if (!cwd) {
@@ -173,7 +211,7 @@ function TerminalPage() {
 		if (typeof window === 'undefined') return;
 
 		if (!terminals.length) {
-			window.localStorage.removeItem(STORAGE_KEY);
+			window.localStorage.removeItem(TERMINAL_PAGE_STORAGE_KEY);
 			return;
 		}
 
@@ -186,7 +224,10 @@ function TerminalPage() {
 		};
 
 		try {
-			window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+			window.localStorage.setItem(
+				TERMINAL_PAGE_STORAGE_KEY,
+				JSON.stringify(payload)
+			);
 		} catch (error) {
 			console.error('保存终端状态失败:', error);
 		}
@@ -197,9 +238,7 @@ function TerminalPage() {
 			{terminals.length === 0 ? (
 				<div className='flex-1 flex flex-col'>
 					<div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50/50'>
-						<span className='text-sm font-semibold text-gray-700'>
-							终端
-						</span>
+						<span className='text-sm font-semibold text-gray-700'>终端</span>
 						<div className='flex items-center gap-1'>
 							<TooltipProvider>
 								<Tooltip>
@@ -217,9 +256,7 @@ function TerminalPage() {
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
-											onClick={() =>
-												handleAddTerminalWithDialog()
-											}
+											onClick={() => handleAddTerminalWithDialog()}
 											size='sm'
 											variant='ghost'
 											className='h-8 w-8 p-0 hover:bg-gray-200'>
@@ -236,9 +273,7 @@ function TerminalPage() {
 							<div className='bg-gray-100 p-4 rounded-full w-fit mx-auto mb-4'>
 								<Terminal className='h-10 w-10 text-gray-400' />
 							</div>
-							<p className='text-gray-500 mb-4 font-medium'>
-								暂无活动终端会话
-							</p>
+							<p className='text-gray-500 mb-4 font-medium'>暂无活动终端会话</p>
 							<Button
 								onClick={() => handleAddTerminal()}
 								className='bg-blue-600 hover:bg-blue-700'>
@@ -253,8 +288,7 @@ function TerminalPage() {
 					<div className='flex items-center justify-between border-b bg-gray-50/50 pr-2 h-10'>
 						<div className='flex items-center overflow-x-auto no-scrollbar flex-1 h-full'>
 							{terminals.map(terminal => {
-								const isActive =
-									activeTerminalId === terminal.id;
+								const isActive = activeTerminalId === terminal.id;
 								return (
 									<div
 										key={terminal.id}
@@ -262,14 +296,12 @@ function TerminalPage() {
                       group relative flex items-center gap-2 px-4 h-full min-w-[120px] max-w-[200px] 
                       cursor-pointer transition-all duration-150 border-r border-gray-200/60
                       ${
-							isActive
-								? 'bg-white text-blue-600 shadow-[0_1px_0_rgba(255,255,255,1)] z-10'
-								: 'text-gray-500 hover:bg-gray-200/50 hover:text-gray-700'
-						}
+												isActive
+													? 'bg-white text-blue-600 shadow-[0_1px_0_rgba(255,255,255,1)] z-10'
+													: 'text-gray-500 hover:bg-gray-200/50 hover:text-gray-700'
+											}
                     `}
-										onClick={() =>
-											setActiveTerminalId(terminal.id)
-										}>
+										onClick={() => setActiveTerminalId(terminal.id)}>
 										<Terminal
 											className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-blue-500' : 'text-gray-400'}`}
 										/>
@@ -283,9 +315,7 @@ function TerminalPage() {
                       `}
 											onClick={e => {
 												e.stopPropagation();
-												handleCloseTerminal(
-													terminal.id
-												);
+												handleCloseTerminal(terminal.id);
 											}}>
 											<X className='h-3 w-3' />
 										</button>
@@ -311,9 +341,7 @@ function TerminalPage() {
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
-											onClick={() =>
-												handleAddTerminalWithDialog()
-											}
+											onClick={() => handleAddTerminalWithDialog()}
 											size='sm'
 											variant='ghost'
 											className='h-8 w-8 p-0 hover:bg-gray-200'>
@@ -346,17 +374,11 @@ function TerminalPage() {
 											<XtermTerminal
 												sessionId={terminal.id}
 												cwd={terminal.cwd}
-												existingSession={
-													terminal.existingSession ||
-													false
-												}
+												existingSession={terminal.existingSession || false}
 												onClose={() =>
-													handleCloseTerminal(
-														terminal.id,
-														{
-															skipServerClose: true
-														}
-													)
+													handleCloseTerminal(terminal.id, {
+														skipServerClose: true
+													})
 												}
 											/>
 										</div>

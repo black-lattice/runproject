@@ -8,4 +8,5 @@ pub mod nvm_manager;
 pub mod platform;
 pub mod project_scanner;
 pub mod terminal;
+pub mod tray;
 pub mod window_manager;

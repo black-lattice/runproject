@@ -13,6 +13,7 @@ lazy_static! {
 }
 
 const MAX_BUFFER_SIZE: usize = 1024 * 1024 * 2; // 2 MB
+const COMMAND_DONE_MARKER: &str = "__RUNPROJECT_CMD_DONE__:";
 
 #[tauri::command]
 pub fn create_terminal_session(
@@ -41,12 +42,15 @@ pub fn create_terminal_session(
         };
 
         let mut chunk = [0u8; 8192];
+        let mut marker_carry = String::new();
         loop {
             match reader.read(&mut chunk) {
                 Ok(0) => break,
                 Ok(n) => {
                     let data = &chunk[..n];
                     let encoded = general_purpose::STANDARD.encode(data);
+                    let text = String::from_utf8_lossy(data);
+                    emit_command_done_markers(&app_clone, &id, &text, &mut marker_carry);
 
                     {
                         let data_to_store = if n > MAX_BUFFER_SIZE {
@@ -148,4 +152,80 @@ pub fn get_terminal_buffer(session_id: String) -> Result<Option<String>, String>
     } else {
         Ok(None)
     }
+}
+
+fn emit_command_done_markers(
+    app: &AppHandle,
+    session_id: &str,
+    text: &str,
+    marker_carry: &mut String,
+) {
+    let combined = format!("{}{}", marker_carry, text);
+    let mut search_from = 0usize;
+
+    while let Some(relative_start) = combined[search_from..].find(COMMAND_DONE_MARKER) {
+        let marker_start = search_from + relative_start;
+        let mut index = marker_start + COMMAND_DONE_MARKER.len();
+        let bytes = combined.as_bytes();
+
+        let run_start = index;
+        while index < bytes.len() && bytes[index].is_ascii_digit() {
+            index += 1;
+        }
+        if index >= bytes.len() {
+            *marker_carry = combined[marker_start..].to_string();
+            return;
+        }
+        if run_start == index || bytes[index] != b':' {
+            search_from = marker_start + COMMAND_DONE_MARKER.len();
+            continue;
+        }
+
+        let run_id = match combined[run_start..index].parse::<u64>() {
+            Ok(value) => value,
+            Err(_) => {
+                search_from = marker_start + COMMAND_DONE_MARKER.len();
+                continue;
+            }
+        };
+
+        index += 1;
+        let exit_start = index;
+        while index < bytes.len() && bytes[index].is_ascii_digit() {
+            index += 1;
+        }
+        if exit_start == index {
+            *marker_carry = combined[marker_start..].to_string();
+            return;
+        }
+
+        if let Ok(exit_code) = combined[exit_start..index].parse::<i32>() {
+            let _ = app.emit(
+                "command-finished",
+                serde_json::json!({
+                    "sessionId": session_id,
+                    "runId": run_id,
+                    "exitCode": exit_code
+                }),
+            );
+        }
+
+        search_from = index;
+    }
+
+    let trailing = &combined.as_bytes()[search_from..];
+    let max_suffix = COMMAND_DONE_MARKER.len().saturating_sub(1);
+    let trailing_start = trailing.len().saturating_sub(max_suffix);
+    let trailing = &trailing[trailing_start..];
+    let marker = COMMAND_DONE_MARKER.as_bytes();
+
+    for index in 0..trailing.len() {
+        let suffix = &trailing[index..];
+        if marker.starts_with(suffix) {
+            *marker_carry = String::from_utf8_lossy(suffix).to_string();
+            return;
+        }
+    }
+
+    marker_carry.clear();
 }

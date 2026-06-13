@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { listen } from '@tauri-apps/api/event';
+import { upsertTerminalPageSession } from '@/utils/terminalPageState';
 
 const DEFAULT_TABS = [];
 const LEGACY_TABS = new Set(['massage-web', 'codex']);
@@ -173,9 +174,52 @@ export const useAppStore = create(
 					get().clearRunningCommandBySessionId(sessionId, runId);
 				};
 
+				const handleTrayCommandStarted = event => {
+					const payload = event?.payload;
+					if (!payload?.sessionId || !payload?.project || !payload?.command) {
+						return;
+					}
+
+					const project = get().normalizeProject(payload.project);
+					const command = payload.command;
+					const sessionId = payload.sessionId;
+					const runId =
+						typeof payload.runId === 'number' ? payload.runId : Date.now();
+					const commandKey = `${project.path}::${command.name}`;
+					const terminalTitle =
+						payload.title || `${project.name}-${command.name}`;
+
+					upsertTerminalPageSession({
+						id: sessionId,
+						title: terminalTitle,
+						cwd: project.path,
+						existingSession: true
+					});
+
+					set(state => ({
+						runningCommand: { project, command, id: sessionId, runId },
+						runningCommands: {
+							...state.runningCommands,
+							[commandKey]: { project, command, id: sessionId, runId }
+						},
+						projectTerminals: {
+							...state.projectTerminals,
+							[project.name]: {
+								isBusy: true,
+								currentCommand: command.name,
+								lastCommandId: sessionId,
+								runId,
+								createdAt: Date.now()
+							}
+						},
+						tabs: sanitizeTabs([...new Set([...state.tabs, 'terminal'])])
+					}));
+				};
+
 				await listen('command-interrupted', handleEvent);
 				await listen('command-finished', handleEvent);
 				await listen('terminal-closed', handleEvent);
+				await listen('tray-command-started', handleTrayCommandStarted);
 			},
 
 			// 终端状态
