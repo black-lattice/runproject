@@ -52,22 +52,27 @@ async fn scan_project(project_path: String) -> Result<project_scanner::Project, 
 }
 
 #[tauri::command]
-fn get_nvm_status() -> Result<serde_json::Value, String> {
-    nvm_manager::get_nvm_status()
+async fn get_nvm_status() -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(nvm_manager::get_nvm_status)
+        .await
+        .map_err(|error| format!("获取 Node 版本状态任务失败: {}", error))?
 }
 
 #[tauri::command]
-fn ensure_node_version(version: String) -> Result<String, String> {
-    nvm_manager::ensure_node_version(version)
+async fn ensure_node_version(version: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || nvm_manager::ensure_node_version(version))
+        .await
+        .map_err(|error| format!("切换 Node 版本任务失败: {}", error))?
 }
 
 #[tauri::command]
-fn switch_to_highest_version(versions: Vec<String>) -> Result<String, String> {
-    nvm_manager::switch_to_highest_version(versions)
+async fn switch_to_highest_version(versions: Vec<String>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || nvm_manager::switch_to_highest_version(versions))
+        .await
+        .map_err(|error| format!("切换最高 Node 版本任务失败: {}", error))?
 }
 
-#[tauri::command]
-fn execute_project_command(
+fn execute_project_command_impl(
     _command_id: String,
     working_dir: String,
     command: String,
@@ -126,37 +131,63 @@ fn execute_project_command(
 }
 
 #[tauri::command]
-fn get_available_editors() -> Result<Vec<editor::Editor>, String> {
-    editor::get_available_editors()
+async fn execute_project_command(
+    command_id: String,
+    working_dir: String,
+    command: String,
+    node_version: Option<String>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        execute_project_command_impl(command_id, working_dir, command, node_version)
+    })
+    .await
+    .map_err(|error| format!("执行项目命令任务失败: {}", error))?
 }
 
 #[tauri::command]
-fn open_project_in_editor(editor_id: String, project_path: String) -> Result<String, String> {
-    let editors = editor::get_available_editors()?;
-    let editor = editors
-        .iter()
-        .find(|e| e.id == editor_id)
-        .ok_or_else(|| format!("Editor not found: {}", editor_id))?;
-
-    editor::open_project_in_editor(&editor.id, &editor.command, &project_path)
+async fn get_available_editors() -> Result<Vec<editor::Editor>, String> {
+    tauri::async_runtime::spawn_blocking(editor::get_available_editors)
+        .await
+        .map_err(|error| format!("检测编辑器任务失败: {}", error))?
 }
 
 #[tauri::command]
-fn open_in_finder(path: String) -> Result<String, String> {
-    platform::open_path(&path)
+async fn open_project_in_editor(editor_id: String, project_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let editors = editor::get_available_editors()?;
+        let editor = editors
+            .iter()
+            .find(|e| e.id == editor_id)
+            .ok_or_else(|| format!("Editor not found: {}", editor_id))?;
+
+        editor::open_project_in_editor(&editor.id, &editor.command, &project_path)
+    })
+    .await
+    .map_err(|error| format!("打开编辑器任务失败: {}", error))?
 }
 
 #[tauri::command]
-fn build_execution_command(
+async fn open_in_finder(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || platform::open_path(&path))
+        .await
+        .map_err(|error| format!("打开路径任务失败: {}", error))?
+}
+
+#[tauri::command]
+async fn build_execution_command(
     command: String,
     node_version: Option<String>,
     package_manager: String,
 ) -> Result<String, String> {
-    modules::kitty::executor::build_execution_command(
-        &command,
-        node_version.as_deref(),
-        &package_manager,
-    )
+    tauri::async_runtime::spawn_blocking(move || {
+        modules::kitty::executor::build_execution_command(
+            &command,
+            node_version.as_deref(),
+            &package_manager,
+        )
+    })
+    .await
+    .map_err(|error| format!("构建执行命令任务失败: {}", error))?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

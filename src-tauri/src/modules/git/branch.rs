@@ -55,7 +55,13 @@ fn run_git_command(args: &[&str], working_dir: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn list_branches(project_path: String) -> Result<Vec<GitBranch>, String> {
+pub async fn list_branches(project_path: String) -> Result<Vec<GitBranch>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_branches_impl(project_path))
+        .await
+        .map_err(|error| format!("查询 Git 分支任务失败: {}", error))?
+}
+
+fn list_branches_impl(project_path: String) -> Result<Vec<GitBranch>, String> {
     ensure_git_repository(&project_path)?;
 
     let output = run_git_command(
@@ -95,7 +101,13 @@ pub fn list_branches(project_path: String) -> Result<Vec<GitBranch>, String> {
 }
 
 #[tauri::command]
-pub fn switch_branch(project_path: String, branch: String) -> Result<String, String> {
+pub async fn switch_branch(project_path: String, branch: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || switch_branch_impl(project_path, branch))
+        .await
+        .map_err(|error| format!("切换 Git 分支任务失败: {}", error))?
+}
+
+fn switch_branch_impl(project_path: String, branch: String) -> Result<String, String> {
     ensure_git_repository(&project_path)?;
 
     if branch.trim().is_empty() {
@@ -109,7 +121,13 @@ pub fn switch_branch(project_path: String, branch: String) -> Result<String, Str
 }
 
 #[tauri::command]
-pub fn list_worktrees(project_path: String) -> Result<Vec<GitWorktree>, String> {
+pub async fn list_worktrees(project_path: String) -> Result<Vec<GitWorktree>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_worktrees_impl(project_path))
+        .await
+        .map_err(|error| format!("查询 Git Worktree 任务失败: {}", error))?
+}
+
+fn list_worktrees_impl(project_path: String) -> Result<Vec<GitWorktree>, String> {
     ensure_git_repository(&project_path)?;
 
     let output = run_git_command(&["worktree", "list", "--porcelain"], &project_path)?;
@@ -157,7 +175,19 @@ pub fn list_worktrees(project_path: String) -> Result<Vec<GitWorktree>, String> 
 }
 
 #[tauri::command]
-pub fn create_worktree(
+pub async fn create_worktree(
+    project_path: String,
+    branch: String,
+    worktree_path: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        create_worktree_impl(project_path, branch, worktree_path)
+    })
+    .await
+    .map_err(|error| format!("创建 Git Worktree 任务失败: {}", error))?
+}
+
+fn create_worktree_impl(
     project_path: String,
     branch: String,
     worktree_path: String,
@@ -185,7 +215,16 @@ pub fn create_worktree(
 }
 
 #[tauri::command]
-pub fn remove_worktree(project_path: String, worktree_path: String) -> Result<String, String> {
+pub async fn remove_worktree(
+    project_path: String,
+    worktree_path: String,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || remove_worktree_impl(project_path, worktree_path))
+        .await
+        .map_err(|error| format!("删除 Git Worktree 任务失败: {}", error))?
+}
+
+fn remove_worktree_impl(project_path: String, worktree_path: String) -> Result<String, String> {
     ensure_git_repository(&project_path)?;
 
     if worktree_path.trim().is_empty() {

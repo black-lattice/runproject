@@ -9,6 +9,8 @@ import { AppRouter } from './router';
 import { useAppStore } from './store/useAppStore';
 import { PAGE_CONFIGS } from './config/routes';
 
+const TRAY_SYNC_DELAY = 800;
+
 function TrayEventBridge() {
 	const navigate = useNavigate();
 	const addTab = useAppStore(state => state.addTab);
@@ -78,9 +80,24 @@ function App() {
 			}))
 		);
 
-		invoke('sync_tray_projects', { projects }).catch(error => {
-			console.error('同步菜单栏项目菜单失败:', error);
-		});
+		const syncPayload = JSON.stringify(projects);
+		if (window.__RUNPROJECT_LAST_TRAY_SYNC__ === syncPayload) {
+			return;
+		}
+
+		const timer = window.setTimeout(() => {
+			if (window.__RUNPROJECT_LAST_TRAY_SYNC__ === syncPayload) {
+				return;
+			}
+
+			window.__RUNPROJECT_LAST_TRAY_SYNC__ = syncPayload;
+			invoke('sync_tray_projects', { projects }).catch(error => {
+				window.__RUNPROJECT_LAST_TRAY_SYNC__ = null;
+				console.error('同步菜单栏项目菜单失败:', error);
+			});
+		}, TRAY_SYNC_DELAY);
+
+		return () => window.clearTimeout(timer);
 	}, [workspaces]);
 
 	useEffect(() => {

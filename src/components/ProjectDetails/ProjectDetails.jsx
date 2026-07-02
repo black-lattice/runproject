@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAppStore } from "@/store/useAppStore";
+import { Button } from "@/components/ui/button";
 import ProjectInfoCard from "./ProjectInfoCard";
 import CommandList from "./CommandList";
 
 const EDITORS_CACHE_TTL = 1000 * 60 * 60 * 24;
 const GIT_BRANCHES_CACHE_TTL = 1000 * 60 * 60 * 24;
+const NODE_VERSIONS_CACHE_TTL = 1000 * 60 * 60 * 24;
+const PROJECT_DETAILS_IDLE_DELAY = 200;
 
 function ProjectDetails({
   project,
@@ -31,6 +34,7 @@ function ProjectDetails({
   const [availableEditors, setAvailableEditors] = useState([]);
   const [isLoadingEditors, setIsLoadingEditors] = useState(false);
   const [isRefreshingProjectInfo, setIsRefreshingProjectInfo] = useState(false);
+  const latestProjectPathRef = useRef(project?.path);
   const { toast } = useToast();
   const {
     setAvailableEditorsCache,
@@ -42,6 +46,10 @@ function ProjectDetails({
     normalizeProject,
     normalizeWorkspace,
   } = useAppStore();
+
+  useEffect(() => {
+    latestProjectPathRef.current = project?.path;
+  }, [project?.path]);
 
   const compareVersions = (v1, v2) => {
     const cleanV1 = v1.replace(/^v/, "").split(".").map(Number);
@@ -86,6 +94,262 @@ function ProjectDetails({
     return target;
   }, []);
 
+  const sortedCommands = project?.commands || [];
+
+  const getCachedBranches = useCallback((projectPath) => {
+    const { gitBranchesCache } = useAppStore.getState();
+    const cachedData = gitBranchesCache[projectPath];
+    if (
+      cachedData &&
+      Date.now() - (cachedData.fetchedAt || 0) < GIT_BRANCHES_CACHE_TTL
+    ) {
+      return cachedData.branches || [];
+    }
+    return null;
+  }, []);
+
+  const applyBranches = useCallback((branchList) => {
+    setBranches(branchList);
+    const current = branchList.find((b) => b.is_current);
+    setCurrentBranch(current ? current.name : "");
+  }, []);
+
+  const loadGitBranches = async ({ forceRefresh = false } = {}) => {
+    if (!project?.path) return;
+    const projectPath = project.path;
+    try {
+      let branchList = !forceRefresh ? getCachedBranches(projectPath) : null;
+      if (!branchList) {
+        setIsLoadingBranches(true);
+        branchList = await invoke("list_branches", {
+          projectPath,
+        });
+        setGitBranchesCache(projectPath, branchList);
+      }
+
+      if (latestProjectPathRef.current !== projectPath) return;
+      applyBranches(branchList);
+    } catch (error) {
+      console.error("加载 Git 分支失败:", error);
+      if (latestProjectPathRef.current !== projectPath) return;
+      setBranches([]);
+      setCurrentBranch("");
+    } finally {
+      if (latestProjectPathRef.current === projectPath) {
+        setIsLoadingBranches(false);
+      }
+    }
+  };
+
+  const getCachedEditors = useCallback(() => {
+    const { availableEditorsCache } = useAppStore.getState();
+    if (
+      availableEditorsCache?.editors?.length > 0 &&
+      Date.now() - (availableEditorsCache.fetchedAt || 0) < EDITORS_CACHE_TTL
+    ) {
+      return availableEditorsCache.editors;
+    }
+    return null;
+  }, []);
+
+  const applyEditors = useCallback(
+    (editors, activeProject = project) => {
+      setAvailableEditors(editors);
+
+      const preferences = JSON.parse(
+        localStorage.getItem("nodejs-project-preferences") || "{}",
+      );
+      const projectKey = `${activeProject.name}_${activeProject.path}`;
+      const userPref = preferences[projectKey]?.editor;
+
+      if (userPref && editors.find((e) => e.id === userPref && e.installed)) {
+        setSelectedEditor(userPref);
+      } else {
+        const installedEditor = editors.find((e) => e.installed);
+        setSelectedEditor(installedEditor ? installedEditor.id : "");
+      }
+    },
+    [project],
+  );
+
+  const getPreferredNodeVersion = useCallback((activeProject) => {
+    const preferences = JSON.parse(
+      localStorage.getItem("nodejs-project-preferences") || "{}",
+    );
+    const projectKey = `${activeProject.name}_${activeProject.path}`;
+    return (
+      preferences[projectKey]?.nodeVersion ||
+      activeProject.nodeVersion ||
+      "system"
+    );
+  }, []);
+
+  const getCachedNodeVersions = useCallback(() => {
+    const { nodeVersionsCache } = useAppStore.getState();
+    if (
+      nodeVersionsCache?.versions?.length > 0 &&
+      Date.now() - (nodeVersionsCache.fetchedAt || 0) < NODE_VERSIONS_CACHE_TTL
+    ) {
+      return nodeVersionsCache.versions;
+    }
+    return null;
+  }, []);
+
+  const applyNodeVersions = useCallback(
+    (versionList, activeProject) => {
+      const targetVersion = getPreferredNodeVersion(activeProject);
+      const bestMatch = findBestMatchVersion(targetVersion, versionList);
+      setInstalledVersions(versionList);
+      setSelectedNodeVersion(bestMatch);
+    },
+    [findBestMatchVersion, getPreferredNodeVersion],
+  );
+
+  const loadInstalledVersions = async ({ forceRefresh = false } = {}) => {
+    if (!onGetInstalledVersions || !project?.path) return;
+    const activeProject = project;
+    const projectPath = activeProject.path;
+
+    try {
+      let versions = !forceRefresh ? getCachedNodeVersions() : null;
+      if (!versions) {
+        setIsLoadingVersions(true);
+        versions = await onGetInstalledVersions({ forceRefresh });
+      }
+
+      if (latestProjectPathRef.current !== projectPath) return;
+      applyNodeVersions(versions || [], activeProject);
+    } catch (error) {
+      console.error("加载Node版本失败:", error);
+      if (latestProjectPathRef.current !== projectPath) return;
+      setInstalledVersions([]);
+      setSelectedNodeVersion(getPreferredNodeVersion(activeProject));
+    } finally {
+      if (latestProjectPathRef.current === projectPath) {
+        setIsLoadingVersions(false);
+      }
+    }
+  };
+
+  const loadAvailableEditors = async ({ forceRefresh = false } = {}) => {
+    if (!project?.path) return;
+    const projectPath = project.path;
+    try {
+      let editors = !forceRefresh ? getCachedEditors() : null;
+      if (!editors) {
+        setIsLoadingEditors(true);
+        editors = await invoke("get_available_editors");
+        setAvailableEditorsCache(editors);
+      }
+
+      if (latestProjectPathRef.current !== projectPath) return;
+      applyEditors(editors);
+    } catch (error) {
+      console.error("加载编辑器列表失败:", error);
+      if (latestProjectPathRef.current !== projectPath) return;
+      setAvailableEditors([]);
+      setSelectedEditor("");
+    } finally {
+      if (latestProjectPathRef.current === projectPath) {
+        setIsLoadingEditors(false);
+      }
+    }
+  };
+
+  const handleSwitchBranch = async (branchName) => {
+    if (!project?.path || !branchName || branchName === currentBranch) return;
+
+    setIsLoadingBranches(true);
+    try {
+      await invoke("switch_branch", {
+        projectPath: project.path,
+        branch: branchName,
+      });
+
+      toast({
+        title: "分支切换成功",
+        description: `已切换到分支 ${branchName}`,
+      });
+
+      const { clearGitBranchesCache } = useAppStore.getState();
+      clearGitBranchesCache(project.path);
+      loadGitBranches();
+    } catch (error) {
+      console.error("切换分支失败:", error);
+      toast({
+        title: "切换分支失败",
+        description: error.toString(),
+        variant: "destructive",
+      });
+      setIsLoadingBranches(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!project?.name || !project?.path) return;
+
+    const activeProject = project;
+    const cachedBranches = getCachedBranches(activeProject.path);
+    const cachedEditors = getCachedEditors();
+    const cachedNodeVersions = getCachedNodeVersions();
+
+    if (cachedBranches) {
+      applyBranches(cachedBranches);
+    } else {
+      setBranches([]);
+      setCurrentBranch("");
+    }
+
+    if (cachedEditors) {
+      applyEditors(cachedEditors, activeProject);
+    } else {
+      setAvailableEditors([]);
+      setSelectedEditor("");
+    }
+
+    if (cachedNodeVersions) {
+      applyNodeVersions(cachedNodeVersions, activeProject);
+    } else {
+      setInstalledVersions([]);
+      setSelectedNodeVersion(getPreferredNodeVersion(activeProject));
+    }
+
+    setIsLoadingBranches(false);
+    setIsLoadingEditors(false);
+    setIsLoadingVersions(false);
+
+    let cancelled = false;
+    const loadInBackground = () => {
+      if (cancelled || latestProjectPathRef.current !== activeProject.path) {
+        return;
+      }
+
+      if (!cachedBranches) loadGitBranches();
+      if (!cachedEditors) loadAvailableEditors();
+      if (!cachedNodeVersions) loadInstalledVersions();
+    };
+
+    const timer = window.setTimeout(
+      loadInBackground,
+      PROJECT_DETAILS_IDLE_DELAY,
+    );
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    project?.name,
+    project?.path,
+    project?.nodeVersion,
+    getCachedBranches,
+    getCachedEditors,
+    getCachedNodeVersions,
+    applyBranches,
+    applyEditors,
+    applyNodeVersions,
+    getPreferredNodeVersion,
+  ]);
+
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full p-6 bg-red-50">
@@ -121,164 +385,6 @@ function ProjectDetails({
       </div>
     );
   }
-
-  const sortedCommands = project.commands || [];
-
-  const loadGitBranches = async ({ forceRefresh = false } = {}) => {
-    if (!project?.path) return;
-    setIsLoadingBranches(true);
-    try {
-      const { gitBranchesCache } = useAppStore.getState();
-      const cachedData = gitBranchesCache[project.path];
-      const hasCache =
-        !forceRefresh &&
-        cachedData &&
-        Date.now() - (cachedData.fetchedAt || 0) < GIT_BRANCHES_CACHE_TTL;
-
-      let branchList;
-      if (hasCache) {
-        branchList = cachedData.branches;
-      } else {
-        branchList = await invoke("list_branches", {
-          projectPath: project.path,
-        });
-        setGitBranchesCache(project.path, branchList);
-      }
-
-      setBranches(branchList);
-      const current = branchList.find((b) => b.is_current);
-      if (current) {
-        setCurrentBranch(current.name);
-      }
-    } catch (error) {
-      console.error("加载 Git 分支失败:", error);
-      setBranches([]);
-      setCurrentBranch("");
-    } finally {
-      setIsLoadingBranches(false);
-    }
-  };
-
-  const loadAvailableEditors = async ({ forceRefresh = false } = {}) => {
-    setIsLoadingEditors(true);
-    try {
-      const { availableEditorsCache } = useAppStore.getState();
-      const hasCache =
-        !forceRefresh &&
-        availableEditorsCache?.editors?.length > 0 &&
-        Date.now() - (availableEditorsCache.fetchedAt || 0) < EDITORS_CACHE_TTL;
-
-      let editors;
-      if (hasCache) {
-        editors = availableEditorsCache.editors;
-      } else {
-        editors = await invoke("get_available_editors");
-        setAvailableEditorsCache(editors);
-      }
-
-      setAvailableEditors(editors);
-
-      const preferences = JSON.parse(
-        localStorage.getItem("nodejs-project-preferences") || "{}",
-      );
-      const projectKey = `${project.name}_${project.path}`;
-      const userPref = preferences[projectKey]?.editor;
-
-      if (userPref && editors.find((e) => e.id === userPref && e.installed)) {
-        setSelectedEditor(userPref);
-      } else {
-        const installedEditor = editors.find((e) => e.installed);
-        setSelectedEditor(installedEditor ? installedEditor.id : "");
-      }
-    } catch (error) {
-      console.error("加载编辑器列表失败:", error);
-      setAvailableEditors([]);
-      setSelectedEditor("");
-    } finally {
-      setIsLoadingEditors(false);
-    }
-  };
-
-  const handleSwitchBranch = async (branchName) => {
-    if (!branchName || branchName === currentBranch) return;
-
-    setIsLoadingBranches(true);
-    try {
-      await invoke("switch_branch", {
-        projectPath: project.path,
-        branch: branchName,
-      });
-
-      toast({
-        title: "分支切换成功",
-        description: `已切换到分支 ${branchName}`,
-      });
-
-      const { clearGitBranchesCache } = useAppStore.getState();
-      clearGitBranchesCache(project.path);
-      loadGitBranches();
-    } catch (error) {
-      console.error("切换分支失败:", error);
-      toast({
-        title: "切换分支失败",
-        description: error.toString(),
-        variant: "destructive",
-      });
-      setIsLoadingBranches(false);
-    }
-  };
-
-  useEffect(() => {
-    const loadAllData = async () => {
-      await Promise.all([
-        loadGitBranches(),
-        loadAvailableEditors(),
-        (async () => {
-          if (onGetInstalledVersions) {
-            setIsLoadingVersions(true);
-            try {
-              const versions = await onGetInstalledVersions();
-              const versionList = versions || [];
-              setInstalledVersions(versionList);
-
-              const preferences = JSON.parse(
-                localStorage.getItem("nodejs-project-preferences") || "{}",
-              );
-              const projectKey = `${project.name}_${project.path}`;
-              const userPref = preferences[projectKey]?.nodeVersion;
-
-              let targetVersion = "system";
-
-              if (userPref) {
-                targetVersion = userPref;
-              } else if (project.nodeVersion) {
-                targetVersion = project.nodeVersion;
-              }
-
-              const bestMatch = findBestMatchVersion(
-                targetVersion,
-                versionList,
-              );
-              setSelectedNodeVersion(bestMatch);
-            } catch (error) {
-              console.error("加载Node版本失败:", error);
-              setInstalledVersions([]);
-            } finally {
-              setIsLoadingVersions(false);
-            }
-          }
-        })(),
-      ]);
-    };
-
-    loadAllData();
-  }, [
-    project.name,
-    project.path,
-    project.nodeVersion,
-    onGetInstalledVersions,
-    findBestMatchVersion,
-  ]);
 
   const saveNodeVersionPreference = (version) => {
     setSelectedNodeVersion(version);
