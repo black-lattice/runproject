@@ -4,6 +4,17 @@
 
 RunProject 是一个面向多项目开发的桌面工作台，能力聚焦在脚本执行、环境切换与终端工作流的统一管理。
 
+## 📦 下载与安装
+
+前往 [GitHub Releases](https://github.com/black-lattice/runproject/releases/latest) 下载适合当前系统的安装包：
+
+- **macOS Apple Silicon（M1 及以上）**：选择文件名包含 `aarch64` 的 DMG。
+- **macOS Intel**：选择文件名包含 `x86_64` 的 DMG。
+- **Windows 64 位**：下载 `.exe` 安装程序。
+- **Linux 64 位**：下载 AppImage 或 DEB 安装包。
+
+当前安装包尚未配置商业代码签名，系统首次打开时可能显示安全提醒。macOS 可在“系统设置 → 隐私与安全性”中确认打开。
+
 ## ✨ 当前核心特性
 
 - **工作区管理**：一键扫描目录，自动识别 npm/yarn/pnpm 项目。
