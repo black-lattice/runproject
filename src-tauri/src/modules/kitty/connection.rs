@@ -14,6 +14,10 @@ pub fn get_socket_path(command_id: &str, config: &KittyConfig) -> String {
     {
         format!("unix:/tmp/{}-{}.sock", config.socket_prefix, sanitized_id)
     }
+    #[cfg(target_os = "windows")]
+    {
+        format!("{}-{}", config.socket_prefix, sanitized_id)
+    }
 }
 
 // 检查Kitty是否安装
