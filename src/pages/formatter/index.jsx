@@ -15,47 +15,61 @@ import {
 	CheckCircle2,
 	Download,
 	Upload,
-	Lightbulb,
 	Play
 } from 'lucide-react';
-import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import * as prettier from 'prettier/standalone';
-import * as prettierPluginBabel from 'prettier/plugins/babel';
-import * as prettierPluginEstree from 'prettier/plugins/estree';
-import * as prettierPluginHtml from 'prettier/plugins/html';
-import * as prettierPluginCss from 'prettier/plugins/postcss';
-import * as prettierPluginMarkdown from 'prettier/plugins/markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light';
+import cssLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/css';
+import javascriptLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
+import jsonLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import markdownLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/markdown';
+import markupLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
+import sqlLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
+import typescriptLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+SyntaxHighlighter.registerLanguage('css', cssLanguage);
+SyntaxHighlighter.registerLanguage('javascript', javascriptLanguage);
+SyntaxHighlighter.registerLanguage('json', jsonLanguage);
+SyntaxHighlighter.registerLanguage('markdown', markdownLanguage);
+SyntaxHighlighter.registerLanguage('html', markupLanguage);
+SyntaxHighlighter.registerLanguage('xml', markupLanguage);
+SyntaxHighlighter.registerLanguage('sql', sqlLanguage);
+SyntaxHighlighter.registerLanguage('typescript', typescriptLanguage);
+
+const loadPrettierPlugins = async (...loaders) =>
+	Promise.all(loaders.map(async loader => (await loader()).default));
 
 const FORMATTERS = {
 	json: {
 		name: 'JSON',
 		extensions: ['.json'],
-		usePrettier: true,
 		format: async text => {
+			const plugins = await loadPrettierPlugins(
+				() => import('prettier/plugins/babel'),
+				() => import('prettier/plugins/estree')
+			);
 			return await prettier.format(text, {
 				parser: 'json',
-				plugins: [prettierPluginBabel, prettierPluginEstree],
+				plugins,
 				tabWidth: 2,
 				semi: true,
 				singleQuote: false
 			});
-		},
-		compress: text => {
-			const parsed = JSON.parse(text);
-			return JSON.stringify(parsed);
 		}
 	},
 	javascript: {
 		name: 'JavaScript',
 		extensions: ['.js', '.jsx'],
-		usePrettier: true,
 		format: async text => {
+			const plugins = await loadPrettierPlugins(
+				() => import('prettier/plugins/babel'),
+				() => import('prettier/plugins/estree')
+			);
 			return await prettier.format(text, {
 				parser: 'babel',
-				plugins: [prettierPluginBabel, prettierPluginEstree],
+				plugins,
 				tabWidth: 2,
 				semi: true,
 				singleQuote: true
@@ -65,11 +79,14 @@ const FORMATTERS = {
 	typescript: {
 		name: 'TypeScript',
 		extensions: ['.ts', '.tsx'],
-		usePrettier: true,
 		format: async text => {
+			const plugins = await loadPrettierPlugins(
+				() => import('prettier/plugins/babel'),
+				() => import('prettier/plugins/estree')
+			);
 			return await prettier.format(text, {
 				parser: 'babel-ts',
-				plugins: [prettierPluginBabel, prettierPluginEstree],
+				plugins,
 				tabWidth: 2,
 				semi: true,
 				singleQuote: true
@@ -79,11 +96,13 @@ const FORMATTERS = {
 	css: {
 		name: 'CSS',
 		extensions: ['.css', '.scss', '.less'],
-		usePrettier: true,
 		format: async text => {
+			const plugins = await loadPrettierPlugins(
+				() => import('prettier/plugins/postcss')
+			);
 			return await prettier.format(text, {
 				parser: 'css',
-				plugins: [prettierPluginCss],
+				plugins,
 				tabWidth: 2
 			});
 		}
@@ -91,11 +110,13 @@ const FORMATTERS = {
 	html: {
 		name: 'HTML',
 		extensions: ['.html', '.htm'],
-		usePrettier: true,
 		format: async text => {
+			const plugins = await loadPrettierPlugins(
+				() => import('prettier/plugins/html')
+			);
 			return await prettier.format(text, {
 				parser: 'html',
-				plugins: [prettierPluginHtml],
+				plugins,
 				tabWidth: 2,
 				htmlWhitespaceSensitivity: 'css'
 			});
@@ -104,11 +125,13 @@ const FORMATTERS = {
 	xml: {
 		name: 'XML',
 		extensions: ['.xml', '.svg'],
-		usePrettier: true,
 		format: async text => {
+			const plugins = await loadPrettierPlugins(
+				() => import('prettier/plugins/html')
+			);
 			return await prettier.format(text, {
 				parser: 'html',
-				plugins: [prettierPluginHtml],
+				plugins,
 				tabWidth: 2
 			});
 		}
@@ -116,7 +139,6 @@ const FORMATTERS = {
 	sql: {
 		name: 'SQL',
 		extensions: ['.sql'],
-		usePrettier: false,
 		format: text => {
 			return text
 				.replace(/\bSELECT\b/gi, '\nSELECT\n  ')
@@ -135,11 +157,13 @@ const FORMATTERS = {
 	markdown: {
 		name: 'Markdown',
 		extensions: ['.md', '.markdown'],
-		usePrettier: true,
 		format: async text => {
+			const plugins = await loadPrettierPlugins(
+				() => import('prettier/plugins/markdown')
+			);
 			return await prettier.format(text, {
 				parser: 'markdown',
-				plugins: [prettierPluginMarkdown],
+				plugins,
 				proseWrap: 'preserve'
 			});
 		}
@@ -151,7 +175,6 @@ function FormatterPage() {
 	const [outputText, setOutputText] = useState('');
 	const [selectedFormat, setSelectedFormat] = useState('json');
 	const [error, setError] = useState('');
-	const [isCompressed, setIsCompressed] = useState(false);
 	const [leftWidth, setLeftWidth] = useState(50);
 	const [isDragging, setIsDragging] = useState(false);
 	const { toast } = useToast();
@@ -184,19 +207,8 @@ function FormatterPage() {
 		try {
 			const formatter = FORMATTERS[selectedFormat];
 
-			if (isCompressed && formatter.compress) {
-				const compressed = formatter.compress(inputText);
-				setOutputText(compressed);
-			} else {
-				const formatted = await formatter.format(inputText);
-				console.log('格式化结果:', formatted);
-				console.log('包含换行符:', formatted.includes('\n'));
-				console.log(
-					'换行符数量:',
-					(formatted.match(/\n/g) || []).length
-				);
-				setOutputText(formatted);
-			}
+			const formatted = await formatter.format(inputText);
+			setOutputText(formatted);
 
 			toast({
 				description: (
@@ -303,9 +315,7 @@ function FormatterPage() {
 				<div className='m-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2'>
 					<AlertCircle className='h-5 w-5 text-red-500 flex-shrink-0 mt-0.5' />
 					<div className='flex-1'>
-						<p className='text-sm font-medium text-red-800'>
-							格式化错误
-						</p>
+						<p className='text-sm font-medium text-red-800'>格式化错误</p>
 						<p className='text-sm text-red-600 mt-1'>{error}</p>
 					</div>
 				</div>
@@ -317,22 +327,16 @@ function FormatterPage() {
 					style={{ width: `${leftWidth}%` }}>
 					<div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50'>
 						<div className='flex items-center gap-3'>
-							<Select
-								value={selectedFormat}
-								onValueChange={setSelectedFormat}>
+							<Select value={selectedFormat} onValueChange={setSelectedFormat}>
 								<SelectTrigger className='h-8 w-[130px] bg-white'>
 									<SelectValue placeholder='选择格式' />
 								</SelectTrigger>
 								<SelectContent>
-									{Object.entries(FORMATTERS).map(
-										([key, formatter]) => (
-											<SelectItem
-												key={key}
-												value={key}>
-												{formatter.name}
-											</SelectItem>
-										)
-									)}
+									{Object.entries(FORMATTERS).map(([key, formatter]) => (
+										<SelectItem key={key} value={key}>
+											{formatter.name}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
 							<Button
@@ -340,7 +344,7 @@ function FormatterPage() {
 								size='sm'
 								className='h-8 bg-blue-600 hover:bg-blue-700'>
 								<Play className='h-3.5 w-3.5 mr-1.5' />
-								Format
+								格式化
 							</Button>
 						</div>
 						<div className='flex gap-1'>
@@ -399,9 +403,7 @@ function FormatterPage() {
 					className='flex flex-col overflow-hidden rounded-none border-y-0 border-r-0 shadow-none border-l'
 					style={{ width: `${100 - leftWidth}%` }}>
 					<div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50'>
-						<span className='text-sm font-semibold text-gray-700'>
-							输出
-						</span>
+						<span className='text-sm font-semibold text-gray-700'>输出</span>
 						<div className='flex gap-1'>
 							<Button
 								variant='ghost'
@@ -451,8 +453,6 @@ function FormatterPage() {
 					</div>
 				</Card>
 			</div>
-
-			<Toaster />
 		</div>
 	);
 }

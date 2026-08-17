@@ -1,0 +1,116 @@
+name: 发布安装包
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+permissions:
+  contents: write
+
+jobs:
+  verify-version:
+    name: 校验版本号
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 校验标签与配置版本
+        shell: bash
+        run: |
+          package_version=$(node -p "require('./package.json').version")
+          tauri_version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          cargo_version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' src-tauri/Cargo.toml | head -n 1)
+
+          if [[ "${GITHUB_REF_NAME}" != "v${package_version}" ]]; then
+            echo "标签 ${GITHUB_REF_NAME} 与 package.json 版本 v${package_version} 不一致"
+            exit 1
+          fi
+
+          if [[ "${tauri_version}" != "${package_version}" || "${cargo_version}" != "${package_version}" ]]; then
+            echo "package.json、tauri.conf.json 与 Cargo.toml 的版本号必须一致"
+            exit 1
+          fi
+
+  publish:
+    name: 构建 ${{ matrix.name }}
+    needs: verify-version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            platform: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles dmg
+          - name: macOS Intel
+            platform: macos-latest
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles dmg
+          - name: Windows x64
+            platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: --target x86_64-pc-windows-msvc --bundles nsis
+          - name: Linux x64
+            platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            args: --target x86_64-unknown-linux-gnu --bundles appimage,deb
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Linux 构建依赖
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装 Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: 缓存 Rust 构建产物
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: 安装前端依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 构建并发布安装包
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: RunProject ${{ github.ref_name }}
+          releaseBody: |
+            请在 Assets 中下载适合当前系统的安装包：
+
+            - macOS Apple Silicon（M1 及以上）：`aarch64` DMG
+            - macOS Intel：`x86_64` DMG
+            - Windows 64 位：NSIS 安装程序
+            - Linux 64 位：AppImage 或 DEB
+
+            当前安装包未配置商业代码签名，系统首次打开时可能显示安全提醒。
+          generateReleaseNotes: true
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          uploadUpdaterJson: false
+          releaseAssetNamePattern: "[name]_[version]_[platform]_[arch][ext]"
+          args: ${{ matrix.args }}

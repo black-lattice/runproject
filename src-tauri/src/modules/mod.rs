@@ -1,7 +1,4 @@
-pub mod agent;
-pub mod codex;
 pub mod editor;
-pub mod file_system;
 pub mod git;
 pub mod kitty;
 pub mod nvm_manager;
@@ -9,4 +6,3 @@ pub mod platform;
 pub mod project_scanner;
 pub mod terminal;
 pub mod tray;
-pub mod window_manager;

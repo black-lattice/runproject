@@ -3,6 +3,7 @@ import WelcomeScreen from './WelcomeScreen';
 
 function MainContent({
 	selectedProject,
+	onAddWorkspace,
 	runningCommands,
 	onExecuteCommand,
 	onStopCommand,
@@ -19,7 +20,7 @@ function MainContent({
 					onGetInstalledVersions={onGetInstalledVersions}
 				/>
 			) : (
-				<WelcomeScreen />
+				<WelcomeScreen onAddWorkspace={onAddWorkspace} />
 			)}
 		</main>
 	);
