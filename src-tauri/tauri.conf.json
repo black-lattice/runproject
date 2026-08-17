@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "runproject",
+  "productName": "RunProject",
   "version": "0.1.0",
   "identifier": "com.changzhenhua.runproject",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "runproject",
+        "title": "RunProject",
         "width": 1300,
         "height": 800,
         "decorations": true,

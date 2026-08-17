@@ -163,7 +163,7 @@ while retries < config.max_retries {
   通过 `pub use` 将子模块 API 直接暴露给上层，减少长路径引用。
 - **根路径引用**：在 `tabs.rs` 内使用 `crate::modules::kitty::core::KittyTab` 明确跨文件依赖。
 
-**练习**：尝试新增 `pub mod mcp;` 并在 `lib.rs` 里引用，体验模块与 `use` 的配合。
+**练习**：尝试新增 `pub mod cache;` 并在 `lib.rs` 里引用，体验模块与 `use` 的配合。
 
 ---
 
@@ -193,7 +193,6 @@ while retries < config.max_retries {
   tauri::Builder::default()
       .plugin(tauri_plugin_opener::init())
       .plugin(tauri_plugin_dialog::init())
-      .plugin(McpBuilder::default().build())
   ```
 
 **练习**：将 `project_scanner::extract_scripts` 内部 `for` 改为迭代器链，熟悉闭包签名 `|key, value|`.

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { HashRouter as Router, useNavigate } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster';
@@ -16,6 +16,8 @@ function TrayEventBridge() {
 	const addTab = useAppStore(state => state.addTab);
 
 	useEffect(() => {
+		if (!isTauri()) return;
+
 		let unlisten = null;
 		let cancelled = false;
 
@@ -51,7 +53,12 @@ function App() {
 	const workspaces = useAppStore(state => state.workspaces);
 
 	useEffect(() => {
-		useAppStore.getState().initCommandStatusSync();
+		localStorage.removeItem('agent-storage');
+		localStorage.removeItem('mcp-store');
+
+		if (isTauri()) {
+			useAppStore.getState().initCommandStatusSync();
+		}
 	}, []);
 
 	useEffect(() => {
@@ -69,6 +76,8 @@ function App() {
 	}, []);
 
 	useEffect(() => {
+		if (!isTauri()) return;
+
 		const projects = (workspaces || []).flatMap(workspace =>
 			(workspace.projects || []).map(project => ({
 				name: project.name,
@@ -108,11 +117,13 @@ function App() {
 				? 'dark'
 				: 'light';
 
-			invoke('set_tray_theme', {
-				theme: media.matches ? 'dark' : 'light'
-			}).catch(error => {
-				console.error('同步菜单栏图标主题失败:', error);
-			});
+			if (isTauri()) {
+				invoke('set_tray_theme', {
+					theme: media.matches ? 'dark' : 'light'
+				}).catch(error => {
+					console.error('同步菜单栏图标主题失败:', error);
+				});
+			}
 		};
 
 		syncSystemTheme();

@@ -3,11 +3,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/useAppStore';
-import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import MainContent from '@/components/MainContent';
 import CommandPalette from '@/components/CommandPalette';
-import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 function ProjectPage() {
 	const {
@@ -33,10 +31,8 @@ function ProjectPage() {
 		updateProjectTerminal,
 		clearProjectTerminal,
 		toggleWorkspaceCollapse,
-		setUseKittenRemote,
 		addTab,
 		normalizeWorkspace,
-		normalizeWorkspaces,
 		setNodeVersionsCache,
 		setWorkspaceTags,
 		setProjectTags
@@ -82,9 +78,7 @@ function ProjectPage() {
 	}, [setWorkspaces, toast]);
 
 	const clearCacheAndReload = () => {
-		if (
-			confirm('确定要清除所有缓存并重新加载吗？这将刷新所有workspace数据。')
-		) {
+		if (confirm('确定要清除所有缓存并重新加载吗？这将刷新所有工作区数据。')) {
 			localStorage.removeItem('nodejs-workspaces');
 			localStorage.removeItem('nodejs-workspaces-version');
 			toast({
@@ -99,7 +93,11 @@ function ProjectPage() {
 
 	useEffect(() => {
 		const handleKeyPress = event => {
-			if ((event.ctrlKey || event.metaKey) && event.key === 'w') {
+			if (
+				(event.ctrlKey || event.metaKey) &&
+				event.shiftKey &&
+				event.key.toLowerCase() === 'o'
+			) {
 				event.preventDefault();
 				handleAddWorkspace();
 			}
@@ -110,7 +108,7 @@ function ProjectPage() {
 			if (
 				(event.ctrlKey || event.metaKey) &&
 				event.shiftKey &&
-				event.key === 'C'
+				event.key.toLowerCase() === 'c'
 			) {
 				event.preventDefault();
 				clearCacheAndReload();
@@ -122,13 +120,6 @@ function ProjectPage() {
 			document.removeEventListener('keydown', handleKeyPress);
 		};
 	}, []);
-
-	const clearCacheAndRefresh = () => {
-		localStorage.removeItem('nodejs-workspaces');
-		setWorkspaces([]);
-		setSelectedProject(null);
-		window.location.reload();
-	};
 
 	const saveWorkspaces = newWorkspaces => {
 		const currentTime = new Date().getTime();
@@ -147,33 +138,22 @@ function ProjectPage() {
 	};
 
 	const handleAddWorkspace = async () => {
-		console.log('开始添加workspace流程...');
 		setIsLoading(true);
 
 		try {
-			console.log('准备调用Tauri Dialog插件...');
 			const selectedPath = await open({
-				title: '选择Workspace文件夹',
+				title: '选择工作区文件夹',
 				directory: true,
 				recursive: true
 			});
 
-			console.log('对话框返回结果:', selectedPath);
-
 			if (selectedPath) {
-				console.log('选择的文件夹路径:', selectedPath);
 				await handleWorkspaceAdded(selectedPath);
 			} else {
-				console.log('用户取消了选择');
 				setIsLoading(false);
 			}
 		} catch (error) {
 			console.error('选择文件夹失败:', error);
-			console.error('错误详情:', {
-				message: error.message,
-				stack: error.stack,
-				name: error.name
-			});
 			toast({
 				title: '选择失败',
 				description: `选择文件夹失败: ${error.message || error}`,
@@ -185,19 +165,28 @@ function ProjectPage() {
 
 	const handleWorkspaceAdded = async path => {
 		try {
+			const currentWorkspaces = useAppStore.getState().workspaces;
+			if (currentWorkspaces.some(workspace => workspace.path === path)) {
+				toast({
+					title: '工作区已存在',
+					description: '无需重复添加同一个文件夹'
+				});
+				return;
+			}
+
 			const workspace = await invoke('add_workspace', { path });
 			const normalizedWorkspace = normalizeWorkspace(workspace);
-			const newWorkspaces = [...workspaces, normalizedWorkspace];
+			const newWorkspaces = [...currentWorkspaces, normalizedWorkspace];
 			saveWorkspaces(newWorkspaces);
 			toast({
 				title: '添加成功',
-				description: 'Workspace添加成功',
+				description: `已添加工作区“${normalizedWorkspace.name}”`,
 				variant: 'default'
 			});
 		} catch (error) {
 			toast({
 				title: '添加失败',
-				description: `添加workspace失败: ${error}`,
+				description: `添加工作区失败: ${error}`,
 				variant: 'destructive'
 			});
 		} finally {
@@ -212,7 +201,7 @@ function ProjectPage() {
 		if (!workspaceToRemove) {
 			toast({
 				title: '删除失败',
-				description: '未找到要删除的workspace',
+				description: '未找到要删除的工作区',
 				variant: 'destructive'
 			});
 			return;
@@ -222,7 +211,7 @@ function ProjectPage() {
 		saveWorkspaces(newWorkspaces);
 		toast({
 			title: '删除成功',
-			description: `已删除workspace "${workspaceToRemove.name}"`,
+			description: `已删除工作区“${workspaceToRemove.name}”`,
 			variant: 'default'
 		});
 
@@ -242,7 +231,7 @@ function ProjectPage() {
 		if (!workspace?.path) {
 			toast({
 				title: '刷新失败',
-				description: '未找到要刷新的workspace',
+				description: '未找到要刷新的工作区',
 				variant: 'destructive'
 			});
 			return;
@@ -281,13 +270,13 @@ function ProjectPage() {
 
 			toast({
 				title: '刷新成功',
-				description: 'Workspace已刷新',
+				description: '工作区已刷新',
 				variant: 'default'
 			});
 		} catch (error) {
 			toast({
 				title: '刷新失败',
-				description: `刷新workspace失败: ${error}`,
+				description: `刷新工作区失败: ${error}`,
 				variant: 'destructive'
 			});
 		} finally {
@@ -449,13 +438,15 @@ function ProjectPage() {
 				needCreateSession = true;
 			} else {
 				try {
-					await invoke('write_to_terminal', {
-						sessionId,
-						data: btoa('echo test\n')
+					const isAlive = await invoke('ping_terminal_session', {
+						sessionId
 					});
-					needCreateSession = false;
+					needCreateSession = !isAlive;
+					if (!isAlive) {
+						sessionId = `project-${project.name}-${Date.now()}`;
+					}
 				} catch (error) {
-					console.log('终端会话不存在，将创建新会话');
+					console.info('终端会话已失效，将创建新会话');
 					sessionId = `project-${project.name}-${Date.now()}`;
 				}
 			}
@@ -674,11 +665,6 @@ function ProjectPage() {
 
 	return (
 		<div className='project-page h-full flex flex-col overflow-hidden bg-gray-100'>
-			{/* <Header
-				onAddWorkspace={handleAddWorkspace}
-				useKittenRemote={useKittenRemote}
-				setUseKittenRemote={setUseKittenRemote}
-			/> */}
 			<div className='flex-1 flex overflow-hidden'>
 				<Sidebar
 					workspaces={workspaces}
@@ -699,13 +685,13 @@ function ProjectPage() {
 				/>
 				<MainContent
 					selectedProject={selectedProject}
+					onAddWorkspace={handleAddWorkspace}
 					runningCommands={runningCommands}
 					onExecuteCommand={executeProjectCommand}
 					onStopCommand={stopProjectCommand}
 					onGetInstalledVersions={getInstalledVersions}
 				/>
 			</div>
-			<Toaster />
 			<CommandPalette
 				open={commandPaletteOpen}
 				onOpenChange={setCommandPaletteOpen}

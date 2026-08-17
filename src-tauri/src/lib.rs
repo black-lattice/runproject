@@ -7,7 +7,6 @@ use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
 use modules::tray;
-use tauri_plugin_mcp::Builder as McpBuilder;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -195,7 +194,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(McpBuilder::default().build())
         .manage(tray::TrayState::default())
         .setup(|app| {
             tray::setup(app)?;
@@ -231,30 +229,7 @@ pub fn run() {
             modules::terminal::pty_manager::resize_terminal,
             modules::terminal::pty_manager::close_terminal_session,
             modules::terminal::pty_manager::get_terminal_buffer,
-            modules::terminal::pty_manager::ping_terminal_session,
-            modules::codex::accounts::commands::codex_account_list,
-            modules::codex::accounts::commands::codex_account_import_current,
-            modules::codex::accounts::commands::codex_account_export_all,
-            modules::codex::accounts::commands::codex_account_import_archive,
-            modules::codex::accounts::commands::codex_account_sync_current,
-            modules::codex::accounts::commands::codex_account_switch,
-            modules::codex::accounts::commands::codex_account_switch_to_available,
-            modules::codex::manager::commands::codex_start_session,
-            modules::codex::manager::commands::codex_send_message,
-            modules::codex::manager::commands::codex_approve_action,
-            modules::codex::manager::commands::codex_stop_session,
-            modules::agent::manager::commands::agent_get_settings,
-            modules::agent::manager::commands::agent_save_settings,
-            modules::agent::manager::commands::agent_get_mcp_config,
-            modules::agent::manager::commands::agent_save_mcp_config,
-            modules::agent::manager::commands::agent_start_session,
-            modules::agent::manager::commands::agent_send_message,
-            modules::agent::manager::commands::agent_approve_action,
-            modules::agent::manager::commands::agent_stop_session,
-            modules::file_system::read_dir,
-            modules::window_manager::open_external_window,
-            modules::window_manager::close_external_window,
-            modules::window_manager::is_window_open
+            modules::terminal::pty_manager::ping_terminal_session
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

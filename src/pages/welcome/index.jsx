@@ -17,8 +17,7 @@ import {
 	BookOpen,
 	Code,
 	Zap,
-	Code2,
-	Sparkles
+	Code2
 } from 'lucide-react';
 import { PAGE_CONFIGS } from '@/config/routes';
 
@@ -62,14 +61,6 @@ function WelcomePage() {
 			action: () => handleNavigate('formatter')
 		},
 		{
-			id: 'agent',
-			title: 'Agent',
-			description: '多模型智能助理，支持文件操作与审批',
-			icon: Sparkles,
-			color: 'bg-emerald-500',
-			action: () => handleNavigate('agent')
-		},
-		{
 			id: 'settings',
 			title: '设置',
 			description: '配置应用设置和首选项',
@@ -102,8 +93,7 @@ function WelcomePage() {
 						欢迎使用 Node.js 项目工作区管理器
 					</h1>
 					<p className='text-xl text-gray-600 max-w-2xl mx-auto'>
-						统一管理您的 Node.js
-						项目，创建终端，运行命令，提高开发效率
+						统一管理您的 Node.js 项目，创建终端，运行命令，提高开发效率
 					</p>
 				</div>
 
@@ -112,7 +102,7 @@ function WelcomePage() {
 						<Zap className='h-6 w-6 mr-2 text-blue-600' />
 						快速操作
 					</h2>
-					<div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6'>
+					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
 						{quickActions.map(action => {
 							const Icon = action.icon;
 							const isActive = tabs.includes(action.id);
@@ -124,32 +114,21 @@ function WelcomePage() {
 									onClick={action.action}>
 									<CardHeader className='pb-4'>
 										<div className='flex items-center justify-between'>
-											<div
-												className={`p-3 rounded-lg ${action.color}`}>
+											<div className={`p-3 rounded-lg ${action.color}`}>
 												<Icon className='h-6 w-6 text-white' />
 											</div>
 											{isActive && (
-												<Badge
-													variant='secondary'
-													className='text-xs'>
+												<Badge variant='secondary' className='text-xs'>
 													已打开
 												</Badge>
 											)}
 										</div>
-										<CardTitle className='text-lg'>
-											{action.title}
-										</CardTitle>
-										<CardDescription>
-											{action.description}
-										</CardDescription>
+										<CardTitle className='text-lg'>{action.title}</CardTitle>
+										<CardDescription>{action.description}</CardDescription>
 									</CardHeader>
 									<CardContent>
 										<Button
-											variant={
-												isActive
-													? 'secondary'
-													: 'default'
-											}
+											variant={isActive ? 'secondary' : 'default'}
 											className='w-full'
 											onClick={e => {
 												e.stopPropagation();
@@ -212,9 +191,7 @@ function WelcomePage() {
 							<div className='bg-blue-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<FolderOpen className='h-6 w-6 text-blue-600' />
 							</div>
-							<h3 className='font-semibold text-gray-900 mb-2'>
-								项目管理
-							</h3>
+							<h3 className='font-semibold text-gray-900 mb-2'>项目管理</h3>
 							<p className='text-sm text-gray-600'>
 								自动扫描和发现 Node.js 项目
 							</p>
@@ -223,9 +200,7 @@ function WelcomePage() {
 							<div className='bg-green-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<Terminal className='h-6 w-6 text-green-600' />
 							</div>
-							<h3 className='font-semibold text-gray-900 mb-2'>
-								终端集成
-							</h3>
+							<h3 className='font-semibold text-gray-900 mb-2'>终端集成</h3>
 							<p className='text-sm text-gray-600'>
 								集成 kitty 终端支持命令执行
 							</p>
@@ -234,9 +209,7 @@ function WelcomePage() {
 							<div className='bg-purple-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<Settings className='h-6 w-6 text-purple-600' />
 							</div>
-							<h3 className='font-semibold text-gray-900 mb-2'>
-								灵活配置
-							</h3>
+							<h3 className='font-semibold text-gray-900 mb-2'>灵活配置</h3>
 							<p className='text-sm text-gray-600'>
 								自定义包管理器和 Node 版本
 							</p>
@@ -245,12 +218,8 @@ function WelcomePage() {
 							<div className='bg-orange-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<Home className='h-6 w-6 text-orange-600' />
 							</div>
-							<h3 className='font-semibold text-gray-900 mb-2'>
-								页签管理
-							</h3>
-							<p className='text-sm text-gray-600'>
-								多页签界面提高工作效率
-							</p>
+							<h3 className='font-semibold text-gray-900 mb-2'>页签管理</h3>
+							<p className='text-sm text-gray-600'>多页签界面提高工作效率</p>
 						</div>
 					</div>
 				</div>
@@ -266,10 +235,7 @@ function WelcomePage() {
 							<div className='w-2 h-2 bg-blue-500 rounded-full'></div>
 							<span>
 								项目:{' '}
-								{workspaces.reduce(
-									(sum, w) => sum + w.projects.length,
-									0
-								)}
+								{workspaces.reduce((sum, w) => sum + w.projects.length, 0)}
 							</span>
 						</div>
 						<div className='w-px h-4 bg-gray-300'></div>

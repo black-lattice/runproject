@@ -201,14 +201,14 @@ function Sidebar({
 			<div className='p-4 border-b border-gray-100 bg-gray-50/50 backdrop-blur-sm sticky top-0 z-20'>
 				<div className='flex items-center justify-between mb-1'>
 					<h3 className='text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2'>
-						Workspaces
+						工作区
 					</h3>
 					<Button
 						variant='ghost'
 						size='icon'
 						className='h-7 w-7 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors'
 						onClick={onAddWorkspace}
-						title='添加 Workspace'>
+						title='添加工作区'>
 						<Plus className='w-4 h-4' />
 					</Button>
 				</div>
@@ -251,16 +251,14 @@ function Sidebar({
 						<div className='w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3 text-gray-400'>
 							<FolderOpen className='w-6 h-6' />
 						</div>
-						<p className='text-sm text-gray-500 mb-4'>
-							还没有添加任何 workspace
-						</p>
+						<p className='text-sm text-gray-500 mb-4'>还没有添加工作区</p>
 						<Button
 							variant='outline'
 							size='sm'
 							className='text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
 							onClick={onAddWorkspace}>
 							<Plus className='w-3 h-3 mr-1.5' />
-							添加项目
+							添加工作区
 						</Button>
 					</div>
 				) : filteredWorkspaces.length === 0 ? (
@@ -338,7 +336,7 @@ function Sidebar({
 												<PopoverContent>
 													<div className='space-y-3'>
 														<p className='text-sm text-gray-700'>
-															确定要删除 workspace{' '}
+															确定要删除工作区{' '}
 															<strong>"{workspace.name}"</strong> 吗？
 														</p>
 														<div className='flex items-center gap-2 justify-end'>

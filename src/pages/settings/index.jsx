@@ -1,35 +1,26 @@
 import { useState } from 'react';
-import {
-	Settings,
-	Terminal,
-	Layout,
-	Info,
-	Cpu,
-	Layers,
-	Users
-} from 'lucide-react';
+import { Settings, Terminal, Info } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-import { AiSettings } from './coms/AiSettings';
-import { CodexAccountSettings } from './coms/CodexAccountSettings';
-import { McpSettings } from './coms/McpSettings';
 import { TerminalSettings } from './coms/TerminalSettings';
-import { TabSettings } from './coms/TabSettings';
 import { AboutSettings } from './coms/AboutSettings';
 
 const NAV_ITEMS = [
-	{ id: 'ai', label: 'AI 模型', icon: Cpu, component: AiSettings },
-	{ id: 'codex-accounts', label: 'Codex 账号', icon: Users, component: CodexAccountSettings },
-	{ id: 'mcp', label: 'MCP 扩展', icon: Layers, component: McpSettings },
-	{ id: 'terminal', label: '终端设置', icon: Terminal, component: TerminalSettings },
-	{ id: 'tabs', label: '页签管理', icon: Layout, component: TabSettings },
+	{
+		id: 'terminal',
+		label: '终端设置',
+		icon: Terminal,
+		component: TerminalSettings
+	},
 	{ id: 'about', label: '关于', icon: Info, component: AboutSettings }
 ];
 
 function SettingsPage() {
-	const [activeSection, setActiveSection] = useState('ai');
+	const [activeSection, setActiveSection] = useState('terminal');
 
-	const ActiveComponent = NAV_ITEMS.find(item => item.id === activeSection)?.component || AiSettings;
+	const ActiveComponent =
+		NAV_ITEMS.find(item => item.id === activeSection)?.component ||
+		TerminalSettings;
 
 	return (
 		<div className='h-full flex bg-gray-50'>
@@ -54,9 +45,10 @@ function SettingsPage() {
 										activeSection === item.id
 											? 'bg-emerald-50 text-emerald-700'
 											: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-									}`}
-								>
-									<Icon className={`h-4 w-4 ${activeSection === item.id ? 'text-emerald-600' : 'text-gray-400'}`} />
+									}`}>
+									<Icon
+										className={`h-4 w-4 ${activeSection === item.id ? 'text-emerald-600' : 'text-gray-400'}`}
+									/>
 									{item.label}
 								</button>
 							);
@@ -69,13 +61,11 @@ function SettingsPage() {
 			<main className='flex-1 flex flex-col min-w-0 overflow-hidden'>
 				<ScrollArea className='flex-1'>
 					<div className='w-full px-6 py-8 xl:px-8'>
-						{activeSection !== 'codex-accounts' && (
-							<div className='mb-6'>
-								<h2 className='text-2xl font-bold text-gray-900'>
-									{NAV_ITEMS.find(item => item.id === activeSection)?.label}
-								</h2>
-							</div>
-						)}
+						<div className='mb-6'>
+							<h2 className='text-2xl font-bold text-gray-900'>
+								{NAV_ITEMS.find(item => item.id === activeSection)?.label}
+							</h2>
+						</div>
 						<div className='animate-in fade-in slide-in-from-bottom-4 duration-500'>
 							<ActiveComponent />
 						</div>

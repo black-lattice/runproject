@@ -4,7 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { upsertTerminalPageSession } from '@/utils/terminalPageState';
 
 const DEFAULT_TABS = [];
-const LEGACY_TABS = new Set(['massage-web', 'codex']);
+const LEGACY_TABS = new Set(['massage-web', 'codex', 'agent']);
 const sanitizeTabs = tabs => (tabs || []).filter(id => !LEGACY_TABS.has(id));
 let commandStatusSyncInitialized = false;
 

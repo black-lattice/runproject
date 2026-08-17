@@ -1,11 +1,4 @@
-import {
-	Home,
-	FolderOpen,
-	Settings,
-	Terminal,
-	Code2,
-	Sparkles
-} from 'lucide-react';
+import { Home, FolderOpen, Settings, Terminal, Code2 } from 'lucide-react';
 
 export const PAGE_CONFIGS = {
 	welcome: {
@@ -42,13 +35,6 @@ export const PAGE_CONFIGS = {
 		path: '/formatter',
 		title: '数据格式化',
 		icon: Code2,
-		closable: true
-	},
-	agent: {
-		id: 'agent',
-		path: '/agent',
-		title: 'Agent',
-		icon: Sparkles,
 		closable: true
 	}
 };
