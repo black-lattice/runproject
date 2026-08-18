@@ -20,7 +20,6 @@ const OPEN_TERMINAL_ID: &str = "tray:open:terminal";
 const OPEN_SETTINGS_ID: &str = "tray:open:settings";
 const OPEN_FORMATTER_ID: &str = "tray:open:formatter";
 const RUN_PREFIX: &str = "tray:run:";
-const LOGO_LIGHT: &[u8] = include_bytes!("../../../src/assets/logo/moon-logo-light-512.png");
 const LOGO_DARK: &[u8] = include_bytes!("../../../src/assets/logo/moon-logo-dark-512.png");
 static TRAY_RUN_COUNTER: AtomicU64 = AtomicU64::new(1);
 
@@ -162,14 +161,8 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
     }
 }
 
-fn logo_for_theme(theme: &str) -> Result<Image<'static>, String> {
-    let bytes = if theme == "dark" {
-        LOGO_DARK
-    } else {
-        LOGO_LIGHT
-    };
-
-    Image::from_bytes(bytes)
+fn logo_for_theme(_theme: &str) -> Result<Image<'static>, String> {
+    Image::from_bytes(LOGO_DARK)
         .map(|image| image.to_owned())
         .map_err(|error| format!("读取 logo 图片失败: {}", error))
 }
