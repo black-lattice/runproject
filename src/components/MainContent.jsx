@@ -10,7 +10,7 @@ function MainContent({
 	onGetInstalledVersions
 }) {
 	return (
-		<main className='flex-1 bg-white overflow-y-auto relative z-20'>
+		<main className='project-main flex-1 overflow-y-auto relative z-20'>
 			{selectedProject ? (
 				<ProjectDetails
 					project={selectedProject}

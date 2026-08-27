@@ -4,7 +4,7 @@ import { FolderPlus, MousePointerClick, Terminal, Zap } from 'lucide-react';
 
 function WelcomeScreen({ onAddWorkspace }) {
 	return (
-		<div className='h-full flex flex-col items-center justify-center p-8 bg-gray-50/50'>
+		<div className='h-full flex flex-col items-center justify-center p-8 bg-background'>
 			<div className='max-w-3xl w-full space-y-8 text-center'>
 				<div className='space-y-4'>
 					<div className='inline-flex items-center justify-center p-4 bg-blue-100 rounded-full text-blue-600 mb-4 ring-8 ring-blue-50'>
@@ -23,7 +23,7 @@ function WelcomeScreen({ onAddWorkspace }) {
 				</div>
 
 				<div className='grid grid-cols-1 md:grid-cols-3 gap-6 text-left'>
-					<Card className='border-none shadow-sm bg-white/60 hover:bg-white hover:shadow-md transition-all duration-300'>
+					<Card className='border-border/70 bg-card/80 hover:border-primary/25 hover:shadow-md transition-all duration-200'>
 						<CardContent className='p-6 space-y-3'>
 							<div className='w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600'>
 								<FolderPlus className='w-5 h-5' />
@@ -36,7 +36,7 @@ function WelcomeScreen({ onAddWorkspace }) {
 						</CardContent>
 					</Card>
 
-					<Card className='border-none shadow-sm bg-white/60 hover:bg-white hover:shadow-md transition-all duration-300'>
+					<Card className='border-border/70 bg-card/80 hover:border-primary/25 hover:shadow-md transition-all duration-200'>
 						<CardContent className='p-6 space-y-3'>
 							<div className='w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600'>
 								<MousePointerClick className='w-5 h-5' />
@@ -48,7 +48,7 @@ function WelcomeScreen({ onAddWorkspace }) {
 						</CardContent>
 					</Card>
 
-					<Card className='border-none shadow-sm bg-white/60 hover:bg-white hover:shadow-md transition-all duration-300'>
+					<Card className='border-border/70 bg-card/80 hover:border-primary/25 hover:shadow-md transition-all duration-200'>
 						<CardContent className='p-6 space-y-3'>
 							<div className='w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600'>
 								<Zap className='w-5 h-5' />

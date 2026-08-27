@@ -8,7 +8,7 @@ import {
 
 export function AboutSettings() {
 	return (
-		<Card>
+		<Card className='border-border/70 shadow-md shadow-foreground/[0.04]'>
 			<CardHeader>
 				<CardTitle>关于</CardTitle>
 				<CardDescription>应用程序信息</CardDescription>

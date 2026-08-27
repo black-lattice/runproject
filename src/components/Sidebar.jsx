@@ -197,8 +197,8 @@ function Sidebar({
 	};
 
 	return (
-		<aside className='w-72 bg-white border-r border-gray-200 flex flex-col h-full shadow-lg z-10'>
-			<div className='p-4 border-b border-gray-100 bg-gray-50/50 backdrop-blur-sm sticky top-0 z-20'>
+		<aside className='app-sidebar w-72 border-r flex flex-col h-full z-10'>
+			<div className='p-4 border-b border-border/80 bg-card/75 backdrop-blur-xl sticky top-0 z-20'>
 				<div className='flex items-center justify-between mb-1'>
 					<h3 className='text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2'>
 						工作区

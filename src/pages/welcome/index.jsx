@@ -9,6 +9,7 @@ import {
 	CardTitle
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import AppLogo from '@/components/AppLogo';
 import {
 	FolderOpen,
 	Settings,
@@ -81,28 +82,31 @@ function WelcomePage() {
 		.slice(0, 5);
 
 	return (
-		<div className='h-full bg-gradient-to-br from-blue-50 to-indigo-100 overflow-y-auto'>
-			<div className='container mx-auto px-6 py-12'>
-				<div className='text-center mb-12'>
-					<div className='flex items-center justify-center mb-6'>
-						<div className='bg-blue-600 p-4 rounded-2xl shadow-lg'>
-							<Home className='h-12 w-12 text-white' />
+		<div className='welcome-page h-full overflow-y-auto'>
+			<div className='container mx-auto px-6 py-10 xl:py-14'>
+				<div className='welcome-hero text-center mb-10'>
+					<div className='flex items-center justify-center mb-5'>
+						<div className='welcome-brand-mark bg-gradient-to-br from-blue-500 to-indigo-600 p-2.5 rounded-2xl'>
+							<AppLogo className='block h-12 w-12' />
 						</div>
 					</div>
-					<h1 className='text-4xl font-bold text-gray-900 mb-4'>
-						欢迎使用 Node.js 项目工作区管理器
+					<p className='mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-primary'>
+						RunProject · Developer Workspace
+					</p>
+					<h1 className='text-3xl xl:text-4xl font-bold text-gray-900 mb-3 tracking-tight'>
+						让项目启动和日常开发更轻松
 					</h1>
-					<p className='text-xl text-gray-600 max-w-2xl mx-auto'>
-						统一管理您的 Node.js 项目，创建终端，运行命令，提高开发效率
+					<p className='text-base xl:text-lg leading-7 text-gray-600 max-w-2xl mx-auto'>
+						集中管理 Node.js 工作区、终端和常用命令，把重复操作留给工具。
 					</p>
 				</div>
 
-				<div className='mb-12'>
-					<h2 className='text-2xl font-semibold text-gray-900 mb-6 flex items-center'>
-						<Zap className='h-6 w-6 mr-2 text-blue-600' />
+				<div className='mb-10'>
+					<h2 className='text-lg font-semibold text-gray-900 mb-4 flex items-center'>
+						<Zap className='h-5 w-5 mr-2 text-blue-600' />
 						快速操作
 					</h2>
-					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
+					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
 						{quickActions.map(action => {
 							const Icon = action.icon;
 							const isActive = tabs.includes(action.id);
@@ -110,9 +114,9 @@ function WelcomePage() {
 							return (
 								<Card
 									key={action.id}
-									className='cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105'
+									className='welcome-action-card cursor-pointer transition-all duration-200'
 									onClick={action.action}>
-									<CardHeader className='pb-4'>
+									<CardHeader className='p-5 pb-4'>
 										<div className='flex items-center justify-between'>
 											<div className={`p-3 rounded-lg ${action.color}`}>
 												<Icon className='h-6 w-6 text-white' />
@@ -126,7 +130,7 @@ function WelcomePage() {
 										<CardTitle className='text-lg'>{action.title}</CardTitle>
 										<CardDescription>{action.description}</CardDescription>
 									</CardHeader>
-									<CardContent>
+									<CardContent className='px-5 pb-5'>
 										<Button
 											variant={isActive ? 'secondary' : 'default'}
 											className='w-full'
@@ -144,16 +148,16 @@ function WelcomePage() {
 				</div>
 
 				{recentProjects.length > 0 && (
-					<div className='mb-12'>
-						<h2 className='text-2xl font-semibold text-gray-900 mb-6 flex items-center'>
-							<Code className='h-6 w-6 mr-2 text-green-600' />
+					<div className='mb-10'>
+						<h2 className='text-lg font-semibold text-gray-900 mb-4 flex items-center'>
+							<Code className='h-5 w-5 mr-2 text-green-600' />
 							最近项目
 						</h2>
 						<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
 							{recentProjects.map((project, index) => (
 								<Card
 									key={index}
-									className='hover:shadow-md transition-shadow cursor-pointer'
+									className='welcome-feature-card transition-all duration-200 cursor-pointer'
 									onClick={() => handleProjectClick(project)}>
 									<CardContent className='p-4'>
 										<div className='flex items-start justify-between'>
@@ -181,13 +185,13 @@ function WelcomePage() {
 					</div>
 				)}
 
-				<div className='mb-12'>
-					<h2 className='text-2xl font-semibold text-gray-900 mb-6 flex items-center'>
-						<BookOpen className='h-6 w-6 mr-2 text-purple-600' />
+				<div className='mb-10'>
+					<h2 className='text-lg font-semibold text-gray-900 mb-4 flex items-center'>
+						<BookOpen className='h-5 w-5 mr-2 text-purple-600' />
 						功能特性
 					</h2>
-					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-						<div className='text-center p-6 bg-white rounded-lg shadow-sm'>
+					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
+						<div className='welcome-feature-card text-center p-5 rounded-xl transition-all duration-200'>
 							<div className='bg-blue-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<FolderOpen className='h-6 w-6 text-blue-600' />
 							</div>
@@ -196,7 +200,7 @@ function WelcomePage() {
 								自动扫描和发现 Node.js 项目
 							</p>
 						</div>
-						<div className='text-center p-6 bg-white rounded-lg shadow-sm'>
+						<div className='welcome-feature-card text-center p-5 rounded-xl transition-all duration-200'>
 							<div className='bg-green-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<Terminal className='h-6 w-6 text-green-600' />
 							</div>
@@ -205,7 +209,7 @@ function WelcomePage() {
 								集成 kitty 终端支持命令执行
 							</p>
 						</div>
-						<div className='text-center p-6 bg-white rounded-lg shadow-sm'>
+						<div className='welcome-feature-card text-center p-5 rounded-xl transition-all duration-200'>
 							<div className='bg-purple-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<Settings className='h-6 w-6 text-purple-600' />
 							</div>
@@ -214,7 +218,7 @@ function WelcomePage() {
 								自定义包管理器和 Node 版本
 							</p>
 						</div>
-						<div className='text-center p-6 bg-white rounded-lg shadow-sm'>
+						<div className='welcome-feature-card text-center p-5 rounded-xl transition-all duration-200'>
 							<div className='bg-orange-100 p-3 rounded-full w-fit mx-auto mb-4'>
 								<Home className='h-6 w-6 text-orange-600' />
 							</div>
@@ -225,7 +229,7 @@ function WelcomePage() {
 				</div>
 
 				<div className='text-center'>
-					<div className='inline-flex items-center space-x-4 bg-white px-6 py-3 rounded-full shadow-sm'>
+					<div className='welcome-stats inline-flex items-center space-x-4 px-6 py-3 rounded-full'>
 						<div className='flex items-center space-x-2 text-sm text-gray-600'>
 							<div className='w-2 h-2 bg-green-500 rounded-full'></div>
 							<span>工作区: {workspaces.length}</span>

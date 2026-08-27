@@ -549,7 +549,7 @@ function ProjectDetails({
   }
 
   return (
-    <div className="flex-1 bg-gray-50/50 p-6 overflow-y-auto h-full">
+    <div className="project-main flex-1 p-6 overflow-y-auto h-full">
       <div className="max-w-7xl mx-auto space-y-6">
         <ProjectInfoCard
           project={project}

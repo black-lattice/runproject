@@ -51,16 +51,16 @@ function TabBar() {
 
 	return (
 		<div
-			className='flex items-center bg-white px-4 py-1.5 overflow-x-auto gap-1 h-[32px] overflow-hidden no-scrollbar'
+			className='app-tabbar flex items-center px-2 py-1 overflow-x-auto gap-1 h-[36px] overflow-hidden no-scrollbar'
 			data-tauri-drag-region
 		>
 			{/* 固定 Home 标签 */}
 			<div
 				className={cn(
-					'flex items-center px-3 py-1 rounded-md cursor-pointer transition-colors border select-none min-w-fit',
+					'app-tab flex items-center px-3 py-1 rounded-md cursor-pointer transition-all duration-200 border select-none min-w-fit',
 					activeTab === 'welcome'
-						? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm'
-						: 'bg-gray-50 text-gray-600 border-transparent hover:bg-gray-100'
+						? 'app-tab-active'
+						: ''
 				)}
 				onClick={() => handleTabClick('welcome')}
 			>
@@ -69,7 +69,7 @@ function TabBar() {
 			</div>
 
 			{/* 分隔线 */}
-			{tabs.length > 0 && <div className='w-px h-4 bg-gray-300 mx-2' />}
+			{tabs.length > 0 && <div className='w-px h-4 bg-border mx-1.5' />}
 
 			{/* 动态标签 */}
 			<div className='flex gap-1 overflow-x-auto no-scrollbar'>
@@ -84,10 +84,10 @@ function TabBar() {
 						<div
 							key={tabId}
 							className={cn(
-								'flex items-center px-3 py-1 rounded-md cursor-pointer transition-colors border select-none group min-w-fit',
+								'app-tab flex items-center px-3 py-1 rounded-md cursor-pointer transition-all duration-200 border select-none group min-w-fit',
 								isActive
-									? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm'
-									: 'bg-gray-50 text-gray-600 border-transparent hover:bg-gray-100'
+									? 'app-tab-active'
+									: ''
 							)}
 							onClick={() => handleTabClick(tabId)}
 						>
@@ -105,6 +105,7 @@ function TabBar() {
 											? 'opacity-70 hover:opacity-100'
 											: 'opacity-0 group-hover:opacity-70'
 									)}
+									aria-label={`关闭${config.title}标签`}
 									onClick={e => handleTabClose(tabId, e)}
 								>
 									<X className='h-2.5 w-2.5' />

@@ -234,10 +234,10 @@ function TerminalPage() {
 	}, [terminals, activeTerminalId]);
 
 	return (
-		<div className='h-full flex flex-col bg-white'>
+		<div className='terminal-page h-full flex flex-col'>
 			{terminals.length === 0 ? (
 				<div className='flex-1 flex flex-col'>
-					<div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50/50'>
+					<div className='terminal-toolbar flex items-center justify-between px-4 py-2 border-b'>
 						<span className='text-sm font-semibold text-gray-700'>终端</span>
 						<div className='flex items-center gap-1'>
 							<TooltipProvider>
@@ -268,10 +268,10 @@ function TerminalPage() {
 							</TooltipProvider>
 						</div>
 					</div>
-					<div className='flex-1 flex items-center justify-center'>
+					<div className='terminal-empty flex-1 flex items-center justify-center'>
 						<div className='text-center'>
-							<div className='bg-gray-100 p-4 rounded-full w-fit mx-auto mb-4'>
-								<Terminal className='h-10 w-10 text-gray-400' />
+							<div className='bg-primary/10 ring-8 ring-primary/5 p-4 rounded-2xl w-fit mx-auto mb-5'>
+								<Terminal className='h-10 w-10 text-primary' />
 							</div>
 							<p className='text-gray-500 mb-4 font-medium'>暂无活动终端会话</p>
 							<Button
@@ -285,7 +285,7 @@ function TerminalPage() {
 				</div>
 			) : (
 				<div className='flex-1 flex flex-col min-h-0'>
-					<div className='flex items-center justify-between border-b bg-gray-50/50 pr-2 h-10'>
+					<div className='terminal-toolbar flex items-center justify-between border-b pr-2 h-10'>
 						<div className='flex items-center overflow-x-auto no-scrollbar flex-1 h-full'>
 							{terminals.map(terminal => {
 								const isActive = activeTerminalId === terminal.id;

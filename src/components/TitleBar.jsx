@@ -36,15 +36,15 @@ function TitleBar({ children }) {
 	return (
 		<div
 			ref={titleBarRef}
-			className='flex items-center h-[32px] flex-shrink-0 select-none overflow-hidden border-b border-gray-200'>
+			className='app-titlebar flex items-center h-[36px] flex-shrink-0 select-none overflow-hidden border-b'>
 			{/* macOS 原生控制按钮区域（红/黄/绿按钮）- Overlay 模式下原生按钮已存在 */}
 			<div
-				className='w-20 h-full flex-shrink-0 bg-white'
+				className='app-titlebar-surface w-20 h-full flex-shrink-0'
 				data-tauri-drag-region
 			/>
 
 			<div
-				className='h-full flex items-center pr-2 bg-white'
+				className='app-titlebar-surface h-full flex items-center pr-2'
 				data-tauri-drag-region>
 				<AppLogo className='block h-5 w-5 flex-shrink-0' />
 			</div>
@@ -53,7 +53,7 @@ function TitleBar({ children }) {
 			<div className='overflow-hidden'>{children}</div>
 
 			{/* 右侧拖拽区域 - 占据剩余空间 */}
-			<div className='flex-1 h-full bg-white' data-tauri-drag-region />
+			<div className='app-titlebar-surface flex-1 h-full' data-tauri-drag-region />
 		</div>
 	);
 }

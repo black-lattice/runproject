@@ -23,10 +23,10 @@ function SettingsPage() {
 		TerminalSettings;
 
 	return (
-		<div className='h-full flex bg-gray-50'>
+		<div className='settings-page h-full flex'>
 			{/* Sidebar Navigation */}
-			<aside className='w-64 bg-white border-r border-gray-200 flex flex-col'>
-				<div className='p-6 border-b border-gray-100'>
+			<aside className='settings-sidebar w-64 border-r flex flex-col'>
+				<div className='p-6 border-b border-border/80'>
 					<h1 className='text-xl font-bold text-gray-900 flex items-center gap-2'>
 						<Settings className='h-5 w-5 text-gray-500' />
 						设置
@@ -41,13 +41,13 @@ function SettingsPage() {
 								<button
 									key={item.id}
 									onClick={() => setActiveSection(item.id)}
-									className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+									className={`settings-nav-item w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
 										activeSection === item.id
-											? 'bg-emerald-50 text-emerald-700'
-											: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+											? 'settings-nav-item-active'
+											: ''
 									}`}>
 									<Icon
-										className={`h-4 w-4 ${activeSection === item.id ? 'text-emerald-600' : 'text-gray-400'}`}
+										className={`h-4 w-4 ${activeSection === item.id ? 'text-primary' : 'text-gray-400'}`}
 									/>
 									{item.label}
 								</button>
@@ -58,15 +58,15 @@ function SettingsPage() {
 			</aside>
 
 			{/* Main Content Area */}
-			<main className='flex-1 flex flex-col min-w-0 overflow-hidden'>
+			<main className='settings-content flex-1 flex flex-col min-w-0 overflow-hidden'>
 				<ScrollArea className='flex-1'>
-					<div className='w-full px-6 py-8 xl:px-8'>
+					<div className='w-full max-w-4xl px-6 py-8 xl:px-10'>
 						<div className='mb-6'>
-							<h2 className='text-2xl font-bold text-gray-900'>
+							<h2 className='text-2xl font-bold text-gray-900 tracking-tight'>
 								{NAV_ITEMS.find(item => item.id === activeSection)?.label}
 							</h2>
 						</div>
-						<div className='animate-in fade-in slide-in-from-bottom-4 duration-500'>
+						<div className='animate-in fade-in slide-in-from-bottom-2 duration-300'>
 							<ActiveComponent />
 						</div>
 					</div>

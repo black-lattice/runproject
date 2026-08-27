@@ -25,7 +25,7 @@ export function TerminalSettings() {
 	} = useAppStore();
 
 	return (
-		<Card>
+		<Card className='border-border/70 shadow-md shadow-foreground/[0.04]'>
 			<CardHeader>
 				<CardTitle>终端设置</CardTitle>
 				<CardDescription>
@@ -33,7 +33,7 @@ export function TerminalSettings() {
 				</CardDescription>
 			</CardHeader>
 			<CardContent className='space-y-6'>
-				<div className='flex items-center justify-between'>
+				<div className='flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 p-4'>
 					<div className='space-y-0.5 flex-1'>
 						<Label className='text-base'>终端类型</Label>
 						<p className='text-sm text-gray-500'>
@@ -58,7 +58,7 @@ export function TerminalSettings() {
 				</div>
 
 				{terminalType === 'kitty' && (
-					<div className='flex items-center justify-between pl-4 border-l-2 border-gray-200'>
+					<div className='flex items-center justify-between rounded-lg border border-border/70 bg-muted/30 p-4'>
 						<div className='space-y-0.5'>
 							<Label className='text-base'>
 								使用 Kitty 远程控制

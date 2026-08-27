@@ -137,7 +137,7 @@ function App() {
 	return (
 		<Router>
 			<TrayEventBridge />
-			<div className='h-screen flex flex-col overflow-hidden bg-gray-100 dark:bg-gray-950 dark:text-gray-100'>
+			<div className='app-shell h-screen flex flex-col overflow-hidden text-foreground'>
 				{/* 自定义标题栏（包含 TabBar） */}
 				<TitleBar>
 					<TabBar />

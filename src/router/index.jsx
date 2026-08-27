@@ -11,7 +11,7 @@ const FormatterPage = lazy(() => import('../pages/formatter/index'));
 function PageLoading() {
 	return (
 		<div
-			className='h-full flex items-center justify-center text-sm text-gray-500'
+			className='page-loading h-full flex items-center justify-center text-sm text-muted-foreground'
 			role='status'>
 			页面加载中...
 		</div>

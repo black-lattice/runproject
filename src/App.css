@@ -4,48 +4,48 @@
 
 @layer base {
 	:root {
-		--background: 0 0% 100%;
-		--foreground: 222.2 84% 4.9%;
+		--background: 220 33% 98%;
+		--foreground: 222 47% 11%;
 		--card: 0 0% 100%;
-		--card-foreground: 222.2 84% 4.9%;
+		--card-foreground: 222 47% 11%;
 		--popover: 0 0% 100%;
-		--popover-foreground: 222.2 84% 4.9%;
-		--primary: 221.2 83.2% 53.3%;
+		--popover-foreground: 222 47% 11%;
+		--primary: 224 76% 48%;
 		--primary-foreground: 210 40% 98%;
-		--secondary: 210 40% 96%;
-		--secondary-foreground: 222.2 84% 4.9%;
-		--muted: 210 40% 96%;
-		--muted-foreground: 215.4 16.3% 46.9%;
-		--accent: 210 40% 96%;
-		--accent-foreground: 222.2 84% 4.9%;
+		--secondary: 220 23% 95%;
+		--secondary-foreground: 222 47% 11%;
+		--muted: 220 23% 95%;
+		--muted-foreground: 215 16% 43%;
+		--accent: 221 83% 95%;
+		--accent-foreground: 224 76% 36%;
 		--destructive: 0 84.2% 60.2%;
 		--destructive-foreground: 210 40% 98%;
-		--border: 214.3 31.8% 91.4%;
-		--input: 214.3 31.8% 91.4%;
-		--ring: 221.2 83.2% 53.3%;
-		--radius: 0.5rem;
+		--border: 220 18% 88%;
+		--input: 220 18% 84%;
+		--ring: 224 76% 48%;
+		--radius: 0.75rem;
 	}
 
 	.dark {
-		--background: 222.2 84% 4.9%;
-		--foreground: 210 40% 98%;
-		--card: 222.2 84% 4.9%;
-		--card-foreground: 210 40% 98%;
-		--popover: 222.2 84% 4.9%;
-		--popover-foreground: 210 40% 98%;
-		--primary: 217.2 91.2% 59.8%;
-		--primary-foreground: 222.2 84% 4.9%;
-		--secondary: 217.2 32.6% 17.5%;
+		--background: 224 32% 8%;
+		--foreground: 214 32% 91%;
+		--card: 223 28% 12%;
+		--card-foreground: 214 32% 91%;
+		--popover: 223 27% 13%;
+		--popover-foreground: 214 32% 91%;
+		--primary: 218 92% 66%;
+		--primary-foreground: 224 32% 8%;
+		--secondary: 222 23% 17%;
 		--secondary-foreground: 210 40% 98%;
-		--muted: 217.2 32.6% 17.5%;
-		--muted-foreground: 215 20.2% 65.1%;
-		--accent: 217.2 32.6% 17.5%;
-		--accent-foreground: 210 40% 98%;
-		--destructive: 0 62.8% 30.6%;
+		--muted: 222 23% 17%;
+		--muted-foreground: 216 15% 68%;
+		--accent: 221 40% 21%;
+		--accent-foreground: 214 100% 86%;
+		--destructive: 0 72% 51%;
 		--destructive-foreground: 210 40% 98%;
-		--border: 217.2 32.6% 17.5%;
-		--input: 217.2 32.6% 17.5%;
-		--ring: 224.3 76.3% 94.1%;
+		--border: 220 20% 22%;
+		--input: 220 18% 25%;
+		--ring: 218 92% 66%;
 	}
 }
 
@@ -54,7 +54,10 @@
 		@apply border-border;
 	}
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-background text-foreground antialiased;
+		font-family:
+			Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+			sans-serif;
 	}
 }
 

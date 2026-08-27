@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,7 +27,10 @@ import markdownLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/
 import markupLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
 import sqlLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
 import typescriptLanguage from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
-import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import {
+	oneDark,
+	oneLight
+} from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 SyntaxHighlighter.registerLanguage('css', cssLanguage);
 SyntaxHighlighter.registerLanguage('javascript', javascriptLanguage);
@@ -171,12 +174,22 @@ const FORMATTERS = {
 };
 
 function FormatterPage() {
+	const [isDarkMode, setIsDarkMode] = useState(() =>
+		window.matchMedia('(prefers-color-scheme: dark)').matches
+	);
 	const [inputText, setInputText] = useState('');
 	const [outputText, setOutputText] = useState('');
 	const [selectedFormat, setSelectedFormat] = useState('json');
 	const [error, setError] = useState('');
 	const [leftWidth, setLeftWidth] = useState(50);
 	const [isDragging, setIsDragging] = useState(false);
+
+	useEffect(() => {
+		const media = window.matchMedia('(prefers-color-scheme: dark)');
+		const syncTheme = event => setIsDarkMode(event.matches);
+		media.addEventListener('change', syncTheme);
+		return () => media.removeEventListener('change', syncTheme);
+	}, []);
 	const { toast } = useToast();
 
 	const handleMouseMove = e => {
@@ -307,7 +320,7 @@ function FormatterPage() {
 
 	return (
 		<div
-			className='h-full flex flex-col bg-gray-50'
+			className='formatter-page h-full flex flex-col'
 			onMouseMove={handleMouseMove}
 			onMouseUp={handleMouseUp}
 			onMouseLeave={handleMouseUp}>
@@ -323,9 +336,9 @@ function FormatterPage() {
 
 			<div className='flex-1 flex overflow-hidden border-t relative'>
 				<Card
-					className='flex flex-col overflow-hidden rounded-none border-y-0 border-l-0 shadow-none'
+					className='formatter-panel flex flex-col overflow-hidden rounded-none border-y-0 border-l-0 shadow-none'
 					style={{ width: `${leftWidth}%` }}>
-					<div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50'>
+					<div className='formatter-toolbar flex items-center justify-between px-4 py-2 border-b'>
 						<div className='flex items-center gap-3'>
 							<Select value={selectedFormat} onValueChange={setSelectedFormat}>
 								<SelectTrigger className='h-8 w-[130px] bg-white'>
@@ -384,14 +397,14 @@ function FormatterPage() {
 							value={inputText}
 							onChange={e => setInputText(e.target.value)}
 							placeholder={`粘贴你的 ${FORMATTERS[selectedFormat].name} 数据...`}
-							className='w-full h-full p-4 font-mono text-sm resize-none focus:outline-none bg-white'
+							className='formatter-editor w-full h-full p-4 font-mono text-sm leading-6 resize-none focus:outline-none'
 							spellCheck={false}
 						/>
 					</div>
 				</Card>
 
 				<div
-					className={`absolute z-10 w-1 h-full cursor-col-resize hover:bg-blue-400 transition-colors ${isDragging ? 'bg-blue-600' : 'bg-transparent'}`}
+					className={`formatter-divider absolute z-10 w-1 h-full cursor-col-resize transition-colors ${isDragging ? 'formatter-divider-active' : 'bg-transparent'}`}
 					style={{
 						left: `${leftWidth}%`,
 						transform: 'translateX(-50%)'
@@ -400,9 +413,9 @@ function FormatterPage() {
 				/>
 
 				<Card
-					className='flex flex-col overflow-hidden rounded-none border-y-0 border-r-0 shadow-none border-l'
+					className='formatter-panel flex flex-col overflow-hidden rounded-none border-y-0 border-r-0 shadow-none border-l'
 					style={{ width: `${100 - leftWidth}%` }}>
-					<div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50'>
+					<div className='formatter-toolbar flex items-center justify-between px-4 py-2 border-b'>
 						<span className='text-sm font-semibold text-gray-700'>输出</span>
 						<div className='flex gap-1'>
 							<Button
@@ -425,11 +438,11 @@ function FormatterPage() {
 							</Button>
 						</div>
 					</div>
-					<div className='flex-1 overflow-auto bg-white'>
+					<div className='flex-1 overflow-auto bg-card'>
 						{outputText ? (
 							<SyntaxHighlighter
 								language={selectedFormat}
-								style={oneLight}
+								style={isDarkMode ? oneDark : oneLight}
 								customStyle={{
 									margin: 0,
 									padding: '1rem',
