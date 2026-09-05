@@ -1,0 +1,219 @@
+/* Shared near-black surfaces for every page and tool view. Loaded after legacy styles. */
+.dark .tool-overlay,
+.dark .tool-window {
+  background: #1f1f1f !important;
+  color: #ededed;
+}
+.dark .tool-window-head {
+  background: #202020 !important;
+  border-color: #2c2c2c !important;
+}
+.dark .tool-window-head h2 {
+  color: #f2f2f2 !important;
+}
+.dark .tool-window-head .ant-btn,
+.dark .calendar-nav .ant-btn {
+  color: #bdbdbd;
+}
+.dark .tool-window-head .ant-btn:hover,
+.dark .calendar-nav .ant-btn:hover {
+  color: #fff;
+  background: #303030;
+}
+.dark .calendar-view-select .ant-select-selector,
+.dark .calendar-nav {
+  background: #292929 !important;
+  border-color: #3a3a3a !important;
+  color: #ededed;
+}
+.dark .calendar-view-select .ant-select-selection-item,
+.dark .calendar-view-select .ant-select-arrow {
+  color: #ededed;
+}
+.dark .tool-column,
+.dark .tool-day {
+  background: #292929 !important;
+  border-color: #383838 !important;
+}
+.dark .tool-column h3,
+.dark .tool-day-title {
+  color: #ededed !important;
+}
+.dark .tool-column h3 span {
+  color: #8f8f8f;
+}
+.dark .tool-task {
+  background: #303030 !important;
+  color: #ededed !important;
+  box-shadow: none;
+}
+.dark .tool-task:hover {
+  background: #393939 !important;
+}
+.dark .tool-month-grid {
+  border-color: #383838 !important;
+}
+.dark .tool-month-weekday {
+  background: #292929 !important;
+  border-color: #383838 !important;
+  color: #a6a6a6 !important;
+}
+.dark .tool-month-day {
+  background: #202020 !important;
+  border-color: #383838 !important;
+}
+.dark .tool-month-day.is-outside {
+  background: #1a1a1a !important;
+  color: #707070 !important;
+}
+.dark .tool-month-number {
+  color: #bdbdbd !important;
+}
+
+.dark .settings-page,
+.dark .terminal-page,
+.dark .formatter-page,
+.dark .project-page {
+  background: #1f1f1f !important;
+  color: #ededed;
+}
+.dark .settings-sidebar,
+.dark .app-sidebar {
+  background: #202020 !important;
+  border-color: #2c2c2c !important;
+  box-shadow: none !important;
+}
+.dark .settings-content,
+.dark .project-main,
+.dark .terminal-empty {
+  background: #1f1f1f !important;
+}
+.dark .settings-page h1,
+.dark .settings-page h2,
+.dark .settings-page .text-gray-900,
+.dark .settings-page .text-gray-800,
+.dark .project-page .text-gray-900,
+.dark .project-page .text-gray-800,
+.dark .project-page .text-gray-700 {
+  color: #ededed !important;
+}
+.dark .settings-page .text-gray-500,
+.dark .settings-page .text-gray-600,
+.dark .settings-page .text-gray-400,
+.dark .project-page .text-gray-600,
+.dark .project-page .text-gray-500,
+.dark .project-page .text-gray-400 {
+  color: #9a9a9a !important;
+}
+.dark .settings-nav-item {
+  color: #b4b4b4;
+}
+.dark .settings-nav-item:hover,
+.dark .settings-nav-item-active {
+  background: #303030 !important;
+  color: #f2f2f2 !important;
+  box-shadow: none;
+}
+.dark .settings-page .bg-muted\/30,
+.dark .settings-page .bg-white,
+.dark .settings-page .bg-gray-50,
+.dark .project-page .bg-white,
+.dark .project-page .bg-card,
+.dark .project-page .bg-card\/75,
+.dark .project-page .bg-gray-50,
+.dark .project-page .bg-gray-100,
+.dark .project-page .bg-gray-200 {
+  background: #292929 !important;
+}
+.dark .settings-page .border-border,
+.dark .settings-page .border-border\/80,
+.dark .settings-page .border-border\/70,
+.dark .project-page .border-border,
+.dark .project-page .border-border\/80,
+.dark .project-page .border-gray-200,
+.dark .project-page .border-gray-100 {
+  border-color: #343434 !important;
+}
+.dark .terminal-toolbar,
+.dark .formatter-toolbar {
+  background: #202020 !important;
+  border-color: #2c2c2c !important;
+  color: #ededed;
+}
+.dark .terminal-page .bg-white,
+.dark .terminal-page .bg-gray-200,
+.dark .formatter-page .bg-white,
+.dark .formatter-page .bg-gray-50 {
+  background: #292929 !important;
+}
+.dark .terminal-page .text-gray-700,
+.dark .terminal-page .text-gray-600,
+.dark .formatter-page .text-gray-700,
+.dark .formatter-page .text-gray-600 {
+  color: #bdbdbd !important;
+}
+.dark .terminal-page .text-gray-500,
+.dark .formatter-page .text-gray-400 {
+  color: #929292 !important;
+}
+.dark .formatter-panel {
+  background: #202020 !important;
+  border-color: #2c2c2c !important;
+}
+.dark .formatter-editor {
+  background: #1f1f1f !important;
+  color: #ededed;
+}
+.dark .formatter-editor::placeholder {
+  color: #777;
+}
+.dark .formatter-page .bg-card {
+  background: #1f1f1f !important;
+}
+
+/* Rail icons follow TickTick: centered, larger, and selected by color only. */
+.task-home .task-rail-button.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.task-home .task-rail-button.ant-btn .anticon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 0 !important;
+  font-size: 26px;
+  line-height: 1;
+}
+.task-home .task-rail-logo.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+.task-home .task-rail-logo.ant-btn .anticon {
+  margin: 0 !important;
+  font-size: 24px;
+}
+.task-home .task-rail-button.ant-btn.is-active {
+  color: #4f7df3 !important;
+  background: transparent !important;
+}
+.dark .task-home .task-rail-button.ant-btn {
+  color: #969696;
+}
+.dark .task-home .task-rail-button.ant-btn:hover,
+.dark .task-home .task-rail-button.ant-btn.is-active {
+  color: #f2f2f2 !important;
+  background: transparent !important;
+}
+.dark .task-home .task-rail-button.ant-btn.is-active .anticon {
+  color: #f2f2f2;
+}

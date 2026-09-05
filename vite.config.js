@@ -14,6 +14,9 @@ export default defineConfig(async () => ({
 			'@': '/src'
 		}
 	},
+	optimizeDeps: {
+		include: ['antd', 'antd/locale/zh_CN', '@ant-design/icons', 'dayjs']
+	},
 
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
 	//
