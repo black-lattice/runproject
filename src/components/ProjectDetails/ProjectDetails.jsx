@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +46,22 @@ function ProjectDetails({
     normalizeProject,
     normalizeWorkspace,
   } = useAppStore();
+
+  const persistProjectPreferences = (preferences) => {
+    if (!isTauri()) return;
+    const state = useAppStore.getState();
+    invoke("save_project_data", {
+      data: {
+        workspaces: state.workspaces || [],
+        workspaceTags: state.workspaceTags || {},
+        projectTags: state.projectTags || {},
+        commandTags: state.commandTags || {},
+        preferences,
+      },
+    }).catch((error) => {
+      console.error("保存 SQLite 项目偏好失败:", error);
+    });
+  };
 
   useEffect(() => {
     latestProjectPathRef.current = project?.path;
@@ -400,6 +416,7 @@ function ProjectDetails({
       "nodejs-project-preferences",
       JSON.stringify(preferences),
     );
+    persistProjectPreferences(preferences);
   };
 
   const saveEditorPreference = (editorId) => {
@@ -418,6 +435,7 @@ function ProjectDetails({
       "nodejs-project-preferences",
       JSON.stringify(preferences),
     );
+    persistProjectPreferences(preferences);
   };
 
   const isNodeInstalled = (version) => {
@@ -494,11 +512,13 @@ function ProjectDetails({
         _cacheVersion: currentTime,
         _cacheTimestamp: new Date().toLocaleString(),
       }));
-      localStorage.setItem(
-        "nodejs-workspaces",
-        JSON.stringify(workspacesWithVersion),
-      );
-      localStorage.setItem("nodejs-workspaces-version", currentTime.toString());
+      if (!isTauri()) {
+        localStorage.setItem(
+          "nodejs-workspaces",
+          JSON.stringify(workspacesWithVersion),
+        );
+        localStorage.setItem("nodejs-workspaces-version", currentTime.toString());
+      }
 
       await loadGitBranches({ forceRefresh: true });
 

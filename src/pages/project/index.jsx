@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/useAppStore';
@@ -21,6 +21,7 @@ function ProjectPage() {
 		tabs,
 		workspaceTags,
 		projectTags,
+		commandTags,
 		setWorkspaces,
 		setSelectedProject,
 		setIsLoading,
@@ -35,7 +36,8 @@ function ProjectPage() {
 		normalizeWorkspace,
 		setNodeVersionsCache,
 		setWorkspaceTags,
-		setProjectTags
+		setProjectTags,
+		setCommandTags
 	} = useAppStore();
 
 	const { toast } = useToast();
@@ -60,27 +62,88 @@ function ProjectPage() {
 		});
 	};
 
+	const readLegacyProjectData = () => {
+		let workspaces = [];
+		let preferences = {};
+		try {
+			workspaces = JSON.parse(localStorage.getItem('nodejs-workspaces') || '[]');
+			preferences = JSON.parse(
+				localStorage.getItem('nodejs-project-preferences') || '{}'
+			);
+		} catch (error) {
+			console.error('解析保存的项目数据失败:', error);
+		}
+		return { workspaces, preferences };
+	};
+
+	const buildProjectData = nextWorkspaces => ({
+		workspaces: nextWorkspaces ?? useAppStore.getState().workspaces ?? [],
+		workspaceTags: useAppStore.getState().workspaceTags ?? {},
+		projectTags: useAppStore.getState().projectTags ?? {},
+		commandTags: useAppStore.getState().commandTags ?? {},
+		preferences: readLegacyProjectData().preferences
+	});
+
 	useEffect(() => {
-		const savedWorkspaces = localStorage.getItem('nodejs-workspaces');
-		if (savedWorkspaces) {
+		let cancelled = false;
+		const loadProjectData = async () => {
+			if (!isTauri()) {
+				const legacy = readLegacyProjectData();
+				if (legacy.workspaces.length) setWorkspaces(legacy.workspaces);
+				return;
+			}
 			try {
-				const parsedWorkspaces = JSON.parse(savedWorkspaces);
-				setWorkspaces(parsedWorkspaces);
+				const result = await invoke('load_project_data');
+				if (cancelled) return;
+				if (result?.initialized && result.data) {
+					if (Array.isArray(result.data.workspaces)) {
+						setWorkspaces(result.data.workspaces);
+					}
+					if (result.data.workspaceTags) setWorkspaceTags(result.data.workspaceTags);
+					if (result.data.projectTags) setProjectTags(result.data.projectTags);
+					if (result.data.commandTags) setCommandTags(result.data.commandTags);
+					if (result.data.preferences) {
+						localStorage.setItem(
+							'nodejs-project-preferences',
+							JSON.stringify(result.data.preferences)
+						);
+					}
+				} else {
+					await invoke('save_project_data', { data: buildProjectData() });
+				}
 			} catch (error) {
-				console.error('解析保存的workspaces失败:', error);
+				console.error('加载 SQLite 项目数据失败，回退到本地缓存:', error);
+				const legacy = readLegacyProjectData();
+				if (legacy.workspaces.length) setWorkspaces(legacy.workspaces);
 				toast({
-					title: '加载失败',
-					description: '加载保存的工作区失败',
+					title: '数据库加载失败',
+					description: '已暂时使用本地项目缓存',
 					variant: 'destructive'
 				});
 			}
-		}
-	}, [setWorkspaces, toast]);
+		};
+		loadProjectData();
+		return () => {
+			cancelled = true;
+		};
+	}, [setCommandTags, setProjectTags, setWorkspaceTags, setWorkspaces, toast]);
+
+	useEffect(() => {
+		if (!isTauri() || !workspaces) return;
+		invoke('save_project_data', { data: buildProjectData(workspaces) }).catch(error => {
+			console.error('保存 SQLite 项目数据失败:', error);
+		});
+	}, [commandTags, projectTags, workspaceTags, workspaces]);
 
 	const clearCacheAndReload = () => {
 		if (confirm('确定要清除所有缓存并重新加载吗？这将刷新所有工作区数据。')) {
 			localStorage.removeItem('nodejs-workspaces');
 			localStorage.removeItem('nodejs-workspaces-version');
+			if (isTauri()) {
+				invoke('clear_project_data').catch(error => {
+					console.error('清理 SQLite 项目数据失败:', error);
+				});
+			}
 			toast({
 				title: '缓存已清除',
 				description: '页面将重新加载'
@@ -129,11 +192,13 @@ function ProjectPage() {
 			_cacheTimestamp: new Date().toLocaleString()
 		}));
 
-		localStorage.setItem(
-			'nodejs-workspaces',
-			JSON.stringify(workspacesWithVersion)
-		);
-		localStorage.setItem('nodejs-workspaces-version', currentTime.toString());
+		if (!isTauri()) {
+			localStorage.setItem(
+				'nodejs-workspaces',
+				JSON.stringify(workspacesWithVersion)
+			);
+			localStorage.setItem('nodejs-workspaces-version', currentTime.toString());
+		}
 		setWorkspaces(workspacesWithVersion);
 	};
 

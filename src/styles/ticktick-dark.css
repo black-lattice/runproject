@@ -171,7 +171,7 @@
   background: #1f1f1f !important;
 }
 
-/* Rail icons follow TickTick: centered, larger, and selected by color only. */
+/* Rail icons stay centered and compact, with selected state carried by color. */
 .task-home .task-rail-button.ant-btn {
   display: inline-flex;
   align-items: center;
@@ -185,22 +185,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   margin: 0 !important;
-  font-size: 26px;
+  font-size: 20px;
   line-height: 1;
-}
-.task-home .task-rail-logo.ant-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  padding: 0;
-}
-.task-home .task-rail-logo.ant-btn .anticon {
-  margin: 0 !important;
-  font-size: 24px;
 }
 .task-home .task-rail-button.ant-btn.is-active {
   color: #4f7df3 !important;
@@ -217,3 +206,270 @@
 .dark .task-home .task-rail-button.ant-btn.is-active .anticon {
   color: #f2f2f2;
 }
+
+.task-home .task-detail-toolbar {
+  min-height: 72px;
+  padding: 16px 32px;
+  border-bottom: 1px solid #eceef1;
+  background: transparent;
+}
+.task-detail-top-checkbox .ant-checkbox-inner {
+  width: 25px;
+  height: 25px;
+  border: 2px solid #a8adb5;
+  border-radius: 7px;
+}
+.task-detail-top-divider {
+  width: 1px;
+  height: 31px;
+  margin: 0 14px;
+  background: #e5e7eb;
+}
+.task-detail-date-button.ant-btn,
+.task-detail-date-picker {
+  height: 36px;
+  padding: 0 8px;
+  color: #a1a5ab;
+  font-size: 16px;
+}
+.task-detail-date-picker .ant-picker-input > input {
+  width: 130px;
+  color: #a1a5ab;
+  font-size: 16px;
+}
+.task-detail-date-picker.has-date .ant-picker-input > input { color: #4f7df3; }
+.task-detail-date-picker.ant-picker,
+.task-detail-date-picker.ant-picker:hover,
+.task-detail-date-picker.ant-picker-focused {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.task-detail-date-picker .ant-picker-suffix,
+.task-detail-date-button.ant-btn .anticon,
+.task-detail-flag.ant-btn .anticon { color: #a1a5ab; }
+.task-detail-flag.ant-btn { margin-left: auto; color: #a1a5ab; }
+.task-detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  padding: 12px 24px;
+  border-top: 1px solid #eceef1;
+  color: #4b5563;
+  font-size: 16px;
+}
+
+/* The TickTick detail pane only shows the title, date, note and footer. */
+.task-home .task-detail-body > div:not(.flex.items-start) {
+  display: none;
+}
+.task-home .task-detail > .task-calendar {
+  display: none;
+}
+.task-home .task-detail-body {
+  padding: 28px 28px 18px;
+  background: #fff;
+}
+.task-home .task-detail-body > .flex.items-start {
+  gap: 14px;
+}
+.task-home .task-detail-body > .flex.items-start input {
+  height: auto !important;
+  min-height: 24px;
+  font-size: 14px !important;
+  line-height: 1.3;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.task-home .task-detail-body .task-detail-checkbox {
+  display: none;
+}
+.task-home .task-detail-body .task-detail-notes {
+  margin-top: 32px;
+  font-size: 12px;
+  line-height: 1.85;
+}
+.task-home .task-detail-body .task-detail-notes.is-rich-source {
+  display: none;
+}
+.task-home .task-detail-body > .flex.items-start .mt-2.flex {
+  display: none;
+}
+.task-detail-list-icon {
+  flex: 0 0 auto;
+  margin-top: 7px;
+  color: #a1a5ab;
+  font-size: 22px;
+  stroke-width: 1.8;
+}
+.task-detail-composer {
+  display: flex !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #b5bbc5;
+}
+.task-detail-composer .ant-input {
+  min-height: 30px;
+  padding: 2px 0;
+  color: #4b5563;
+  font-size: 16px;
+}
+.task-detail-composer .ant-input::placeholder { color: #aeb4bd; }
+.dark .task-detail-composer .ant-input { color: #d4d4d4; }
+.task-rich-description {
+  margin-top: 24px;
+  color: #20242b;
+  font-size: 18px;
+  line-height: 1.72;
+  max-width: 720px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.task-home .task-detail-toolbar {
+  min-height: 56px;
+  flex: 0 0 56px;
+  padding: 0 28px;
+  background: #fff;
+  border-bottom: 1px solid #eef0f3;
+}
+.task-home .task-detail-toolbar > .flex {
+  width: 100%;
+}
+.task-home .task-detail-footer {
+  min-height: 50px;
+  flex: 0 0 50px;
+  padding: 10px 28px;
+  background: #fff;
+  border-top: 1px solid #eef0f3;
+}
+.task-detail-list-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: #687284;
+  font-size: 16px;
+  cursor: pointer;
+}
+.task-detail-list-trigger:hover { color: #4f7df3; }
+.dark .task-detail-list-trigger { color: #b9bec8; }
+.task-home .task-detail-body > div.task-rich-description { display: block !important; }
+.task-rich-description p {
+  margin: 0 0 10px;
+  padding-left: 28px;
+  position: relative;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+.task-rich-description p:first-child {
+  padding-left: 0;
+  margin-bottom: 10px;
+  font-size: 14px !important;
+}
+.task-rich-description p:not(:first-child)::before {
+  content: "•";
+  position: absolute;
+  left: 7px;
+  color: #4f7df3;
+  font-size: 24px;
+  line-height: 1.3;
+}
+.task-rich-description strong {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.task-rich-description a {
+  color: #4f7df3;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 400;
+}
+.dark .task-rich-description { color: #ededed; }
+.dark .task-home .task-detail-toolbar,
+.dark .task-home .task-detail-footer { border-color: #303030; }
+.dark .task-home .task-detail { border-left-color: #303030; }
+.dark .task-home .task-detail-body,
+.dark .task-home .task-detail-toolbar,
+.dark .task-home .task-detail-footer {
+  background: #1f1f1f;
+}
+.dark .task-home .task-detail-body > .flex.items-start input {
+  color: #f1f1f1;
+}
+.dark .task-rich-description {
+  color: #e5e7eb;
+}
+.task-home .task-detail-body textarea.task-detail-notes.is-rich-source {
+  display: none !important;
+}
+.dark .task-detail-top-divider { background: #383838; }
+.dark .task-detail-footer { color: #d4d4d4; }
+
+/* Notes grow with their content; scrolling belongs to the detail pane. */
+.task-home .task-detail-body textarea.task-detail-notes.ant-input {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  resize: none;
+  overflow-y: hidden !important;
+  font-size: 17px;
+  line-height: 1.75;
+  color: #596273;
+}
+
+.dark .task-home .task-detail-body textarea.task-detail-notes.ant-input {
+  color: #d4d4d4;
+}
+
+/* Notes behave like a document canvas, so focus must not draw an input frame. */
+.task-home .task-detail-body textarea.task-detail-notes.ant-input:focus,
+.task-home .task-detail-body textarea.task-detail-notes.ant-input:focus-visible {
+  outline: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.task-home .task-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid #eef0f3;
+}
+.task-home .task-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.task-home .task-detail-footer {
+  flex: 0 0 auto;
+}
+.task-home .task-detail { position: relative; }
+.task-format-toolbar {
+  position: absolute;
+  right: 24px;
+  bottom: 68px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 54px;
+  padding: 0 22px;
+  border: 1px solid #edf0f3;
+  border-radius: 15px;
+  background: #fff;
+  color: #20242b;
+  box-shadow: 0 8px 24px rgb(30 41 59 / 0.12);
+}
+.task-format-toolbar strong { font-size: 21px; }
+.task-format-toolbar em { font-size: 22px; }
+.dark .task-format-toolbar { border-color: #3a3a3a; background: #2a2a2a; color: #eee; }

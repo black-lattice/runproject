@@ -62,6 +62,7 @@ function App() {
 	}, []);
 
 	useEffect(() => {
+		if (isTauri()) return;
 		const state = useAppStore.getState();
 		if (state.workspaces?.length) return;
 

@@ -26,7 +26,6 @@ function TabBar() {
         mode="horizontal"
         selectedKeys={[activeTab]}
         items={menuItems}
-        disabledOverflow
         onClick={({ key }) => {
           const config = PAGE_CONFIGS[key];
           if (config) navigate(config.path);

@@ -7,7 +7,7 @@ import { Plus, Terminal, X, FolderOpen } from 'lucide-react';
 import { XtermTerminal } from '@/components/Terminal';
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir } from '@tauri-apps/api/path';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import {
 	TERMINAL_PAGE_STORAGE_KEY,
@@ -93,6 +93,7 @@ function TerminalPage() {
 	}, [searchParams, setSearchParams]);
 
 	useEffect(() => {
+		if (!isTauri()) return;
 		let unlisten = null;
 		let cancelled = false;
 
@@ -162,15 +163,19 @@ function TerminalPage() {
 	};
 
 	const handleAddTerminalWithDialog = async () => {
-		const directory = await open({
-			directory: true,
-			multiple: false,
-			title: '选择终端工作目录'
-		});
+		try {
+			const directory = await open({
+				directory: true,
+				multiple: false,
+				title: '选择终端工作目录'
+			});
 
-		if (!directory) return;
+			if (!directory) return;
 
-		await handleAddTerminal(directory);
+			await handleAddTerminal(directory);
+		} catch (error) {
+			console.error('选择终端工作目录失败:', error);
+		}
 	};
 
 	const handleCloseTerminal = (
@@ -179,9 +184,11 @@ function TerminalPage() {
 	) => {
 		if (!terminalId) return;
 
-		emit('terminal-closed', { sessionId: terminalId });
+		if (isTauri()) {
+			emit('terminal-closed', { sessionId: terminalId });
+		}
 
-		if (!skipServerClose) {
+		if (!skipServerClose && isTauri()) {
 			invoke('close_terminal_session', { sessionId: terminalId }).catch(
 				error => {
 					console.error('关闭终端会话失败:', error);
@@ -245,6 +252,8 @@ function TerminalPage() {
 									<TooltipTrigger asChild>
 										<Button
 											onClick={() => handleAddTerminal()}
+											aria-label='新建终端'
+											title='新建终端'
 											size='sm'
 											variant='ghost'
 											className='h-8 w-8 p-0 hover:bg-gray-200'>
@@ -257,6 +266,8 @@ function TerminalPage() {
 									<TooltipTrigger asChild>
 										<Button
 											onClick={() => handleAddTerminalWithDialog()}
+											aria-label='选择目录'
+											title='选择目录'
 											size='sm'
 											variant='ghost'
 											className='h-8 w-8 p-0 hover:bg-gray-200'>
@@ -309,6 +320,8 @@ function TerminalPage() {
 											{terminal.title}
 										</span>
 										<button
+											aria-label={`关闭终端 ${terminal.title}`}
+											title={`关闭终端 ${terminal.title}`}
 											className={`
                         p-0.5 rounded transition-all duration-150
                         ${isActive ? 'opacity-100 text-gray-400 hover:bg-red-50 hover:text-red-500' : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:bg-gray-300/50 hover:text-gray-600'}
@@ -330,6 +343,8 @@ function TerminalPage() {
 									<TooltipTrigger asChild>
 										<Button
 											onClick={() => handleAddTerminal()}
+												aria-label='新建终端'
+												title='新建终端'
 											size='sm'
 											variant='ghost'
 											className='h-8 w-8 p-0 hover:bg-gray-200'>
@@ -342,6 +357,8 @@ function TerminalPage() {
 									<TooltipTrigger asChild>
 										<Button
 											onClick={() => handleAddTerminalWithDialog()}
+												aria-label='选择目录'
+												title='选择目录'
 											size='sm'
 											variant='ghost'
 											className='h-8 w-8 p-0 hover:bg-gray-200'>

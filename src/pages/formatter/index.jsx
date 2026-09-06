@@ -139,22 +139,24 @@ const FORMATTERS = {
 			});
 		}
 	},
-	sql: {
-		name: 'SQL',
-		extensions: ['.sql'],
-		format: text => {
-			return text
-				.replace(/\bSELECT\b/gi, '\nSELECT\n  ')
-				.replace(/\bFROM\b/gi, '\nFROM\n  ')
-				.replace(/\bWHERE\b/gi, '\nWHERE\n  ')
-				.replace(/\bAND\b/gi, '\n  AND ')
-				.replace(/\bOR\b/gi, '\n  OR ')
-				.replace(/\bJOIN\b/gi, '\nJOIN\n  ')
-				.replace(/\bLEFT JOIN\b/gi, '\nLEFT JOIN\n  ')
-				.replace(/\bINNER JOIN\b/gi, '\nINNER JOIN\n  ')
+		sql: {
+			name: 'SQL',
+			extensions: ['.sql'],
+			format: text => {
+				return text
+					.replace(/\bLEFT JOIN\b/gi, '\n__LEFT_JOIN__\n  ')
+					.replace(/\bINNER JOIN\b/gi, '\n__INNER_JOIN__\n  ')
+					.replace(/\bJOIN\b/gi, '\nJOIN\n  ')
+					.replace(/\bSELECT\b/gi, '\nSELECT\n  ')
+					.replace(/\bFROM\b/gi, '\nFROM\n  ')
+					.replace(/\bWHERE\b/gi, '\nWHERE\n  ')
+					.replace(/\bAND\b/gi, '\n  AND ')
+					.replace(/\bOR\b/gi, '\n  OR ')
 				.replace(/\bORDER BY\b/gi, '\nORDER BY\n  ')
-				.replace(/\bGROUP BY\b/gi, '\nGROUP BY\n  ')
-				.trim();
+					.replace(/\bGROUP BY\b/gi, '\nGROUP BY\n  ')
+					.replace(/__LEFT_JOIN__/g, 'LEFT JOIN')
+					.replace(/__INNER_JOIN__/g, 'INNER JOIN')
+					.trim();
 		}
 	},
 	markdown: {

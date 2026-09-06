@@ -7,6 +7,7 @@ use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
 use modules::tray;
+mod storage;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -213,6 +214,11 @@ pub fn run() {
             open_project_in_editor,
             open_in_finder,
             build_execution_command,
+            storage::load_productivity_data,
+            storage::save_productivity_data,
+            storage::load_project_data,
+            storage::save_project_data,
+            storage::clear_project_data,
             tray::sync_tray_projects,
             tray::set_tray_theme,
             modules::kitty::executor::execute_command_in_kitty,

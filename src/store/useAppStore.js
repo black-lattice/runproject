@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { listen } from '@tauri-apps/api/event';
+import { isTauri } from '@tauri-apps/api/core';
 import { upsertTerminalPageSession } from '@/utils/terminalPageState';
 
 const DEFAULT_TABS = [];
@@ -417,8 +418,9 @@ export const useAppStore = create(
 		{
 			name: 'app-storage',
 			storage: createJSONStorage(() => localStorage),
-			partialize: state => ({
-				workspaces: state.workspaces,
+			partialize: state => {
+				const persisted = {
+					workspaces: state.workspaces,
 				collapsedWorkspaces: state.collapsedWorkspaces,
 				useKittenRemote: state.useKittenRemote,
 				terminalType: state.terminalType,
@@ -428,11 +430,26 @@ export const useAppStore = create(
 				workspaceTags: state.workspaceTags,
 				projectTags: state.projectTags,
 				commandTags: state.commandTags
-			}),
+				};
+				if (isTauri()) {
+					delete persisted.workspaces;
+					delete persisted.workspaceTags;
+					delete persisted.projectTags;
+					delete persisted.commandTags;
+				}
+				return persisted;
+			},
 			merge: (persistedState, currentState) => {
+				const source = isTauri() ? { ...persistedState } : persistedState;
+				if (isTauri()) {
+					delete source.workspaces;
+					delete source.workspaceTags;
+					delete source.projectTags;
+					delete source.commandTags;
+				}
 				const nextState = {
 					...currentState,
-					...persistedState
+					...source
 				};
 				nextState.tabs = sanitizeTabs(nextState.tabs);
 				return nextState;
