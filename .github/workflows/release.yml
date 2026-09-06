@@ -96,6 +96,15 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Without a Developer ID certificate Tauri uses the ad-hoc identity
+          # configured in tauri.conf.json. When these secrets are configured,
+          # Tauri signs and notarizes the macOS bundles for distribution.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: RunProject ${{ github.ref_name }}
@@ -107,7 +116,8 @@ jobs:
             - Windows 64 位：NSIS 安装程序
             - Linux 64 位：AppImage 或 DEB
 
-            当前安装包未配置商业代码签名，系统首次打开时可能显示安全提醒。
+            macOS 包默认使用 ad-hoc 签名；首次打开时如果出现安全提醒，请在“系统设置 → 隐私与安全性”中确认打开。
+            配置 APPLE_CERTIFICATE、APPLE_CERTIFICATE_PASSWORD、APPLE_ID、APPLE_PASSWORD、APPLE_TEAM_ID 和 KEYCHAIN_PASSWORD secrets 后，macOS 包会自动使用 Developer ID 签名并进行公证。
           generateReleaseNotes: true
           releaseDraft: false
           prerelease: ${{ contains(github.ref_name, '-') }}

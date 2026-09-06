@@ -52,8 +52,11 @@ function TitleBar({ children }) {
 			{/* 标题栏内容区域（包含 TabBar）- 宽度根据内容自动撑大 */}
 			<div className='min-w-0 flex-1 overflow-hidden'>{children}</div>
 
-			{/* 右侧拖拽区域 - 占据剩余空间 */}
-			<div className='app-titlebar-surface flex-1 h-full' data-tauri-drag-region />
+			{/* 右侧拖拽区域 - 保留固定宽度，避免挤压导航菜单 */}
+			<div
+				className='app-titlebar-surface w-16 h-full flex-shrink-0'
+				data-tauri-drag-region
+			/>
 		</div>
 	);
 }
