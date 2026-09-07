@@ -14,8 +14,14 @@ function TitleBar({ children }) {
 
 	useEffect(() => {
 		const handleMouseDown = async e => {
+			if (e.button !== 0) return;
+
+			// 菜单和表单控件保留原生点击行为，不触发窗口拖动。
+			const interactiveTarget = e.target.closest(
+				'button, a, input, textarea, select, [role="button"], [role="menuitem"], .ant-menu-item',
+			);
 			const dragRegion = e.target.closest('[data-tauri-drag-region]');
-			if (dragRegion) {
+			if (dragRegion && !interactiveTarget) {
 				const window = getCurrentWindow();
 				await window.startDragging();
 			}
@@ -50,7 +56,11 @@ function TitleBar({ children }) {
 			</div>
 
 			{/* 标题栏内容区域（包含 TabBar）- 宽度根据内容自动撑大 */}
-			<div className='min-w-0 flex-1 overflow-hidden'>{children}</div>
+			<div
+				className='app-titlebar-content min-w-0 flex-1 overflow-hidden'
+				data-tauri-drag-region>
+				{children}
+			</div>
 
 			{/* 右侧拖拽区域 - 保留固定宽度，避免挤压导航菜单 */}
 			<div
