@@ -198,15 +198,15 @@ function Sidebar({
 
 	return (
 		<aside className='app-sidebar w-72 border-r flex flex-col h-full z-10'>
-			<div className='p-4 border-b border-border/80 bg-card/75 backdrop-blur-xl sticky top-0 z-20'>
+			<div className='p-4 border-b border-border/80 bg-transparent sticky top-0 z-20'>
 				<div className='flex items-center justify-between mb-1'>
-					<h3 className='text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2'>
+					<h3 className='text-base font-semibold text-foreground flex items-center gap-2'>
 						工作区
 					</h3>
 					<Button
 						variant='ghost'
 						size='icon'
-						className='h-7 w-7 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors'
+						className='h-7 w-7 text-muted-foreground hover:text-primary hover:bg-accent transition-colors'
 						onClick={onAddWorkspace}
 						title='添加工作区'>
 						<Plus className='w-4 h-4' />
@@ -220,7 +220,7 @@ function Sidebar({
 						className='h-8 text-xs'
 					/>
 				</div>
-				<div className='mt-1 text-[10px] text-gray-400'>
+				<div className='mt-1 text-xs text-muted-foreground'>
 					Cmd/Ctrl+K 快速搜索
 				</div>
 				{allTags.length > 0 && (
@@ -232,10 +232,10 @@ function Sidebar({
 									key={tag}
 									type='button'
 									onClick={() => toggleTagFilter(tag)}
-									className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${
+									className={`text-xs px-2 py-1 rounded-full border transition-colors ${
 										active
-											? 'bg-blue-600 text-white border-blue-600'
-											: 'bg-white text-gray-500 border-gray-200 hover:border-blue-400 hover:text-blue-600'
+											? 'bg-primary text-primary-foreground border-primary/25'
+											: 'bg-card text-muted-foreground border-border hover:border-primary/25 hover:text-primary'
 									}`}>
 									#{tag}
 								</button>
@@ -248,14 +248,14 @@ function Sidebar({
 			<ScrollArea className='flex-1 px-3 py-4'>
 				{workspaces.length === 0 ? (
 					<div className='flex flex-col items-center justify-center py-12 text-center px-4'>
-						<div className='w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3 text-gray-400'>
+						<div className='w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3 text-muted-foreground'>
 							<FolderOpen className='w-6 h-6' />
 						</div>
-						<p className='text-sm text-gray-500 mb-4'>还没有添加工作区</p>
+						<p className='text-sm text-muted-foreground mb-4'>还没有添加工作区</p>
 						<Button
 							variant='outline'
 							size='sm'
-							className='text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300'
+							className='text-primary border-primary/25 hover:bg-accent hover:border-primary/25'
 							onClick={onAddWorkspace}>
 							<Plus className='w-3 h-3 mr-1.5' />
 							添加工作区
@@ -263,7 +263,7 @@ function Sidebar({
 					</div>
 				) : filteredWorkspaces.length === 0 ? (
 					<div className='flex flex-col items-center justify-center py-10 text-center px-4'>
-						<p className='text-sm text-gray-500'>未找到匹配的工作区</p>
+						<p className='text-sm text-muted-foreground'>未找到匹配的工作区</p>
 					</div>
 				) : (
 					<div className='space-y-4'>
@@ -274,9 +274,9 @@ function Sidebar({
 							return (
 								<div key={workspace.path || index} className='group'>
 									{/* Workspace Header */}
-									<div className='flex items-center gap-1 mb-1 px-2 group-hover:bg-gray-50/50 rounded-lg transition-colors py-1'>
+									<div className='flex items-center gap-1 mb-1 px-2 group-hover:bg-muted/50 rounded-lg transition-colors py-1'>
 										<button
-											className='p-1 text-gray-400 hover:text-gray-600 transition-colors'
+											className='p-1 text-muted-foreground hover:text-muted-foreground transition-colors'
 											onClick={() => onToggleCollapse(index)}>
 											<ChevronRight
 												className={`w-3.5 h-3.5 transition-transform duration-200 ${
@@ -286,7 +286,7 @@ function Sidebar({
 										</button>
 
 										<div
-											className='flex-1 min-w-0 font-medium text-sm text-gray-700 truncate cursor-pointer select-none'
+											className='flex-1 min-w-0 font-medium text-sm text-foreground truncate cursor-pointer select-none'
 											onClick={() => onToggleCollapse(index)}
 											title={workspace.path}>
 											{workspace.name}
@@ -297,7 +297,7 @@ function Sidebar({
 												<Badge
 													key={tag}
 													variant='secondary'
-													className='text-[10px] px-1.5 py-0.5'>
+													className='text-xs px-1.5 py-0.5'>
 													{tag}
 												</Badge>
 											))}
@@ -307,7 +307,7 @@ function Sidebar({
 											<Button
 												variant='ghost'
 												size='icon'
-												className='h-6 w-6 text-gray-400 hover:text-blue-600'
+												className='h-6 w-6 text-muted-foreground hover:text-primary'
 												onClick={e => {
 													e.stopPropagation();
 													onRefreshWorkspace(index);
@@ -327,7 +327,7 @@ function Sidebar({
 													<Button
 														variant='ghost'
 														size='icon'
-														className='h-6 w-6 text-gray-400 hover:text-red-600'
+														className='h-6 w-6 text-muted-foreground hover:text-destructive'
 														disabled={isLoading}
 														title='删除'>
 														<Trash2 className='w-3 h-3' />
@@ -335,7 +335,7 @@ function Sidebar({
 												</PopoverTrigger>
 												<PopoverContent>
 													<div className='space-y-3'>
-														<p className='text-sm text-gray-700'>
+														<p className='text-sm text-foreground'>
 															确定要删除工作区{' '}
 															<strong>"{workspace.name}"</strong> 吗？
 														</p>
@@ -381,14 +381,14 @@ function Sidebar({
 													<Button
 														variant='ghost'
 														size='icon'
-														className='h-6 w-6 text-gray-400 hover:text-blue-600'
+														className='h-6 w-6 text-muted-foreground hover:text-primary'
 														title='编辑标签'>
 														<Tag className='w-3 h-3' />
 													</Button>
 												</PopoverTrigger>
 												<PopoverContent>
 													<div className='space-y-3'>
-														<p className='text-sm text-gray-700'>
+														<p className='text-sm text-foreground'>
 															编辑标签（用逗号分隔）
 														</p>
 														<Input
@@ -437,16 +437,16 @@ function Sidebar({
 												: 'max-h-none opacity-100 overflow-visible'
 										}`}>
 										{getFilteredProjects(workspace).length === 0 ? (
-											<div className='py-2 px-3 text-xs text-gray-400 italic'>
+											<div className='py-2 px-3 text-xs text-muted-foreground italic'>
 												{searchQuery.trim() ? '未找到匹配的项目' : '空文件夹'}
 											</div>
 										) : (
 											groupProjectsByTag(getFilteredProjects(workspace)).map(
 												group => (
 													<div key={group.tag} className='space-y-2'>
-														<div className='text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2'>
+														<div className='text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2'>
 															<span>{group.tag}</span>
-															<span className='text-[10px] text-gray-400'>
+															<span className='text-xs text-muted-foreground'>
 																{group.projects.length}
 															</span>
 														</div>

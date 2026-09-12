@@ -7,6 +7,8 @@ use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
 use modules::tray;
+mod data_merge;
+mod mcp;
 mod storage;
 
 #[tauri::command]
@@ -198,11 +200,16 @@ pub fn run() {
         .manage(tray::TrayState::default())
         .setup(|app| {
             tray::setup(app)?;
+            mcp::start(app.handle());
             Ok(())
         })
         .on_window_event(tray::handle_window_event)
         .invoke_handler(tauri::generate_handler![
             greet,
+            modules::script_runner::start_project_script,
+            modules::script_runner::stop_project_script,
+            modules::script_runner::list_script_runs,
+            mcp::get_mcp_status,
             add_workspace,
             scan_workspace_projects,
             scan_project,
@@ -237,6 +244,11 @@ pub fn run() {
             modules::terminal::pty_manager::get_terminal_buffer,
             modules::terminal::pty_manager::ping_terminal_session
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                modules::script_runner::RUNNER.shutdown();
+            }
+        });
 }

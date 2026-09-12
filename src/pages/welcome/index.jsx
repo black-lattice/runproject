@@ -5,7 +5,6 @@ import {
   Calendar,
   Card,
   Checkbox,
-  ConfigProvider,
   DatePicker,
   Dropdown,
   Empty,
@@ -14,9 +13,7 @@ import {
   Modal,
   Select,
   Tag as AntTag,
-  theme as antdTheme,
 } from "antd";
-import zhCN from "antd/locale/zh_CN";
 import dayjs from "dayjs";
 import {
   AppstoreFilled as Grid2X2,
@@ -47,7 +44,8 @@ import {
 import { useAppStore } from "@/store/useAppStore";
 import { PAGE_CONFIGS } from "@/config/routes";
 import { useToast } from "@/hooks/use-toast";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { ApiOutlined } from "@ant-design/icons";
+import { useProductivityData } from "@/store/dataSync";
 
 function Button({ variant, size, children, ...props }) {
   const type =
@@ -67,48 +65,6 @@ function Button({ variant, size, children, ...props }) {
     </AntButton>
   );
 }
-
-const seedTasks = [
-  ["✅ 点击输入框，创建任务", "新手入门"],
-  ["📋 用清单来管理任务", "新手入门"],
-  ["📅 日历：日程安排一目了然", "功能模块"],
-  ["🎯 四象限：提升效率利器", "功能模块"],
-  ["🍅 番茄专注：拯救拖延症", "功能模块"],
-  ["⏰ 习惯打卡：见证坚持与成长", "功能模块"],
-  ["📊 看板、时间线视图：可视化管理", "探索更多"],
-  ["🔖 桌面便签：随时记录想法", "探索更多"],
-  ["🔗 订阅日历：不再错过重要日程", "探索更多"],
-  ["✨ 更多特色功能", "探索更多"],
-  ["💎 高级会员", "探索更多"],
-  ["💡 帮助中心", "探索更多"],
-].map(([title, section], index) => ({
-  id: index + 1,
-  date: "",
-  title,
-  time: "",
-  list: "👋欢迎",
-  section,
-  priority: "中",
-  done: false,
-  tags: ["欢迎"],
-  reminder: "",
-  repeat: "",
-  subtasks: [],
-  detail:
-    title === "✨ 更多特色功能"
-      ? "我们还有这些特色功能：\n\n• 全平台支持：不管是手机、电脑，还是手表，几乎所有常用设备都支持。\n\n• 共享协作：邀请同事加入清单，轻松指派任务给成员。\n\n• 标签与过滤器：按自己的方式分类、筛选任务。\n\n• 摘要：快速掌握一段时间内的任务完成情况。"
-      : "了解滴答清单的功能，开始安排你的任务。",
-}));
-
-const defaultLists = [
-  ["👋欢迎", "12"],
-  ["💼工作任务", "0"],
-  ["🏠个人备忘", "0"],
-  ["🦄心愿清单", "0"],
-  ["📦购物清单", "0"],
-  ["📖学习安排", "0"],
-  ["🏃锻炼计划", "0"],
-];
 
 const INITIAL_DAY = dayjs().format("YYYY-MM-DD");
 
@@ -192,31 +148,7 @@ function WelcomePage() {
   const [searchParams] = useSearchParams();
   const { addTab } = useAppStore();
   const { toast } = useToast();
-  const [tasks, setTasks] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("runproject-tasks"));
-      if (!Array.isArray(stored) || stored.length === 0) return seedTasks;
-      return stored.map((task) => ({
-        ...task,
-        id: task.id ?? `${Date.now()}-${Math.random()}`,
-        title: task.title || "未命名任务",
-        list: task.list || "收件箱",
-        createdAt: task.createdAt ?? task.createdDate ?? null,
-        priority: task.priority ?? "中",
-        done: Boolean(task.done),
-        deleted: Boolean(task.deleted),
-        tags: Array.isArray(task.tags) ? task.tags : [],
-        subtasks: Array.isArray(task.subtasks) ? task.subtasks : [],
-        section: task.section || "任务",
-        date:
-          task.list === "👋欢迎" && task.title === "✨ 更多特色功能"
-            ? ""
-            : task.date || "",
-      }));
-    } catch {
-      return seedTasks;
-    }
-  });
+  const { tasks, lists, setTasks, setLists } = useProductivityData();
   const [selectedId, setSelectedId] = useState(null);
   const [input, setInput] = useState("");
   const [activeNav, setActiveNav] = useState("today");
@@ -231,24 +163,8 @@ function WelcomePage() {
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
   const [calendarSelectedDay, setCalendarSelectedDay] = useState(INITIAL_DAY);
-  const [isDarkMode, setIsDarkMode] = useState(
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
-  );
   const [listEditor, setListEditor] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
-  const [lists, setLists] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem("runproject-lists"));
-      return stored?.some(([label]) => label === "👋欢迎")
-        ? stored
-        : defaultLists;
-    } catch {
-      return defaultLists;
-    }
-  });
-  const [databaseStatus, setDatabaseStatus] = useState(() =>
-    isTauri() ? "loading" : "local",
-  );
   const isTaskView = activeTool === null;
   const tomorrowDate = shiftDate(calendarSelectedDay, 1);
   const upcomingEndDate = shiftDate(calendarSelectedDay, 6);
@@ -259,59 +175,10 @@ function WelcomePage() {
     }));
   };
   useEffect(() => {
-    if (databaseStatus === "local" || databaseStatus === "fallback") {
-      localStorage.setItem("runproject-tasks", JSON.stringify(tasks));
-    }
-  }, [databaseStatus, tasks]);
-  useEffect(() => {
-    if (databaseStatus === "local" || databaseStatus === "fallback") {
-      localStorage.setItem("runproject-lists", JSON.stringify(lists));
-    }
-  }, [databaseStatus, lists]);
-  useEffect(() => {
-    if (!isTauri()) return undefined;
-    let cancelled = false;
-    const loadDatabase = async () => {
-      try {
-        const data = await invoke("load_productivity_data");
-        if (cancelled) return;
-        if (data?.initialized) {
-          if (Array.isArray(data.tasks)) setTasks(data.tasks);
-          if (Array.isArray(data.lists) && data.lists.length > 0) {
-            setLists(data.lists);
-          }
-        } else {
-          // 首次启动：将旧 localStorage 数据一次性迁移到 SQLite。
-          await invoke("save_productivity_data", { tasks, lists });
-        }
-        if (!cancelled) setDatabaseStatus("ready");
-      } catch (error) {
-        console.error("SQLite 任务数据读写失败，回退到本地缓存:", error);
-        if (!cancelled) setDatabaseStatus("fallback");
-      }
-    };
-    loadDatabase();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  useEffect(() => {
-    if (databaseStatus !== "ready") return;
-    invoke("save_productivity_data", { tasks, lists }).catch((error) => {
-      console.error("保存 SQLite 任务数据失败:", error);
-      setDatabaseStatus("fallback");
-    });
-  }, [databaseStatus, lists, tasks]);
-  useEffect(() => {
-    const taskId = Number(searchParams.get("task"));
-    if (taskId && tasks.some((task) => task.id === taskId)) setSelectedId(taskId);
+    const taskId = searchParams.get("task");
+    const task = tasks.find((task) => String(task.id) === taskId);
+    if (task) setSelectedId(task.id);
   }, [searchParams, tasks]);
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const syncTheme = () => setIsDarkMode(media.matches);
-    media.addEventListener("change", syncTheme);
-    return () => media.removeEventListener("change", syncTheme);
-  }, []);
   useEffect(() => {
     const onKeyDown = (event) => {
       const tag = document.activeElement?.tagName;
@@ -453,7 +320,7 @@ function WelcomePage() {
   const toggle = (id) =>
     setTasks((current) =>
       current.map((task) =>
-        task.id === id ? { ...task, done: !task.done } : task,
+        task.id === id ? { ...task, done: !task.done, status: task.done ? "pending" : "done" } : task,
       ),
     );
   const open = (id) => {
@@ -463,7 +330,7 @@ function WelcomePage() {
   const moveTask = (id, target) => {
     setTasks((current) =>
       current.map((task) => {
-        if (task.id !== id) return task;
+        if (String(task.id) !== String(id)) return task;
         const next = { ...task };
         if (target.startsWith("date:")) next.date = target.slice(5);
         if (target.startsWith("day:"))
@@ -682,19 +549,7 @@ function WelcomePage() {
     }
   };
   return (
-    <ConfigProvider
-      locale={zhCN}
-      theme={{
-        algorithm: isDarkMode
-          ? antdTheme.darkAlgorithm
-          : antdTheme.defaultAlgorithm,
-        token: {
-          colorPrimary: "#4f7df3",
-          borderRadius: 10,
-          fontFamily: "inherit",
-        },
-      }}
-    >
+    <>
       <div
         className={`task-home h-full overflow-hidden ${isTaskView ? "is-task-view" : "is-tool-view"}`}
       >
@@ -735,6 +590,7 @@ function WelcomePage() {
               <Search className="h-5 w-5" />
             </Button>
             <div className="mt-auto flex flex-col gap-2">
+              <Button variant="ghost" size="icon" className="task-rail-button" title="MCP 服务" aria-label="MCP 服务" onClick={() => { addTab("settings"); navigate("/settings?section=mcp"); }}><ApiOutlined className="h-5 w-5" /></Button>
               {[
                 ["同步", RefreshCw],
                 ["通知", Bell],
@@ -829,7 +685,7 @@ function WelcomePage() {
                   >
                     <span className={`task-list-dot dot-${i}`} />{" "}
                     <span>{label}</span>
-                    <span className="ml-auto text-xs text-gray-400">
+                    <span className="ml-auto text-xs text-muted-foreground">
                       {
                         activeTasks.filter(
                           (task) =>
@@ -966,11 +822,11 @@ function WelcomePage() {
               <div className="task-main-header">
                 <div>
                   {!activeNav.startsWith("list:") && (
-                    <p className="text-xs font-medium text-blue-500">
+                    <p className="text-xs font-medium text-primary">
                       {formatDateLabel(calendarSelectedDay)}
                     </p>
                   )}
-                  <h1 className="mt-1 text-2xl font-bold text-gray-900">
+                  <h1 className="mt-1 text-2xl font-semibold text-foreground">
                     {activeNav === "inbox"
                       ? "收件箱"
                       : activeNav === "tomorrow"
@@ -986,7 +842,7 @@ function WelcomePage() {
                                 : activeNav.startsWith("list:")
                                   ? activeNav.slice(5)
                                   : "今天"}{" "}
-                    <span className="ml-1 text-sm font-normal text-gray-400">
+                    <span className="ml-1 text-sm font-normal text-muted-foreground">
                       {activeNav === "completed"
                         ? visibleTasks.length
                         : visibleTasks.filter((t) => !t.done).length}
@@ -1081,20 +937,20 @@ function WelcomePage() {
               {activeNav === "summary" && (
                 <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
                   <Card size="small" className="task-summary-card is-blue">
-                    <div className="text-xs text-blue-600">待完成</div>
-                    <div className="mt-1 text-2xl font-bold text-blue-900">
+                    <div className="text-xs text-primary">待完成</div>
+                    <div className="mt-1 text-2xl font-semibold text-primary">
                       {tasks.filter((t) => !t.done && !t.deleted).length}
                     </div>
                   </Card>
                   <Card size="small" className="task-summary-card is-green">
-                    <div className="text-xs text-emerald-600">已完成</div>
-                    <div className="mt-1 text-2xl font-bold text-emerald-900">
+                    <div className="text-xs text-success">已完成</div>
+                    <div className="mt-1 text-2xl font-semibold text-success">
                       {tasks.filter((t) => t.done && !t.deleted).length}
                     </div>
                   </Card>
                   <Card size="small" className="task-summary-card is-orange">
-                    <div className="text-xs text-orange-600">今日任务</div>
-                    <div className="mt-1 text-2xl font-bold text-orange-900">
+                    <div className="text-xs text-warning">今日任务</div>
+                    <div className="mt-1 text-2xl font-semibold text-warning">
                       {
                         tasks.filter(
                           (t) => t.date === calendarSelectedDay && !t.deleted,
@@ -1104,14 +960,14 @@ function WelcomePage() {
                   </Card>
                   <Card size="small" className="task-summary-card is-violet">
                     <div className="text-xs text-violet-600">垃圾桶</div>
-                    <div className="mt-1 text-2xl font-bold text-violet-900">
+                    <div className="mt-1 text-2xl font-semibold text-violet-900">
                       {tasks.filter((t) => t.deleted).length}
                     </div>
                   </Card>
                 </div>
               )}
               <div className="task-quick-add">
-                <Plus className="h-4 w-4 text-gray-400" />
+                <Plus className="h-4 w-4 text-muted-foreground" />
                 <Input
                   id="task-input"
                   placeholder={
@@ -1159,11 +1015,11 @@ function WelcomePage() {
                         className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
                       />
                       <span>{label}</span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-muted-foreground">
                         {items.length}
                       </span>
                       {activeNav.startsWith("list:") && label !== "已完成" && (
-                        <Plus className="ml-auto h-4 w-4 text-gray-400" />
+                        <Plus className="ml-auto h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
                   )}
@@ -1282,7 +1138,7 @@ function WelcomePage() {
                         )
                       }
                     />
-                    <div className="mt-2 flex items-center gap-2 text-sm text-blue-500">
+                    <div className="mt-2 flex items-center gap-2 text-sm text-primary">
                       <CalendarDays className="h-4 w-4" />
                       {selected.time || "今天"}
                     </div>
@@ -1339,8 +1195,8 @@ function WelcomePage() {
                     value={selected.priority}
                   />
                   <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
-                    <CalendarDays className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-500">日期</span>
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">日期</span>
                     <Input
                       type="date"
                       className="ml-auto h-8 w-32 text-xs"
@@ -1357,8 +1213,8 @@ function WelcomePage() {
                     />
                   </div>
                   <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
-                    <CalendarDays className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-500">提醒</span>
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">提醒</span>
                     <Input
                       type="text"
                       placeholder="如：今天 18:00"
@@ -1376,8 +1232,8 @@ function WelcomePage() {
                     />
                   </div>
                   <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
-                    <Timer className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-500">重复</span>
+                    <Timer className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">重复</span>
                     <Select
                       className="ml-auto w-32"
                       size="small"
@@ -1402,7 +1258,7 @@ function WelcomePage() {
                   </div>
                 </div>
                 <div className="mt-5">
-                  <div className="mb-2 text-xs text-gray-500">标签</div>
+                  <div className="mb-2 text-xs text-muted-foreground">标签</div>
                   <div className="flex flex-wrap items-center gap-2">
                     {selected.tags?.map((tag) => (
                       <AntTag
@@ -1454,13 +1310,13 @@ function WelcomePage() {
                 </div>
                 {
                   <div className="mt-6">
-                    <div className="mb-2 text-sm font-medium text-gray-700">
+                    <div className="mb-2 text-sm font-medium text-foreground">
                       子任务
                     </div>
                     {(selected.subtasks || []).map((item, index) => (
                       <button
                         key={item}
-                        className="flex w-full items-center gap-2 py-1.5 text-left text-sm text-gray-600 hover:text-gray-900"
+                        className="flex w-full items-center gap-2 py-1.5 text-left text-sm text-muted-foreground hover:text-foreground"
                         onClick={() =>
                           setTasks((current) =>
                             current.map((task) =>
@@ -1481,7 +1337,7 @@ function WelcomePage() {
                       </button>
                     ))}
                     <div className="mt-2 flex items-center gap-2">
-                      <Plus className="h-4 w-4 text-gray-400" />
+                      <Plus className="h-4 w-4 text-muted-foreground" />
                       <Input
                         className="h-8 text-xs"
                         placeholder="添加子任务，回车保存"
@@ -1662,7 +1518,7 @@ function WelcomePage() {
           onCancel={() => setConfirmAction(null)}
           destroyOnHidden
         >
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             {confirmAction?.type === "delete-list"
               ? "清单中的任务将移入收件箱。"
               : "你可以在垃圾桶中恢复此任务。"}
@@ -1678,7 +1534,7 @@ function WelcomePage() {
           <Input
             autoFocus
             allowClear
-            prefix={<Search className="h-4 w-4 text-gray-400" />}
+            prefix={<Search className="h-4 w-4 text-muted-foreground" />}
             placeholder="输入关键词搜索"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -1704,7 +1560,7 @@ function WelcomePage() {
           </div>
         </Modal>
       </div>
-    </ConfigProvider>
+    </>
   );
 }
 function ToolOverlay({ mode, tasks, baseDate, onClose, onCreate, onSelect, onMove }) {
@@ -1754,7 +1610,7 @@ function ToolOverlay({ mode, tasks, baseDate, onClose, onCreate, onSelect, onMov
   const renderTask = (task) => (
     <button
       draggable
-      className="tool-task w-full text-left"
+      className={`tool-task w-full text-left ${task.done ? "is-done" : ""}`}
       key={task.id}
       title={task.title}
       aria-label={`打开任务：${task.title}`}
@@ -1763,8 +1619,8 @@ function ToolOverlay({ mode, tasks, baseDate, onClose, onCreate, onSelect, onMov
       }
       onClick={() => onSelect(task.id)}
     >
+      <span className="tool-task-title">{task.title}</span>
       <TaskCategories task={task} />
-      {task.title}
     </button>
   );
   const renderCalendar = () => {
@@ -1794,7 +1650,7 @@ function ToolOverlay({ mode, tasks, baseDate, onClose, onCreate, onSelect, onMov
                 key={date}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
-                  const id = Number(event.dataTransfer.getData("task-id"));
+                  const id = event.dataTransfer.getData("task-id");
                   if (id) onMove(id, `date:${date}`);
                 }}
               >
@@ -1823,7 +1679,7 @@ function ToolOverlay({ mode, tasks, baseDate, onClose, onCreate, onSelect, onMov
                 key={date}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
-                  const id = Number(event.dataTransfer.getData("task-id"));
+                  const id = event.dataTransfer.getData("task-id");
                   if (id) onMove(id, `date:${date}`);
                 }}
               >
@@ -1933,14 +1789,14 @@ function ToolOverlay({ mode, tasks, baseDate, onClose, onCreate, onSelect, onMov
         {mode === "calendar" ? (
           renderCalendar()
         ) : (
-          <div className="tool-columns">
+          <div className={`tool-columns ${mode === "matrix" ? "is-matrix" : ""}`}>
             {groups.map(([label, items]) => (
               <div
                 className="tool-column"
                 key={label}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
-                  const id = Number(event.dataTransfer.getData("task-id"));
+                  const id = event.dataTransfer.getData("task-id");
                   if (id) onMove(id, label);
                 }}
               >
@@ -1988,7 +1844,7 @@ function TaskRow({ task, showCreatedDate, selected, onSelect, onToggle }) {
         onChange={onToggle}
       />
       <span className="min-w-0 flex-1 truncate text-left">{task.title}</span>
-      {task.time && <span className="text-xs text-blue-500">{task.time}</span>}
+      {task.time && <span className="text-xs text-primary">{task.time}</span>}
       {showCreatedDate && getTaskCreatedDate(task) && (
         <span className="task-created-date">{getTaskCreatedDate(task)}</span>
       )}
@@ -1998,10 +1854,10 @@ function TaskRow({ task, showCreatedDate, selected, onSelect, onToggle }) {
 }
 function DetailRow({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-gray-50">
-      <Icon className="h-4 w-4 text-gray-400" />
-      <span className="text-gray-500">{label}</span>
-      <span className="ml-auto text-gray-800">{value}</span>
+    <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted">
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <span className="text-muted-foreground">{label}</span>
+      <span className="ml-auto text-foreground">{value}</span>
     </div>
   );
 }

@@ -24,25 +24,25 @@ function NodeVersionSelector({
 	isNodeInstalled
 }) {
 	return (
-		<div className='flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 transition-colors hover:border-blue-200 hover:bg-blue-50/30 group'>
-			<div className='p-2 bg-white rounded-md shadow-sm text-green-600 group-hover:text-green-700'>
+		<div className='flex items-center gap-3 p-3 bg-muted rounded-lg border border-border transition-colors hover:border-primary/25 hover:bg-accent/30 group'>
+			<div className='p-2 bg-card rounded-md  text-primary group-hover:text-primary'>
 				<Code2 className='w-4 h-4' />
 			</div>
 			<div className='flex-1 min-w-0 flex items-center gap-2'>
 				<div className="flex-1 min-w-0">
-					<label className='text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5 block'>
+					<label className='text-xs font-semibold text-muted-foreground  mb-0.5 block'>
 						Node Version
 					</label>
 					{isLoadingVersions ? (
-						<div className='flex items-center gap-2 text-gray-600 h-8'>
-							<div className='w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin'></div>
+						<div className='flex items-center gap-2 text-muted-foreground h-8'>
+							<div className='w-3 h-3 border-2 border-border border-t-transparent rounded-full animate-spin'></div>
 							<span className='text-xs'>Checking...</span>
 						</div>
 					) : (
 						<Select
 							value={selectedNodeVersion}
 							onValueChange={onVersionChange}>
-							<SelectTrigger className='w-full h-8 border-none bg-transparent shadow-none p-0 focus:ring-0 text-sm font-medium text-gray-900'>
+							<SelectTrigger className='w-full h-8 border-none bg-transparent shadow-none p-0 focus:ring-0 text-sm font-medium text-foreground'>
 								<SelectValue
 									placeholder={
 										project.nodeVersion || 'System Default'
@@ -69,7 +69,7 @@ function NodeVersionSelector({
 								<Button
 									variant="outline"
 									size="icon"
-									className="h-8 w-8 text-blue-600 border-blue-200 hover:bg-blue-50 flex-shrink-0"
+									className="h-8 w-8 text-primary border-primary/25 hover:bg-accent flex-shrink-0"
 									onClick={onInstallNode}
 								>
 									<Download className="w-4 h-4" />

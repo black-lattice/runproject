@@ -1,0 +1,829 @@
+/* Shared visual language. Tailwind utilities and Ant Design use these same roles. */
+:root {
+  color-scheme: light;
+  --background: 220 20% 97%;
+  --foreground: 220 16% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --sidebar: 220 16% 95%;
+  --primary: 222 76% 52%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 16% 94%;
+  --secondary-foreground: var(--foreground);
+  --muted: 220 16% 94%;
+  --muted-foreground: 220 9% 43%;
+  --accent: 222 80% 95%;
+  --accent-foreground: var(--primary);
+  --destructive: 0 68% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 153 60% 32%;
+  --warning: 34 90% 34%;
+  --border: 220 14% 87%;
+  --input: 220 14% 80%;
+  --ring: var(--primary);
+  --radius: 0.625rem;
+  --page-padding: 24px;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --shadow-popover: 0 8px 28px hsl(220 20% 12% / 0.12);
+}
+.dark {
+  color-scheme: dark;
+  --background: 220 8% 11%;
+  --foreground: 220 12% 91%;
+  --card: 220 7% 14%;
+  --sidebar: 220 8% 12%;
+  --primary: 222 92% 72%;
+  --primary-foreground: 222 30% 12%;
+  --secondary: 220 6% 19%;
+  --muted: 220 6% 19%;
+  --muted-foreground: 220 8% 65%;
+  --accent: 222 28% 23%;
+  --destructive: 0 80% 72%;
+  --destructive-foreground: 0 30% 12%;
+  --success: 153 50% 60%;
+  --warning: 38 80% 60%;
+  --border: 220 6% 19%;
+  --input: 220 6% 32%;
+  --shadow-popover: 0 8px 28px hsl(0 0% 0% / 0.3);
+}
+* {
+  border-color: hsl(var(--border));
+}
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+code,
+pre,
+.font-mono {
+  font-family: var(--font-mono);
+}
+::selection {
+  background: hsl(var(--primary) / 0.2);
+}
+::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 1;
+}
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+* {
+  scrollbar-color: hsl(var(--input)) transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--input));
+}
+.app-shell,
+.page-loading,
+.task-home,
+.task-main,
+.project-page,
+.project-main,
+.settings-page,
+.settings-content,
+.terminal-page,
+.terminal-empty,
+.formatter-page,
+.tool-overlay,
+.tool-window {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+.app-titlebar,
+.task-rail {
+  background: hsl(var(--sidebar));
+}
+.app-titlebar {
+  border-bottom: 1px solid hsl(var(--border));
+}
+.app-sidebar,
+.settings-sidebar,
+.task-sidebar {
+  background: hsl(var(--sidebar));
+  border-color: hsl(var(--border));
+}
+.app-sidebar,
+.settings-sidebar {
+  flex-shrink: 0;
+  width: 248px;
+}
+.task-detail,
+.task-home .task-detail-body,
+.task-home .task-detail-toolbar,
+.task-home .task-detail-footer,
+.terminal-toolbar,
+.formatter-toolbar,
+.formatter-panel,
+.formatter-editor,
+.tool-window-head {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+.app-fixed-menu.ant-menu-horizontal {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item-selected,
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item-selected:hover {
+  color: hsl(var(--primary));
+  box-shadow: inset 0 -2px hsl(var(--primary));
+}
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item .ant-menu-title-content,
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item .anticon {
+  color: inherit;
+}
+.page-loading::before {
+  border-top-color: hsl(var(--primary));
+}
+
+/* Navigation uses the same accent in every view. */
+.settings-nav-item,
+.task-nav-item,
+.task-antd-menu .ant-menu-item,
+.task-home .task-rail-button.ant-btn {
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+  font-weight: 400;
+}
+.settings-nav-item:hover,
+.task-nav-item:hover,
+.task-antd-menu .ant-menu-item:hover,
+.task-home .task-rail-button.ant-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.settings-nav-item.settings-nav-item-active,
+.task-nav-item.is-active,
+.task-antd-menu .ant-menu-item-selected,
+.task-home .task-rail-button.ant-btn.is-active {
+  background: hsl(var(--accent));
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+.task-home .task-rail-button.ant-btn.is-active {
+  box-shadow: inset 3px 0 hsl(var(--primary));
+}
+.task-home .task-rail-button.ant-btn .anticon {
+  color: inherit;
+}
+.task-antd-menu.ant-menu {
+  background: transparent;
+}
+.task-sidebar-divider,
+.task-detail-top-divider {
+  background: hsl(var(--border));
+}
+.task-sidebar-section-heading,
+.task-sidebar-note-heading,
+.task-sidebar-note-title,
+.task-menu-count,
+.task-created-date,
+.task-category-badge {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 400;
+}
+.task-sidebar-note {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+}
+.task-list-dot {
+  background: hsl(var(--primary));
+}
+.dot-1 {
+  background: hsl(var(--warning));
+}
+.dot-2 {
+  background: hsl(var(--success));
+}
+.dot-3,
+.dot-4 {
+  background: hsl(var(--muted-foreground));
+}
+.task-sidebar-section-toggle:hover,
+.task-sidebar-note-heading:hover {
+  color: hsl(var(--foreground));
+}
+
+/* Tasks and their detail pane share body and metadata sizes. */
+.task-main-header h1,
+.tool-window-head h2,
+.page-title {
+  font-size: 22px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.task-main {
+  padding: var(--page-padding);
+}
+.task-main-header {
+  gap: 16px;
+}
+.task-section {
+  margin-bottom: 24px;
+}
+.task-section-title {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+}
+.task-row {
+  color: hsl(var(--foreground));
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.task-row:hover {
+  background: hsl(var(--muted));
+}
+.task-row.is-selected {
+  background: hsl(var(--accent));
+}
+.task-row.is-done {
+  color: hsl(var(--muted-foreground));
+}
+.task-home .task-quick-add,
+.task-home .task-inline-search,
+.task-search {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+.task-home .task-quick-add {
+  margin: 16px 0 24px;
+  padding: 8px 12px;
+  min-height: 42px;
+}
+.task-home .task-quick-add:focus-within,
+.task-home .task-inline-search:focus-within {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12);
+}
+.task-home .task-quick-add .ant-input,
+.task-home .task-inline-search .ant-input {
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 14px;
+}
+.task-home .task-main-actions .ant-btn,
+.task-list-action.ant-btn,
+.task-detail-flag.ant-btn,
+.task-detail-list-icon,
+.task-detail-list-trigger,
+.task-detail-date-picker,
+.task-detail-date-picker .ant-picker-input > input {
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+}
+.task-home .task-main-actions .ant-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+.task-detail-date-picker.has-date .ant-picker-input > input {
+  color: hsl(var(--primary));
+}
+.task-home .task-detail-toolbar {
+  padding-inline: var(--page-padding);
+  min-height: 56px;
+}
+.task-home .task-detail-body {
+  padding: var(--page-padding);
+}
+.task-home .task-detail-body > .flex.items-start input {
+  font-size: 16px !important;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+}
+.task-home .task-detail-body textarea.task-detail-notes.ant-input {
+  font-size: 14px;
+  line-height: 1.8;
+  color: hsl(var(--foreground));
+}
+.task-home .task-detail-footer {
+  padding: 12px var(--page-padding);
+  font-size: 14px;
+}
+.task-detail-list-trigger {
+  font-size: 14px;
+}
+.task-rich-description {
+  color: hsl(var(--foreground));
+}
+.task-rich-description a,
+.task-rich-description p:not(:first-child)::before {
+  color: hsl(var(--primary));
+}
+.task-format-toolbar {
+  background: hsl(var(--popover));
+  color: hsl(var(--foreground));
+  box-shadow: var(--shadow-popover);
+  border-radius: var(--radius);
+}
+.task-empty,
+.task-home .task-empty.ant-empty {
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  padding: 32px 16px;
+  border-color: hsl(var(--border));
+}
+.task-empty .ant-empty-description {
+  color: hsl(var(--muted-foreground));
+}
+.task-empty kbd {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+.p-高 {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.1);
+}
+.p-中 {
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 0.1);
+}
+.p-低 {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+}
+
+/* Calendar, timeline, matrix and kanban. */
+.tool-window-head {
+  min-height: 72px;
+  height: auto;
+  padding: 16px var(--page-padding);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.tool-window-head > .flex {
+  flex-wrap: wrap;
+}
+.tool-columns {
+  padding: var(--page-padding);
+  gap: 16px;
+}
+.tool-column,
+.tool-day {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.tool-column h3,
+.tool-day-title {
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  font-weight: 500;
+}
+.tool-column h3 span {
+  color: hsl(var(--muted-foreground));
+}
+.tool-task {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+.tool-task.is-done .tool-task-title {
+  color: hsl(var(--muted-foreground));
+  text-decoration: line-through;
+}
+.tool-task-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tool-task .task-category-list {
+  display: flex;
+  justify-content: flex-start;
+  max-width: 100%;
+  margin-top: 4px;
+}
+.tool-month-day .tool-task .task-category-list {
+  display: none;
+}
+.tool-columns.is-matrix {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.tool-column {
+  min-height: 240px;
+  max-height: calc(100vh - 156px);
+  overflow-y: auto;
+}
+.tool-columns.is-matrix .tool-column {
+  max-height: max(240px, calc((100vh - 172px) / 2));
+}
+.tool-task:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary) / 0.25);
+}
+.tool-month-grid,
+.tool-calendar-grid {
+  margin: 24px var(--page-padding);
+}
+.tool-month-day {
+  background: hsl(var(--card));
+}
+.tool-month-day.is-outside,
+.tool-month-weekday {
+  background: hsl(var(--muted));
+}
+.tool-month-number,
+.tool-month-weekday {
+  color: hsl(var(--muted-foreground));
+}
+.calendar-nav,
+.calendar-view-select {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-radius: 8px;
+}
+.calendar-nav .ant-btn {
+  color: hsl(var(--foreground));
+}
+
+/* Portals inherit the same tokens as the page beneath them. */
+.task-more-dropdown .ant-dropdown-menu,
+.task-home .ant-dropdown .ant-dropdown-menu {
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--shadow-popover);
+  border-radius: var(--radius);
+}
+.task-more-dropdown .ant-dropdown-menu-item,
+.task-home .ant-dropdown .ant-dropdown-menu-item,
+.task-search-result {
+  color: hsl(var(--foreground));
+}
+.task-more-dropdown .ant-dropdown-menu-item:hover,
+.task-home .ant-dropdown .ant-dropdown-menu-item:hover,
+.task-search-result:hover {
+  background: hsl(var(--muted));
+}
+.task-more-dropdown .ant-dropdown-menu-item-group-title,
+.task-search-result span:last-child {
+  color: hsl(var(--muted-foreground));
+}
+.task-more-dropdown .ant-dropdown-menu-item-divider {
+  background: hsl(var(--border));
+}
+
+/* Project workspace, settings and developer tools. */
+.project-main {
+  min-width: 0;
+}
+.project-info-card {
+  border: 1px solid hsl(var(--border));
+}
+.project-list-item-selected {
+  background: hsl(var(--accent));
+  color: hsl(var(--primary));
+}
+.project-list-item:not(.project-list-item-selected):hover {
+  background: hsl(var(--muted));
+}
+.settings-content-inner {
+  max-width: 960px;
+  padding: var(--page-padding);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background));
+}
+.terminal-toolbar,
+.formatter-toolbar {
+  min-height: 56px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.formatter-toolbar {
+  flex-wrap: wrap;
+}
+.formatter-panel {
+  min-width: 0;
+  width: var(--panel-width);
+}
+.formatter-toolbar > .flex {
+  flex-wrap: wrap;
+}
+@supports (grid-template-rows: subgrid) {
+  .formatter-workspace {
+    display: grid;
+    grid-template-columns: var(--formatter-split) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .formatter-panel {
+    display: grid;
+    width: auto;
+    grid-template-rows: subgrid;
+    grid-row: 1 / span 2;
+  }
+  .formatter-toolbar {
+    align-content: center;
+  }
+}
+.formatter-editor {
+  caret-color: hsl(var(--primary));
+  font-size: 14px;
+  line-height: 24px;
+}
+.formatter-editor:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.5);
+  outline-offset: -2px;
+}
+.formatter-divider:hover,
+.formatter-divider-active {
+  background: hsl(var(--primary));
+}
+.terminal-session-path {
+  background: #25272b;
+  color: #adb3bf;
+  font-size: 12px;
+  padding: 8px 16px;
+}
+@media (max-width: 900px) {
+  :root {
+    --page-padding: 16px;
+  }
+  .app-sidebar,
+  .settings-sidebar {
+    width: 208px;
+  }
+  .tool-columns {
+    grid-template-columns: 1fr;
+  }
+  .tool-calendar-grid.view-周,
+  .tool-month-grid {
+    min-width: 680px;
+  }
+  .tool-window {
+    overflow: auto;
+  }
+  .settings-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .tool-columns.is-matrix {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Secondary pages follow the same quiet workspace hierarchy as tasks. */
+.page-heading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 88px;
+  padding: 20px var(--page-padding);
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+}
+.page-heading-description {
+  margin-top: 4px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.6;
+}
+.page-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.page-empty-state {
+  max-width: 460px;
+  margin-inline: auto;
+  padding: 32px 24px;
+  text-align: center;
+}
+.page-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 20px;
+  border-radius: 16px;
+  background: hsl(var(--accent));
+  color: hsl(var(--primary));
+}
+.page-empty-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.6;
+}
+.page-empty-state h2 {
+  font-size: 20px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.page-empty-state > p {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: hsl(var(--muted-foreground));
+}
+.page-empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+.project-onboarding {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100%;
+  padding: 32px var(--page-padding);
+}
+.project-onboarding-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: 720px;
+  margin: 16px auto 0;
+  padding-top: 24px;
+  border-top: 1px solid hsl(var(--border));
+}
+.project-step-number {
+  display: block;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 8px;
+}
+.project-onboarding-steps h3 {
+  font-size: 14px;
+  font-weight: 500;
+}
+.project-onboarding-steps p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 4px;
+  color: hsl(var(--muted-foreground));
+}
+.project-onboarding-shortcut {
+  text-align: center;
+  margin-top: 32px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.project-onboarding-shortcut kbd {
+  padding: 3px 6px;
+  margin-right: 4px;
+  border-radius: 4px;
+  background: hsl(var(--muted));
+  font-family: var(--font-mono);
+}
+.project-info-card {
+  background: transparent;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+.project-info-card > :first-child {
+  padding: 0 0 24px;
+}
+.settings-content-inner {
+  max-width: 840px;
+}
+.settings-section {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  overflow: hidden;
+}
+.settings-row {
+  padding: 20px 24px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.settings-row + .settings-row {
+  border-top: 1px solid hsl(var(--border));
+}
+.settings-row p {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.about-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+}
+.about-brand p {
+  margin-top: 4px;
+}
+.about-facts {
+  padding: 0 24px;
+}
+.about-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 14px;
+}
+.about-facts dt {
+  color: hsl(var(--muted-foreground));
+}
+.terminal-tabs {
+  min-height: 44px;
+  background: hsl(var(--sidebar));
+}
+.terminal-tabs > div {
+  min-height: 44px;
+}
+.formatter-page > .page-heading {
+  border-bottom: 0;
+}
+.formatter-workspace {
+  min-height: 0;
+  margin: 0 var(--page-padding) var(--page-padding);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+.formatter-panel {
+  border: 0;
+  border-radius: 0;
+}
+.formatter-panel:last-child {
+  border-left: 1px solid hsl(var(--border));
+}
+.formatter-toolbar {
+  min-height: 52px;
+  background: hsl(var(--sidebar));
+}
+.formatter-output pre,
+.formatter-output code {
+  text-shadow: none;
+}
+@media (max-width: 900px) {
+  .page-heading {
+    flex-wrap: wrap;
+    padding-block: 16px;
+  }
+  .project-onboarding-steps {
+    gap: 16px;
+  }
+  .settings-row {
+    padding: 16px;
+  }
+}
+@media (max-width: 640px) {
+  .project-onboarding-steps {
+    grid-template-columns: 1fr;
+  }
+  .page-heading-actions {
+    flex-wrap: wrap;
+  }
+}

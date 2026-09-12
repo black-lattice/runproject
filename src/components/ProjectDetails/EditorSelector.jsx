@@ -59,18 +59,18 @@ function EditorSelector({
     installedEditors.length > 0 ? installedEditors : supportedEditors;
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 transition-colors hover:border-indigo-200 hover:bg-indigo-50/30 group">
-      <div className="p-2 bg-white rounded-md shadow-sm text-indigo-600 group-hover:text-indigo-700">
+    <div className="flex items-center gap-3 p-3 bg-muted rounded-lg border border-border transition-colors hover:border-primary/25 hover:bg-accent/30 group">
+      <div className="p-2 bg-card rounded-md  text-primary group-hover:text-primary">
         <Edit3 className="w-4 h-4" />
       </div>
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5 block">
+          <label className="text-xs font-semibold text-muted-foreground  mb-0.5 block">
             Editor
           </label>
           {isLoadingEditors ? (
-            <div className="flex items-center gap-2 text-gray-600 h-8">
-              <div className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex items-center gap-2 text-muted-foreground h-8">
+              <div className="w-3 h-3 border-2 border-border border-t-transparent rounded-full animate-spin"></div>
               <span className="text-xs">Checking...</span>
             </div>
           ) : displayEditors.length > 0 ? (
@@ -84,7 +84,7 @@ function EditorSelector({
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8 text-gray-600 hover:text-indigo-600 hover:border-indigo-300"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary hover:border-primary/25"
                           onClick={() => handleOpenInEditor(editor.id)}
                         >
                           <img
@@ -103,7 +103,7 @@ function EditorSelector({
               })}
             </div>
           ) : (
-            <span className="text-sm text-gray-400 italic">
+            <span className="text-sm text-muted-foreground italic">
               No Editor Found
             </span>
           )}

@@ -1,79 +1,38 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { FolderPlus, MousePointerClick, Terminal, Zap } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { FolderPlus } from "lucide-react";
+import PageEmptyState from "./PageEmptyState";
 
-function WelcomeScreen({ onAddWorkspace }) {
-	return (
-		<div className='h-full flex flex-col items-center justify-center p-8 bg-background'>
-			<div className='max-w-3xl w-full space-y-8 text-center'>
-				<div className='space-y-4'>
-					<div className='inline-flex items-center justify-center p-4 bg-blue-100 rounded-full text-blue-600 mb-4 ring-8 ring-blue-50'>
-						<Terminal className='w-12 h-12' />
-					</div>
-					<h1 className='text-4xl font-extrabold text-gray-900 tracking-tight'>
-						Node.js 项目工作台
-					</h1>
-					<p className='text-lg text-gray-500 max-w-2xl mx-auto'>
-						高效管理您的 Node.js 项目，一键运行脚本，多版本环境切换。
-					</p>
-					<Button onClick={onAddWorkspace} size='lg' className='mt-2'>
-						<FolderPlus className='w-5 h-5 mr-2' />
-						添加工作区
-					</Button>
-				</div>
+const steps = [
+  ["添加工作区", "选择项目所在文件夹，自动发现 Node.js 项目。"],
+  ["选择项目", "在侧栏查看项目，管理分支与运行环境。"],
+  ["运行脚本", "一键执行命令，在终端中查看运行日志。"],
+];
 
-				<div className='grid grid-cols-1 md:grid-cols-3 gap-6 text-left'>
-					<Card className='border-border/70 bg-card/80 hover:border-primary/25 hover:shadow-md transition-all duration-200'>
-						<CardContent className='p-6 space-y-3'>
-							<div className='w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600'>
-								<FolderPlus className='w-5 h-5' />
-							</div>
-							<h3 className='font-semibold text-gray-900'>添加工作区</h3>
-							<p className='text-sm text-gray-500 leading-relaxed'>
-								点击左上角的 "+" 号添加包含 Node.js
-								项目的文件夹。系统将自动扫描项目。
-							</p>
-						</CardContent>
-					</Card>
-
-					<Card className='border-border/70 bg-card/80 hover:border-primary/25 hover:shadow-md transition-all duration-200'>
-						<CardContent className='p-6 space-y-3'>
-							<div className='w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600'>
-								<MousePointerClick className='w-5 h-5' />
-							</div>
-							<h3 className='font-semibold text-gray-900'>选择项目</h3>
-							<p className='text-sm text-gray-500 leading-relaxed'>
-								在侧边栏浏览您的项目列表。点击项目卡片即可查看详细脚本和配置信息。
-							</p>
-						</CardContent>
-					</Card>
-
-					<Card className='border-border/70 bg-card/80 hover:border-primary/25 hover:shadow-md transition-all duration-200'>
-						<CardContent className='p-6 space-y-3'>
-							<div className='w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600'>
-								<Zap className='w-5 h-5' />
-							</div>
-							<h3 className='font-semibold text-gray-900'>一键运行</h3>
-							<p className='text-sm text-gray-500 leading-relaxed'>
-								点击脚本卡片上的 "Run"
-								按钮即可执行。支持多终端并发运行和日志查看。
-							</p>
-						</CardContent>
-					</Card>
-				</div>
-
-				<div className='pt-8 text-sm text-gray-400'>
-					<p>
-						按下{' '}
-						<kbd className='px-2 py-1 bg-gray-100 border border-gray-200 rounded text-xs text-gray-600 font-mono'>
-							Cmd/Ctrl + Shift + O
-						</kbd>{' '}
-						快速添加新工作区
-					</p>
-				</div>
-			</div>
-		</div>
-	);
+export default function WelcomeScreen({ onAddWorkspace }) {
+  return (
+    <div className="project-onboarding">
+      <PageEmptyState
+        icon={FolderPlus}
+        title="从一个工作区开始"
+        description="把项目集中在这里，轻松切换环境、运行脚本。"
+      >
+        <Button onClick={onAddWorkspace}>
+          <FolderPlus className="h-4 w-4" />
+          添加工作区
+        </Button>
+      </PageEmptyState>
+      <ol className="project-onboarding-steps">
+        {steps.map(([title, description], index) => (
+          <li key={title}>
+            <span className="project-step-number">0{index + 1}</span>
+            <h3>{title}</h3>
+            <p>{description}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="project-onboarding-shortcut">
+        <kbd>⌘ / Ctrl + Shift + O</kbd> 快速添加工作区
+      </p>
+    </div>
+  );
 }
-
-export default WelcomeScreen;

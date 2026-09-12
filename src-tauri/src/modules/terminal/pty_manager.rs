@@ -1,4 +1,5 @@
 use super::session::{TerminalConfig, TerminalSession};
+use crate::modules::script_runner::RUNNER;
 use base64::{engine::general_purpose, Engine as _};
 use lazy_static::lazy_static;
 use serde_json;
@@ -21,6 +22,9 @@ pub fn create_terminal_session(
     session_id: String,
     config: TerminalConfig,
 ) -> Result<String, String> {
+    if session_id.starts_with("script-") {
+        return Err("托管脚本不能重建为交互终端".into());
+    }
     let session = TerminalSession::new(config)?;
 
     // 启动读取线程
@@ -94,7 +98,15 @@ pub fn create_terminal_session(
 }
 
 #[tauri::command]
-pub fn write_to_terminal(session_id: String, data: String) -> Result<(), String> {
+pub async fn write_to_terminal(session_id: String, data: String) -> Result<(), String> {
+    if session_id.starts_with("script-") {
+        let decoded = general_purpose::STANDARD
+            .decode(&data)
+            .map_err(|e| e.to_string())?;
+        return tauri::async_runtime::spawn_blocking(move || RUNNER.write(&session_id, &decoded))
+            .await
+            .map_err(|e| e.to_string())?;
+    }
     let sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
 
     let session = sessions
@@ -111,6 +123,9 @@ pub fn write_to_terminal(session_id: String, data: String) -> Result<(), String>
 
 #[tauri::command]
 pub fn resize_terminal(session_id: String, cols: u16, rows: u16) -> Result<(), String> {
+    if session_id.starts_with("script-") {
+        return RUNNER.resize(&session_id, cols, rows);
+    }
     let sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
 
     let session = sessions
@@ -122,7 +137,21 @@ pub fn resize_terminal(session_id: String, cols: u16, rows: u16) -> Result<(), S
 }
 
 #[tauri::command]
-pub fn close_terminal_session(session_id: String) -> Result<(), String> {
+pub async fn close_terminal_session(session_id: String) -> Result<(), String> {
+    if session_id.starts_with("script-") {
+        return tauri::async_runtime::spawn_blocking(move || {
+            if RUNNER
+                .list(None, true)?
+                .iter()
+                .any(|run| run.id == session_id)
+            {
+                RUNNER.stop(&session_id, false)?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    }
     let mut sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
     if let Some(session) = sessions.remove(&session_id) {
         let _ = session.terminate();
@@ -132,12 +161,22 @@ pub fn close_terminal_session(session_id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn ping_terminal_session(session_id: String) -> Result<bool, String> {
+    if session_id.starts_with("script-") {
+        return Ok(RUNNER
+            .get(&session_id)
+            .is_ok_and(|r| matches!(r.status.as_str(), "running" | "stopping")));
+    }
     let sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
     Ok(sessions.contains_key(&session_id))
 }
 
 #[tauri::command]
 pub fn get_terminal_buffer(session_id: String) -> Result<Option<String>, String> {
+    if session_id.starts_with("script-") {
+        return RUNNER
+            .bytes(&session_id)
+            .map(|b| Some(general_purpose::STANDARD.encode(b)));
+    }
     let sessions = SESSIONS.lock().map_err(|e| format!("获取锁失败: {}", e))?;
     if let Some(session) = sessions.get(&session_id) {
         let buffer = session

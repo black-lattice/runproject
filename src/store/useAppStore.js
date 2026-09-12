@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { listen } from '@tauri-apps/api/event';
-import { isTauri } from '@tauri-apps/api/core';
+import { isTauri, invoke } from '@tauri-apps/api/core';
 import { upsertTerminalPageSession } from '@/utils/terminalPageState';
 
 const DEFAULT_TABS = [];
@@ -221,6 +221,26 @@ export const useAppStore = create(
 				await listen('command-finished', handleEvent);
 				await listen('terminal-closed', handleEvent);
 				await listen('tray-command-started', handleTrayCommandStarted);
+                await listen('script-run-started', handleTrayCommandStarted);
+                // Reconcile after reload or missed events; backend owns actual exit state.
+                const reconcile = async () => {
+                    try {
+                        const runs = await invoke('list_script_runs');
+                        const live = runs.filter(run => ['running', 'stopping'].includes(run.status));
+                        for (const item of Object.values(get().runningCommands || {})) {
+                            if (item?.id?.startsWith('script-') && !live.some(run => run.id === item.id)) {
+                                get().clearRunningCommandBySessionId(item.id, item.runId);
+                            }
+                        }
+                        for (const run of live) {
+                            if (!Object.values(get().runningCommands || {}).some(item => item?.id === run.id)) {
+                                handleTrayCommandStarted({ payload: { sessionId: run.id, runId: run.runId, project: run.project, command: run.command } });
+                            }
+                        }
+                    } catch (error) { console.warn('同步脚本状态失败:', error); }
+                };
+                await reconcile();
+                setInterval(reconcile, 3000);
 			},
 
 			// 终端状态

@@ -118,18 +118,18 @@ function ProjectInfoCard({
   };
 
   return (
-    <Card className="border-none shadow-sm bg-white/80 backdrop-blur-sm">
+    <Card className="project-info-card">
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
+            <div className="p-3 bg-accent text-primary rounded-xl">
               <Package className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
+              <h2 className="page-title text-foreground">
                 {project.name}
               </h2>
-              <div className="flex items-center gap-2 text-gray-500 text-sm mt-1">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
                 <Folder className="w-3.5 h-3.5" />
                 <span className="truncate max-w-[300px] font-mono">
                   {project.path}
@@ -141,7 +141,7 @@ function ProjectInfoCard({
             <Button
               variant="ghost"
               size="sm"
-              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              className="text-muted-foreground hover:text-foreground hover:bg-muted"
               onClick={onRefreshProjectInfo}
               title="刷新项目详情"
             >
@@ -153,7 +153,7 @@ function ProjectInfoCard({
             <Button
               variant="ghost"
               size="sm"
-              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              className="text-muted-foreground hover:text-foreground hover:bg-muted"
               onClick={onToggleDebugInfo}
             >
               <Settings className="w-4 h-4 mr-2" />
@@ -169,7 +169,7 @@ function ProjectInfoCard({
           />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <EditorSelector
             project={project}
             selectedEditor={selectedEditor}
@@ -202,7 +202,7 @@ function ProjectInfoCard({
 
         {(project.packageManager === "yarn" ||
           project.packageManager === "pnpm") && (
-          <div className="mt-4 flex items-start gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+          <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
             <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <p>使用 {project.packageManager} 语法自动适配命令与依赖安装</p>
           </div>

@@ -11,6 +11,7 @@ pub struct TerminalConfig {
     pub rows: u16,
 }
 
+#[derive(Clone)]
 pub struct TerminalSession {
     pub master: Arc<Mutex<Box<dyn MasterPty + Send>>>,
     pub writer: Arc<Mutex<Box<dyn Write + Send>>>,
@@ -20,6 +21,31 @@ pub struct TerminalSession {
 
 impl TerminalSession {
     pub fn new(config: TerminalConfig) -> Result<Self, String> {
+        Self::spawn(config, build_shell_command()?)
+    }
+
+    pub fn for_script(config: TerminalConfig, command: &str) -> Result<Self, String> {
+        #[cfg(windows)]
+        let mut cmd = {
+            let mut c = CommandBuilder::new("powershell.exe");
+            c.args(["-NoProfile", "-Command", command]);
+            c
+        };
+        #[cfg(not(windows))]
+        let mut cmd = {
+            let mut c = CommandBuilder::new(if cfg!(target_os = "macos") {
+                "/bin/zsh"
+            } else {
+                "/bin/bash"
+            });
+            c.args(["-lc", command]);
+            c
+        };
+        cmd.env("RUNPROJECT_MANAGED_SCRIPT", "1");
+        Self::spawn(config, cmd)
+    }
+
+    fn spawn(config: TerminalConfig, mut cmd: CommandBuilder) -> Result<Self, String> {
         let pty_system = portable_pty::native_pty_system();
 
         let pair = pty_system
@@ -31,7 +57,6 @@ impl TerminalSession {
             })
             .map_err(|e| format!("创建 PTY 失败: {}", e))?;
 
-        let mut cmd = build_shell_command()?;
         cmd.cwd(&config.cwd);
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");

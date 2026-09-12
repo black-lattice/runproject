@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { persistProjectPreferences } from "@/store/dataSync";
+import { invoke } from "@tauri-apps/api/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -46,22 +47,6 @@ function ProjectDetails({
     normalizeProject,
     normalizeWorkspace,
   } = useAppStore();
-
-  const persistProjectPreferences = (preferences) => {
-    if (!isTauri()) return;
-    const state = useAppStore.getState();
-    invoke("save_project_data", {
-      data: {
-        workspaces: state.workspaces || [],
-        workspaceTags: state.workspaceTags || {},
-        projectTags: state.projectTags || {},
-        commandTags: state.commandTags || {},
-        preferences,
-      },
-    }).catch((error) => {
-      console.error("保存 SQLite 项目偏好失败:", error);
-    });
-  };
 
   useEffect(() => {
     latestProjectPathRef.current = project?.path;
@@ -368,15 +353,15 @@ function ProjectDetails({
 
   if (!project) {
     return (
-      <div className="flex items-center justify-center h-full p-6 bg-red-50">
-        <Card className="w-full max-w-md border-red-200 shadow-lg">
+      <div className="flex items-center justify-center h-full p-6 bg-destructive/10">
+        <Card className="w-full max-w-md border-destructive/25 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-red-600 flex items-center gap-2">
+            <CardTitle className="text-destructive flex items-center gap-2">
               <Info className="w-5 h-5" /> 项目数据错误
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-red-600">项目对象为空或未定义</p>
+            <p className="text-destructive">项目对象为空或未定义</p>
           </CardContent>
         </Card>
       </div>
@@ -385,15 +370,15 @@ function ProjectDetails({
 
   if (!project.name || !project.path) {
     return (
-      <div className="flex items-center justify-center h-full p-6 bg-red-50">
-        <Card className="w-full max-w-md border-red-200 shadow-lg">
+      <div className="flex items-center justify-center h-full p-6 bg-destructive/10">
+        <Card className="w-full max-w-md border-destructive/25 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-red-600 flex items-center gap-2">
+            <CardTitle className="text-destructive flex items-center gap-2">
               <Info className="w-5 h-5" /> 项目数据不完整
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-red-600">
+            <p className="text-destructive">
               项目缺少必要属性 (name: {project.name}, path: {project.path})
             </p>
           </CardContent>
@@ -517,7 +502,10 @@ function ProjectDetails({
           "nodejs-workspaces",
           JSON.stringify(workspacesWithVersion),
         );
-        localStorage.setItem("nodejs-workspaces-version", currentTime.toString());
+        localStorage.setItem(
+          "nodejs-workspaces-version",
+          currentTime.toString(),
+        );
       }
 
       await loadGitBranches({ forceRefresh: true });
@@ -540,16 +528,18 @@ function ProjectDetails({
 
   if (hasError) {
     return (
-      <div className="p-6 h-full flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-lg border-red-200 shadow-lg">
+      <div className="p-6 h-full flex items-center justify-center bg-muted">
+        <Card className="w-full max-w-lg border-destructive/25 shadow-lg">
           <CardHeader>
-            <CardTitle className="text-red-600 flex items-center gap-2">
+            <CardTitle className="text-destructive flex items-center gap-2">
               <Info className="w-5 h-5" /> 组件渲染错误
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-gray-600">项目详情组件渲染时发生错误：</p>
-            <pre className="text-red-500 text-xs bg-red-50 p-4 rounded-lg overflow-auto border border-red-100 font-mono">
+            <p className="text-muted-foreground">
+              项目详情组件渲染时发生错误：
+            </p>
+            <pre className="text-destructive text-xs bg-destructive/10 p-4 rounded-lg overflow-auto border border-destructive/25 font-mono">
               {errorInfo && errorInfo.toString()}
             </pre>
             <Button

@@ -6,3 +6,5 @@ pub mod platform;
 pub mod project_scanner;
 pub mod terminal;
 pub mod tray;
+
+pub mod script_runner;

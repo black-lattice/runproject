@@ -110,7 +110,7 @@ function CommandPalette({
 				<DialogHeader>
 					<DialogTitle className='flex items-center justify-between'>
 						<span>快速搜索</span>
-						<span className='text-xs text-gray-400'>Cmd/Ctrl+K</span>
+						<span className='text-xs text-muted-foreground'>Cmd/Ctrl+K</span>
 					</DialogTitle>
 				</DialogHeader>
 				<div className='p-4 space-y-3'>
@@ -121,9 +121,9 @@ function CommandPalette({
 						onChange={event => setQuery(event.target.value)}
 						onKeyDown={handleKeyDown}
 					/>
-					<div className='max-h-96 overflow-auto rounded-md border border-gray-100'>
+					<div className='max-h-96 overflow-auto rounded-md border border-border'>
 						{items.length === 0 ? (
-							<div className='p-6 text-center text-sm text-gray-500'>
+							<div className='p-6 text-center text-sm text-muted-foreground'>
 								没有匹配项
 							</div>
 						) : (
@@ -138,13 +138,13 @@ function CommandPalette({
 												className={cn(
 													'w-full text-left px-4 py-3 text-sm transition-colors',
 													isActive
-														? 'bg-blue-50 text-blue-700'
-														: 'hover:bg-gray-50 text-gray-700'
+														? 'bg-accent text-primary'
+														: 'hover:bg-muted text-foreground'
 												)}
 												onMouseEnter={() => setHighlightIndex(index)}
 												onClick={() => handleSelect(item)}>
 												<div className='font-medium'>{item.project.name}</div>
-												<div className='text-xs text-gray-400 truncate'>
+												<div className='text-xs text-muted-foreground truncate'>
 													{item.project.path}
 												</div>
 											</button>
@@ -158,15 +158,15 @@ function CommandPalette({
 											className={cn(
 												'w-full text-left px-4 py-3 text-sm transition-colors',
 												isActive
-													? 'bg-blue-50 text-blue-700'
-													: 'hover:bg-gray-50 text-gray-700'
+													? 'bg-accent text-primary'
+													: 'hover:bg-muted text-foreground'
 											)}
 											onMouseEnter={() => setHighlightIndex(index)}
 											onClick={() => handleSelect(item)}>
 											<div className='font-medium'>
 												{item.command.name}
 											</div>
-											<div className='text-xs text-gray-400'>
+											<div className='text-xs text-muted-foreground'>
 												{item.project.name}
 											</div>
 										</button>

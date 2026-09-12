@@ -50,17 +50,17 @@ function CommandCard({
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<Card
-						className={`group relative transition-all duration-200 hover:shadow-md border-transparent hover:border-gray-200 ${running
-							? 'bg-blue-50/50 ring-2 ring-blue-500 ring-offset-2'
-							: 'bg-white hover:-translate-y-1'
+						className={`group relative transition-all duration-200 border-border hover:border-primary/25 ${running
+							? 'bg-accent border-primary/25'
+							: 'bg-card'
 							} ${tagEditorOpen ? 'z-20' : 'z-0'}`}>
 						<CardContent className='p-4'>
 							<div className='flex justify-between items-start gap-3 mb-3'>
 								<div className='min-w-0 flex-1'>
-									<h4 className='font-bold text-gray-800 truncate mb-1 group-hover:text-blue-600 transition-colors'>
+									<h4 className='font-semibold text-foreground truncate mb-1 group-hover:text-primary transition-colors'>
 										{command.name}
 									</h4>
-									<code className='text-xs text-gray-400 block truncate font-mono bg-gray-50 px-1.5 py-0.5 rounded'>
+									<code className='text-xs text-muted-foreground block truncate font-mono bg-muted px-1.5 py-0.5 rounded'>
 										{command.script}
 									</code>
 									{tags.length > 0 && (
@@ -69,7 +69,7 @@ function CommandCard({
 												<Badge
 													key={tag}
 													variant='secondary'
-													className='text-[10px] px-1.5 py-0.5'>
+													className='text-xs px-1.5 py-0.5'>
 													{tag}
 												</Badge>
 											))}
@@ -78,8 +78,8 @@ function CommandCard({
 								</div>
 								<div
 									className={`w-2 h-2 rounded-full flex-shrink-0 mt-2 ${running
-										? 'bg-green-500 animate-pulse'
-										: 'bg-gray-200'
+										? 'bg-success animate-pulse'
+										: 'bg-muted'
 										}`}
 								/>
 							</div>
@@ -92,7 +92,7 @@ function CommandCard({
 										<Button
 											variant='outline'
 											size='icon'
-											className='h-9 w-9 text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity'
+											className='h-9 w-9 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity'
 											data-no-select='true'
 											title='编辑标签'>
 											<Tag className='w-4 h-4' />
@@ -100,7 +100,7 @@ function CommandCard({
 									</PopoverTrigger>
 									<PopoverContent>
 										<div className='space-y-3'>
-											<p className='text-sm text-gray-700'>
+											<p className='text-sm text-foreground'>
 												命令标签（逗号分隔）
 											</p>
 											<Input
@@ -132,8 +132,8 @@ function CommandCard({
 								</Popover>
 								<Button
 									className={`flex-1 h-9 shadow-sm transition-all duration-200 ${running
-										? 'bg-red-500 hover:bg-red-600 text-white'
-										: 'bg-gray-900 hover:bg-blue-600 text-white'
+										? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+										: 'bg-primary hover:bg-primary/90 text-primary-foreground'
 										}`}
 									onClick={e => {
 										e.stopPropagation();

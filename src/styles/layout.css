@@ -1,0 +1,1365 @@
+/* Page structure and interaction layout. Colors are defined in theme.css. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+.app-tab {
+  position: relative;
+}
+
+.app-tabbar {
+  height: 35px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.app-titlebar-content {
+  height: 100%;
+  cursor: grab;
+}
+
+.app-tabbar::-webkit-scrollbar {
+  display: none;
+}
+
+.app-fixed-menu.ant-menu-horizontal {
+  height: 35px;
+  line-height: 34px;
+  border-bottom: 0;
+  min-width: max-content;
+}
+
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item {
+  position: relative;
+  margin: 3px 3px 2px;
+  padding-inline: 13px;
+  height: 30px;
+  line-height: 30px;
+  border-radius: 9px;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item::after {
+  display: none;
+}
+
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item-selected {
+  border-radius: 0;
+  font-weight: 600;
+}
+
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item .anticon,
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item .app-tab-icon {
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item-selected .anticon,
+.app-fixed-menu.ant-menu-horizontal > .ant-menu-item-selected .app-tab-icon {
+  transform: translateY(-0.5px);
+}
+
+.app-tab-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.page-loading::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  border: 2px solid hsl(var(--border));
+  border-top-color: hsl(var(--primary));
+  border-radius: 999px;
+  animation: app-spin 0.75s linear infinite;
+}
+
+.welcome-hero {
+  position: relative;
+  max-width: 900px;
+  margin-inline: auto;
+}
+
+.welcome-action-card,
+.welcome-feature-card,
+.welcome-stats {
+  border: 1px solid hsl(var(--border));
+}
+
+.welcome-action-card:hover,
+.welcome-feature-card:hover {
+  transform: translateY(-2px);
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.welcome-stat-card {
+  border: 1px solid hsl(var(--border));
+}
+.task-topbar {
+  height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 22px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.task-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+.task-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(420px, 40vw);
+  padding: 3px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 9px;
+}
+.task-search input {
+  border: 0;
+  box-shadow: none;
+  height: 30px;
+  font-size: 14px;
+}
+.task-layout {
+  display: grid;
+}
+.task-sidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid hsl(var(--border));
+}
+.task-sidebar-group {
+  display: flex;
+  flex-direction: column;
+}
+.task-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  text-align: left;
+}
+.task-nav-item.is-active {
+  font-weight: 600;
+}
+.task-list-action.ant-btn {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  opacity: 0;
+}
+.task-nav-item:hover .task-list-action.ant-btn,
+.task-nav-item:focus-within .task-list-action.ant-btn {
+  opacity: 1;
+}
+.task-sidebar-divider {
+  height: 1px;
+  margin: 3px 10px;
+}
+.task-list-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+.task-main {
+  overflow-y: auto;
+}
+.task-main-header {
+  display: flex;
+  justify-content: space-between;
+}
+.task-inline-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px;
+  border: 1px solid hsl(var(--border));
+}
+.task-inline-search input {
+  height: 28px;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  font-size: 12px;
+}
+.task-quick-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid hsl(var(--border));
+}
+.task-quick-add .ant-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  box-shadow: none;
+}
+.task-quick-add .ant-btn {
+  flex: none;
+}
+.task-section-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.task-row.is-done {
+  text-decoration: line-through;
+}
+.task-check,
+.task-detail-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid hsl(var(--border));
+  border-radius: 6px;
+}
+.task-priority {
+  font-size: 12px;
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+.task-category-list {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 42%;
+}
+.task-created-date {
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.task-category-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 1px 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.task-detail {
+  overflow-y: auto;
+  border-left: 1px solid hsl(var(--border));
+}
+.task-detail-toolbar {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.task-detail-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+}
+.task-calendar {
+  border-top: 1px solid hsl(var(--border));
+  font-size: 14px;
+}
+@media (max-width: 1000px) {
+  .task-layout {
+    grid-template-columns: 190px 1fr;
+  }
+  .task-detail {
+    display: none;
+  }
+  .task-topbar {
+    padding: 0 14px;
+  }
+  .task-main {
+    padding: 24px;
+  }
+  .task-search {
+    width: 32vw;
+  }
+}
+html body .dark .task-row.is-done {
+  text-decoration: line-through;
+}
+.task-layout.is-task-view {
+  grid-template-columns:
+    60px
+    clamp(240px, 19vw, 360px)
+    minmax(0, 1fr)
+    clamp(440px, 30vw, 620px);
+}
+
+.task-rail {
+  width: auto;
+}
+
+.task-sidebar {
+  min-width: 0;
+  gap: 10px;
+  padding: 17px 11px 14px;
+}
+
+.task-antd-menu .ant-menu-item {
+  line-height: 36px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.task-sidebar-group {
+  gap: 2px;
+}
+
+.task-sidebar-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 30px;
+  padding: 0 5px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.task-sidebar-section-toggle,
+.task-sidebar-note-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.task-sidebar-section-toggle {
+  min-height: 26px;
+  padding: 0 5px 0 0;
+}
+
+.task-sidebar-section-toggle:hover,
+.task-sidebar-note-heading:hover,
+.task-sidebar-section-toggle:focus-visible,
+.task-sidebar-note-heading:focus-visible {
+  outline: none;
+}
+
+.task-nav-item {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.task-nav-item > .text-gray-400 {
+  font-weight: 500;
+}
+
+.task-sidebar-note-group {
+  display: grid;
+  gap: 6px;
+  padding: 4px 4px 2px;
+}
+
+.task-sidebar-note-title {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.task-sidebar-note-heading {
+  min-height: 24px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.task-sidebar-note {
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.task-main {
+  min-width: 0;
+  padding: 20px 28px 32px;
+}
+
+.task-main-header {
+  min-height: 42px;
+  align-items: center;
+  gap: 16px;
+}
+
+.task-main-header h1 {
+  margin-top: 0.15rem;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.task-main-header > div:first-child {
+  min-width: 0;
+}
+
+.task-main-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.task-main-actions .task-sort-button.ant-btn,
+.task-main-actions .task-more-button.ant-btn {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 9px;
+}
+
+.task-home .ant-dropdown .ant-dropdown-menu {
+  min-width: 220px;
+  padding: 7px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+
+.task-home .ant-dropdown .ant-dropdown-menu-item-group-title {
+  padding: 6px 10px 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.task-home .ant-dropdown .ant-dropdown-menu-item-group:first-child > ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.task-home .ant-dropdown .ant-dropdown-menu-item-group:first-child > ul > li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  padding: 8px 4px;
+  gap: 4px;
+  text-align: center;
+}
+
+.task-home
+  .ant-dropdown
+  .ant-dropdown-menu-item-group:first-child
+  > ul
+  > li
+  .anticon {
+  margin-inline-end: 0;
+  font-size: 20px;
+}
+.task-more-dropdown .ant-dropdown-menu {
+  min-width: 270px;
+  padding: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+
+.task-more-dropdown .ant-dropdown-menu-item-group-title {
+  padding: 6px 10px 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.task-more-dropdown .ant-dropdown-menu-item-group:first-child > ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.task-more-dropdown .ant-dropdown-menu-item-group:first-child > ul > li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 68px;
+  padding: 8px 4px;
+  gap: 4px;
+  text-align: center;
+}
+
+.task-more-dropdown
+  .ant-dropdown-menu-item-group:first-child
+  > ul
+  > li
+  .anticon {
+  margin-inline-end: 0;
+  font-size: 20px;
+}
+
+.task-more-dropdown .ant-dropdown-menu-item {
+  min-height: 34px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+.task-more-dropdown .ant-dropdown-menu-item-divider {
+  margin: 6px 3px;
+}
+
+.task-home .ant-dropdown .ant-dropdown-menu-item {
+  min-height: 34px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+.task-home .ant-dropdown .ant-dropdown-menu-item-divider {
+  margin: 6px 3px;
+}
+
+.task-search-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.task-search-result span:last-child {
+  flex: none;
+  font-size: 12px;
+}
+
+.task-inline-search {
+  width: clamp(160px, 19vw, 240px);
+  height: 34px;
+  border-radius: 9px;
+}
+
+.task-quick-add {
+  min-height: 38px;
+  margin: 13px 0 19px;
+  padding: 5px 10px;
+  border-radius: 9px;
+}
+
+.task-quick-add .ant-input {
+  height: 27px;
+  font-size: 14px;
+}
+
+.task-quick-add .ant-btn {
+  height: 28px;
+  padding-inline: 12px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.task-section {
+  margin-bottom: 17px;
+}
+
+.task-section-title {
+  min-height: 28px;
+  margin-bottom: 1px;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.task-home
+  :is(
+    .task-section-title,
+    .task-sidebar-section-toggle,
+    .task-sidebar-note-heading
+  )
+  > .anticon:first-child {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  font-size: 12px;
+}
+
+.task-row {
+  min-height: 40px;
+  padding: 8px 10px;
+  gap: 11px;
+  font-size: 14px;
+}
+
+.task-row .ant-checkbox-inner {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+}
+
+.task-row:hover,
+.task-row.is-selected {
+  border-radius: 8px;
+}
+
+.task-detail-toolbar {
+  min-height: 53px;
+  padding: 14px 20px;
+}
+
+.task-detail-body {
+  padding: 22px 20px 16px;
+}
+
+.task-detail-body > .flex.items-start input {
+  font-size: 16px !important;
+}
+
+.task-calendar {
+  margin: 12px;
+  padding: 16px 8px 0;
+}
+
+@media (max-width: 1000px) {
+  .task-layout.is-task-view {
+    grid-template-columns: 60px 190px minmax(0, 1fr);
+  }
+
+  .task-sidebar-note-group {
+    display: none;
+  }
+}
+.task-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 30px 16px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 12px;
+  font-size: 14px;
+}
+.task-empty kbd {
+  padding: 2px 5px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  font-size: 12px;
+}
+.task-detail-body > .flex.items-start {
+  align-items: flex-start;
+}
+.task-detail-body .task-detail-check {
+  margin-top: 7px;
+}
+.task-detail-body input {
+  line-height: 1.35;
+}
+.task-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 10px;
+  border-right: 1px solid hsl(var(--border));
+}
+.task-rail-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+}
+.task-layout {
+  grid-template-columns: 68px 220px minmax(420px, 1fr) 340px;
+}
+.task-topbar {
+  display: none;
+}
+.task-layout {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+.task-home .ant-btn {
+  box-shadow: none;
+}
+.task-home .task-rail-button.ant-btn {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+}
+.task-home .task-rail-button.ant-btn .anticon {
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+  opacity: 0.82;
+}
+.task-home .task-rail-button.ant-btn:hover .anticon,
+.task-home .task-rail-button.ant-btn.is-active .anticon {
+  opacity: 1;
+  transform: scale(1.06);
+}
+.task-antd-menu.ant-menu {
+  border-inline-end: 0 !important;
+}
+.task-antd-menu .ant-menu-item {
+  width: 100%;
+  height: 38px;
+  margin: 2px 0;
+  padding-inline: 12px !important;
+}
+.task-antd-menu .ant-menu-item-selected {
+  font-weight: 600;
+}
+.task-menu-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+  font-weight: 500;
+}
+.task-menu-count {
+  font-size: 12px;
+  font-weight: 500;
+}
+.task-summary-card {
+  border: 0;
+  box-shadow: none;
+}
+.task-summary-card .ant-card-body {
+  padding: 14px 16px;
+}
+.task-row .ant-checkbox {
+  flex: none;
+}
+.task-detail-checkbox {
+  margin-top: 8px;
+}
+.task-antd-calendar .ant-picker-calendar-header {
+  padding: 0 0 12px;
+}
+.task-antd-calendar .ant-picker-panel {
+  border-top: 0;
+}
+.task-antd-calendar .ant-picker-cell-inner {
+  border-radius: 8px;
+}
+.task-empty.ant-empty {
+  display: block;
+}
+.task-empty .ant-empty-image {
+  height: 34px;
+  margin-bottom: 8px;
+}
+.calendar-view-select.ant-select {
+  height: 36px;
+  padding: 0;
+  border: 0;
+}
+.calendar-view-select .ant-select-selector {
+  min-width: 72px;
+}
+.task-layout.is-tool-view {
+  grid-template-columns: 60px minmax(0, 1fr);
+  height: 100%;
+}
+.is-tool-view .task-main,
+.is-tool-view .task-detail {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .task-layout {
+    grid-template-columns: 60px 190px minmax(360px, 1fr) 320px;
+    min-width: 930px;
+  }
+  .task-layout.is-tool-view {
+    grid-template-columns: 60px minmax(0, 1fr);
+    min-width: 0;
+  }
+  .task-rail {
+    padding-inline: 7px;
+  }
+}
+.tool-window {
+  overflow: auto;
+}
+.tool-window-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.tool-window-head h2 {
+  font-weight: 600;
+}
+.tool-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.tool-column {
+  min-height: 360px;
+  padding: 16px;
+  border-radius: 14px;
+}
+.tool-column h3 {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+.tool-column h3 span {
+  font-size: 12px;
+}
+.tool-task {
+  margin-bottom: 8px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+.tool-task .task-priority {
+  margin-right: 8px;
+}
+.tool-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+.tool-day {
+  min-height: 300px;
+  padding: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+.tool-day-title {
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tool-calendar-grid.view-日 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.tool-calendar-grid.view-周 {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.tool-calendar-grid.view-月 {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.tool-calendar-grid.view-月 .tool-day {
+  min-height: 150px;
+}
+.tool-calendar-grid.view-议程 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.tool-calendar-grid.view-议程 .tool-day {
+  min-height: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+.tool-calendar-grid.view-议程 .tool-day-title {
+  width: 80px;
+  flex: none;
+}
+.tool-calendar-grid.view-日 .tool-day {
+  min-height: 180px;
+}
+.tool-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-content: start;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  overflow: hidden;
+}
+.tool-month-day {
+  padding: 10px;
+  border-right: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+}
+.tool-month-number {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tool-month-day .tool-task {
+  margin-bottom: 5px;
+  padding: 7px 8px;
+  font-size: 12px;
+}
+.tool-month-weekday {
+  padding: 10px 12px;
+  border-right: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.tool-month-day {
+  min-height: 128px;
+}
+.tool-month-day .tool-task {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-home {
+  position: relative;
+}
+.tool-overlay {
+  position: absolute;
+  inset: 56px 0 0 288px;
+  z-index: 10;
+  padding: 0;
+}
+.is-tool-view .tool-overlay {
+  inset: 0 0 0 68px;
+}
+.tool-window {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.tool-window-head {
+  height: 92px;
+  margin: 0;
+  padding: 0 28px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.tool-window-head h2 {
+  font-size: 22px;
+}
+.tool-calendar-grid,
+.tool-month-grid {
+  margin: 0 28px 28px;
+}
+.tool-window-head .flex.rounded-lg {
+  margin-left: 8px;
+}
+.calendar-top-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.calendar-view-select {
+  height: 36px;
+  min-width: 72px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  overflow: hidden;
+}
+.calendar-nav button {
+  border-radius: 0;
+}
+@media (max-width: 1000px) {
+  .tool-overlay {
+    inset: 56px 0 0 250px;
+  }
+  .is-tool-view .tool-overlay {
+    inset: 0 0 0 60px;
+  }
+  .tool-window-head {
+    padding: 0 18px;
+  }
+  .tool-calendar-grid,
+  .tool-month-grid {
+    margin-inline: 18px;
+  }
+}
+.task-home.is-task-view {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.task-home.is-task-view .task-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.task-home.is-task-view .task-detail-toolbar,
+.task-home.is-task-view .task-detail-footer,
+.task-home.is-task-view .task-format-toolbar {
+  flex: 0 0 auto;
+}
+.task-home.is-task-view .task-detail-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+.task-home.is-task-view .task-calendar {
+  flex: 0 0 auto;
+  max-height: clamp(96px, 24vh, 250px);
+  overflow-y: auto;
+}
+@media (max-width: 1100px) {
+  .task-home.is-task-view {
+    overflow-x: hidden;
+  }
+
+  .task-layout.is-task-view {
+    grid-template-columns: 60px clamp(180px, 24vw, 260px) minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .task-home.is-task-view .task-detail {
+    display: none;
+  }
+
+  .task-home.is-task-view .task-main {
+    min-width: 0;
+    padding: 16px clamp(16px, 3vw, 28px) 24px;
+  }
+
+  .task-home.is-task-view .task-main-header,
+  .task-home.is-task-view .task-main-header > div:first-child {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-fixed-menu.ant-menu-horizontal > .ant-menu-item {
+    padding-inline: 8px;
+  }
+
+  .app-fixed-menu.ant-menu-horizontal > .ant-menu-item .ant-menu-title-content {
+    display: none;
+  }
+
+  .task-layout.is-task-view {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .task-home.is-task-view .task-sidebar {
+    display: none;
+  }
+
+  .task-home.is-task-view .task-rail {
+    padding-inline: 5px;
+  }
+
+  .task-home.is-task-view .task-main {
+    padding-inline: 14px;
+  }
+}
+.task-home .task-rail-button.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  box-shadow: none !important;
+}
+.task-home .task-rail-button.ant-btn .anticon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 !important;
+  font-size: 20px;
+  line-height: 1;
+}
+.task-detail-top-checkbox .ant-checkbox-inner {
+  width: 25px;
+  height: 25px;
+  border: 2px solid hsl(var(--border));
+  border-radius: 7px;
+}
+.task-detail-top-divider {
+  width: 1px;
+  height: 31px;
+  margin: 0 14px;
+}
+.task-detail-date-button.ant-btn,
+.task-detail-date-picker {
+  height: 36px;
+  padding: 0 8px;
+  font-size: 16px;
+}
+.task-detail-date-picker .ant-picker-input > input {
+  width: 130px;
+  font-size: 16px;
+}
+.task-detail-date-picker.ant-picker,
+.task-detail-date-picker.ant-picker:hover,
+.task-detail-date-picker.ant-picker-focused {
+  box-shadow: none !important;
+}
+.task-detail-flag.ant-btn {
+  margin-left: auto;
+}
+.task-detail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  padding: 12px 24px;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 16px;
+}
+.task-home .task-detail-body > div:not(.flex.items-start) {
+  display: none;
+}
+.task-home .task-detail > .task-calendar {
+  display: none;
+}
+.task-home .task-detail-body {
+  padding: 28px 28px 18px;
+}
+.task-home .task-detail-body > .flex.items-start {
+  gap: 14px;
+}
+.task-home .task-detail-body > .flex.items-start input {
+  height: auto !important;
+  min-height: 24px;
+  font-size: 14px !important;
+  line-height: 1.3;
+  padding: 0;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.task-home .task-detail-body .task-detail-checkbox {
+  display: none;
+}
+.task-home .task-detail-body .task-detail-notes {
+  margin-top: 32px;
+  font-size: 12px;
+  line-height: 1.85;
+}
+.task-home .task-detail-body .task-detail-notes.is-rich-source {
+  display: none;
+}
+.task-home .task-detail-body > .flex.items-start .mt-2.flex {
+  display: none;
+}
+.task-detail-list-icon {
+  flex: 0 0 auto;
+  margin-top: 7px;
+  font-size: 20px;
+  stroke-width: 1.8;
+}
+.task-detail-composer {
+  display: flex !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.task-detail-composer .ant-input {
+  min-height: 30px;
+  padding: 2px 0;
+  font-size: 16px;
+}
+.task-rich-description {
+  margin-top: 24px;
+  font-size: 16px;
+  line-height: 1.72;
+  max-width: 720px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+}
+.task-home .task-detail-toolbar {
+  min-height: 56px;
+  flex: 0 0 56px;
+  padding: 0 28px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.task-home .task-detail-toolbar > .flex {
+  width: 100%;
+}
+.task-home .task-detail-footer {
+  min-height: 50px;
+  padding: 10px 28px;
+  border-top: 1px solid hsl(var(--border));
+}
+.task-detail-list-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  font-size: 16px;
+  cursor: pointer;
+}
+.task-home .task-detail-body > div.task-rich-description {
+  display: block !important;
+}
+.task-rich-description p {
+  margin: 0 0 10px;
+  padding-left: 28px;
+  position: relative;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+.task-rich-description p:first-child {
+  padding-left: 0;
+  margin-bottom: 10px;
+  font-size: 14px !important;
+}
+.task-rich-description p:not(:first-child)::before {
+  content: "•";
+  position: absolute;
+  left: 7px;
+  font-size: 20px;
+  line-height: 1.3;
+}
+.task-rich-description strong {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.task-rich-description a {
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 400;
+}
+.task-home .task-detail-body textarea.task-detail-notes.is-rich-source {
+  display: none !important;
+}
+.task-home .task-detail-body textarea.task-detail-notes.ant-input {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  resize: none;
+  overflow-y: hidden !important;
+  font-size: 16px;
+  line-height: 1.75;
+}
+.task-home .task-detail-body textarea.task-detail-notes.ant-input:focus,
+.task-home
+  .task-detail-body
+  textarea.task-detail-notes.ant-input:focus-visible {
+  outline: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.task-home .task-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid hsl(var(--border));
+}
+.task-home .task-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.task-home .task-detail-footer {
+  flex: 0 0 auto;
+}
+.task-home .task-detail {
+  position: relative;
+}
+.task-format-toolbar {
+  position: absolute;
+  right: 24px;
+  bottom: 68px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  min-height: 54px;
+  padding: 0 22px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 15px;
+}
+.task-format-toolbar strong {
+  font-size: 20px;
+}
+.task-format-toolbar em {
+  font-size: 20px;
+}

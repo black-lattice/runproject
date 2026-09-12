@@ -1,3 +1,4 @@
+import PageHeading from '@/components/PageHeading';
 import { useEffect, useCallback, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -61,79 +62,6 @@ function ProjectPage() {
 			return next;
 		});
 	};
-
-	const readLegacyProjectData = () => {
-		let workspaces = [];
-		let preferences = {};
-		try {
-			workspaces = JSON.parse(localStorage.getItem('nodejs-workspaces') || '[]');
-			preferences = JSON.parse(
-				localStorage.getItem('nodejs-project-preferences') || '{}'
-			);
-		} catch (error) {
-			console.error('解析保存的项目数据失败:', error);
-		}
-		return { workspaces, preferences };
-	};
-
-	const buildProjectData = nextWorkspaces => ({
-		workspaces: nextWorkspaces ?? useAppStore.getState().workspaces ?? [],
-		workspaceTags: useAppStore.getState().workspaceTags ?? {},
-		projectTags: useAppStore.getState().projectTags ?? {},
-		commandTags: useAppStore.getState().commandTags ?? {},
-		preferences: readLegacyProjectData().preferences
-	});
-
-	useEffect(() => {
-		let cancelled = false;
-		const loadProjectData = async () => {
-			if (!isTauri()) {
-				const legacy = readLegacyProjectData();
-				if (legacy.workspaces.length) setWorkspaces(legacy.workspaces);
-				return;
-			}
-			try {
-				const result = await invoke('load_project_data');
-				if (cancelled) return;
-				if (result?.initialized && result.data) {
-					if (Array.isArray(result.data.workspaces)) {
-						setWorkspaces(result.data.workspaces);
-					}
-					if (result.data.workspaceTags) setWorkspaceTags(result.data.workspaceTags);
-					if (result.data.projectTags) setProjectTags(result.data.projectTags);
-					if (result.data.commandTags) setCommandTags(result.data.commandTags);
-					if (result.data.preferences) {
-						localStorage.setItem(
-							'nodejs-project-preferences',
-							JSON.stringify(result.data.preferences)
-						);
-					}
-				} else {
-					await invoke('save_project_data', { data: buildProjectData() });
-				}
-			} catch (error) {
-				console.error('加载 SQLite 项目数据失败，回退到本地缓存:', error);
-				const legacy = readLegacyProjectData();
-				if (legacy.workspaces.length) setWorkspaces(legacy.workspaces);
-				toast({
-					title: '数据库加载失败',
-					description: '已暂时使用本地项目缓存',
-					variant: 'destructive'
-				});
-			}
-		};
-		loadProjectData();
-		return () => {
-			cancelled = true;
-		};
-	}, [setCommandTags, setProjectTags, setWorkspaceTags, setWorkspaces, toast]);
-
-	useEffect(() => {
-		if (!isTauri() || !workspaces) return;
-		invoke('save_project_data', { data: buildProjectData(workspaces) }).catch(error => {
-			console.error('保存 SQLite 项目数据失败:', error);
-		});
-	}, [commandTags, projectTags, workspaceTags, workspaces]);
 
 	const clearCacheAndReload = () => {
 		if (confirm('确定要清除所有缓存并重新加载吗？这将刷新所有工作区数据。')) {
@@ -354,6 +282,16 @@ function ProjectPage() {
 		const commandKey = getCommandKey(project, command);
 		const commandState = runningCommands?.[commandKey];
 		if (!commandState) return;
+        if (commandState.id?.startsWith('script-')) {
+            try {
+                const run = await invoke('stop_project_script', { runId: commandState.id });
+                toast({ title: run.status === 'stopping' ? '脚本正在停止' : '脚本已停止' });
+            } catch (error) {
+                toast({ title: '停止失败', description: String(error), variant: 'destructive' });
+            }
+            return;
+        }
+
 
 		try {
 			const projectName = project.name;
@@ -485,110 +423,16 @@ function ProjectPage() {
 	};
 
 	const executeInBuiltinTerminal = async (project, command) => {
-		const projectName = project.name;
-		const existingTerminal = projectTerminals[projectName];
-		const packageManager =
-			project.packageManager || project.package_manager || 'npm';
-		const effectiveNodeVersion = getEffectiveNodeVersion(project);
-		const commandKey = getCommandKey(project, command);
-
-		let sessionId;
-		let needCreateSession = true;
-
-		if (existingTerminal && existingTerminal.lastCommandId) {
-			sessionId = existingTerminal.lastCommandId;
-
-			if (existingTerminal.isBusy) {
-				sessionId = `project-${project.name}-${Date.now()}`;
-				needCreateSession = true;
-			} else {
-				try {
-					const isAlive = await invoke('ping_terminal_session', {
-						sessionId
-					});
-					needCreateSession = !isAlive;
-					if (!isAlive) {
-						sessionId = `project-${project.name}-${Date.now()}`;
-					}
-				} catch (error) {
-					console.info('终端会话已失效，将创建新会话');
-					sessionId = `project-${project.name}-${Date.now()}`;
-				}
-			}
-		} else {
-			sessionId = `project-${project.name}-${Date.now()}`;
-		}
-
-		const runId = Date.now();
-		setRunningCommand({ project, command, id: sessionId, runId });
-		setCommandRunning(commandKey, { project, command, id: sessionId, runId });
-
-		try {
-			if (needCreateSession) {
-				await invoke('create_terminal_session', {
-					sessionId,
-					config: {
-						cwd: project.path,
-						cols: 80,
-						rows: 24
-					}
-				});
-			}
-
-			let fullCommand = `${packageManager} run ${command.name}`;
-			try {
-				const built = await invoke('build_execution_command', {
-					command: command.name,
-					nodeVersion:
-						effectiveNodeVersion && effectiveNodeVersion !== 'system'
-							? effectiveNodeVersion
-							: null,
-					packageManager
-				});
-				if (built) {
-					fullCommand = built;
-				}
-			} catch (error) {
-				console.warn('构建命令失败，使用默认命令:', error);
-			}
-
-			const doneMarker = '__RUNPROJECT_CMD_DONE__';
-			const commandWithMarker = `${fullCommand.trimEnd()}; echo ${doneMarker}:${runId}:$?\n`;
-			const encoded = btoa(
-				String.fromCharCode(...new TextEncoder().encode(commandWithMarker))
-			);
-			await invoke('write_to_terminal', { sessionId, data: encoded });
-
-			updateProjectTerminal(projectName, {
-				isBusy: true,
-				currentCommand: command.name,
-				lastCommandId: sessionId,
-				runId,
-				createdAt: Date.now()
-			});
-
-			addTab('terminal');
-
-			navigate(
-				`/terminal?sessionId=${sessionId}&title=${project.name}-${command.name}&cwd=${encodeURIComponent(project.path)}`
-			);
-
-			toast({
-				title: '命令已启动',
-				description: `在内置终端中执行: ${command.name}`,
-				variant: 'default'
-			});
-		} catch (error) {
-			setRunningCommand(null);
-			clearCommandRunning(commandKey);
-			console.error('执行命令失败:', error);
-			toast({
-				title: '执行失败',
-				description: `在内置终端中执行命令失败: ${error}`,
-				variant: 'destructive'
-			});
-		}
-	};
+        try {
+            const run = await invoke('start_project_script', { projectPath: project.path, script: command.name });
+            addTab('terminal');
+            const params = new URLSearchParams({ sessionId: run.id, title: `${project.name}-${command.name}`, cwd: project.path });
+            navigate(`/terminal?${params}`);
+            toast({ title: '脚本已启动', description: `在内置终端中执行: ${command.name}` });
+        } catch (error) {
+            toast({ title: '执行失败', description: String(error), variant: 'destructive' });
+        }
+    };
 
 	const executeProjectCommand = async (project, command) => {
 		if (terminalType === 'builtin') {
@@ -729,7 +573,8 @@ function ProjectPage() {
 	};
 
 	return (
-		<div className='project-page h-full flex flex-col overflow-hidden bg-gray-100'>
+		<div className='project-page h-full flex flex-col overflow-hidden'>
+            <PageHeading title='项目管理' description={`${workspaces.length} 个工作区 · ${workspaces.reduce((count, workspace) => count + (workspace.projects?.length || 0), 0)} 个项目`} />
 			<div className='flex-1 flex overflow-hidden'>
 				<Sidebar
 					workspaces={workspaces}

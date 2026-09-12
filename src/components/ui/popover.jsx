@@ -122,7 +122,7 @@ export function PopoverContent({ children, className = '' }) {
 		<div
 			ref={ctx.contentRef}
 			style={style}
-			className={`min-w-64 rounded-lg border bg-white shadow-lg p-3 ${className}`}
+			className={`min-w-64 rounded-lg border bg-card shadow-lg p-3 ${className}`}
 		>
 			{children}
 		</div>,

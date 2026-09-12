@@ -8,6 +8,8 @@ const menuItems = Object.values(PAGE_CONFIGS).map((config) => {
     key: config.id,
     icon: Icon ? <Icon className="app-tab-icon" /> : null,
     label: config.title,
+    title: config.title,
+    "aria-label": config.title,
   };
 });
 

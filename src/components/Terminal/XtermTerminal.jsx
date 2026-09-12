@@ -36,6 +36,7 @@ const XtermTerminal = ({
 		let fitAddon = null;
 		let heartbeatTimer = null;
 		const pendingChunks = [];
+        const managed = sessionId.startsWith("script-");
 		let backlogLoaded = !existingSession;
 		const COMMAND_DONE_MARKER = '__RUNPROJECT_CMD_DONE__:';
 		const commandDoneRegex = /__RUNPROJECT_CMD_DONE__:(\d+):(\d+)/g;
@@ -43,6 +44,7 @@ const XtermTerminal = ({
 
 		const writeDecodedText = text => {
 			if (!text) return;
+            if (managed) { terminal?.write(text); return; }
 			const combined = markerCarry + text;
 			let carry = '';
 			for (let i = combined.length - 1; i >= 0; i--) {
@@ -130,7 +132,7 @@ const XtermTerminal = ({
 				});
 
 				let sessionReady = false;
-				if (!existingSession) {
+				if (!existingSession && !managed) {
 					await invoke('create_terminal_session', {
 						sessionId,
 						config: { cwd, cols, rows }
@@ -145,7 +147,7 @@ const XtermTerminal = ({
 					}
 				}
 
-				if (!sessionReady) {
+				if (!sessionReady && !managed) {
 					await invoke('create_terminal_session', {
 						sessionId,
 						config: { cwd, cols, rows }
@@ -156,7 +158,7 @@ const XtermTerminal = ({
 
 				// 监听用户输入 - 必须在会话创建后立即注册
 				dataDisposable = terminal.onData(data => {
-					if (unmounted) return;
+					if (unmounted || closedRef.current) return;
 					const encoded = btoa(
 						String.fromCharCode(...new TextEncoder().encode(data))
 					);
@@ -164,7 +166,7 @@ const XtermTerminal = ({
 						console.error
 					);
 
-					if (data === '\x03') {
+					if (!managed && data === '\x03') {
 						const runningCommands =
 							useAppStore.getState().runningCommands || {};
 						const currentEntry = Object.values(runningCommands).find(
@@ -195,7 +197,7 @@ const XtermTerminal = ({
 					if (unmounted) return;
 					closedRef.current = true;
 					terminal.write('\r\n\x1b[33m[进程已退出]\x1b[0m\r\n');
-					if (onClose) onClose();
+					if (!managed && onClose) onClose();
 				});
 			} catch (error) {
 				console.error('终端初始化失败:', error);
@@ -211,8 +213,13 @@ const XtermTerminal = ({
 					if (!alive) {
 						throw new Error('session not found');
 					}
-				} catch (error) {
-					reconnectingRef.current = true;
+                } catch (error) {
+                    if (managed) {
+                        closedRef.current = true;
+                        terminal.write('\r\n\x1b[33m[脚本已退出，日志保留]\x1b[0m\r\n');
+                        return;
+                    }
+                    reconnectingRef.current = true;
 					try {
 						terminal.write(
 							'\r\n\x1b[33m[连接已断开，正在尝试重连...]\x1b[0m\r\n'

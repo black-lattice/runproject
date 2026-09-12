@@ -84,13 +84,13 @@ function GitWorktreeDialog({
 
 	const dialogContent = (
 		<div className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm'>
-			<div className='bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col'>
+			<div className='bg-card rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[85vh] overflow-hidden flex flex-col'>
 				<div className='flex items-center justify-between p-6 border-b'>
 					<div>
-						<h2 className='text-xl font-bold text-gray-900'>
+						<h2 className='text-xl font-semibold text-foreground'>
 							Git Worktree 管理
 						</h2>
-						<p className='text-sm text-gray-500 mt-1'>
+						<p className='text-sm text-muted-foreground mt-1'>
 							创建和管理多个工作目录，同时操作不同分支
 						</p>
 					</div>
@@ -101,7 +101,7 @@ function GitWorktreeDialog({
 
 				<div className='flex-1 overflow-y-auto p-6 space-y-6'>
 					<div className='space-y-3'>
-						<h3 className='font-semibold text-sm text-gray-900'>
+						<h3 className='font-semibold text-sm text-foreground'>
 							创建新 Worktree
 						</h3>
 						<div className='flex gap-2'>
@@ -134,37 +134,37 @@ function GitWorktreeDialog({
 					</div>
 
 					<div className='space-y-3'>
-						<h3 className='font-semibold text-sm text-gray-900'>
+						<h3 className='font-semibold text-sm text-foreground'>
 							现有 Worktree
 						</h3>
 						<div className='space-y-2 max-h-96 overflow-y-auto'>
 							{worktrees.map(worktree => (
 								<div
 									key={worktree.path}
-									className='flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200'
+									className='flex items-start justify-between p-4 bg-muted rounded-lg border border-border'
 								>
 									<div className='flex-1 min-w-0 mr-4'>
 										<div className='flex items-center gap-2 mb-2'>
-											<span className='font-medium text-sm text-gray-900'>
+											<span className='font-medium text-sm text-foreground'>
 												{worktree.is_main ? '🏠 主目录' : '📁 Worktree'}
 											</span>
 											{worktree.is_main && (
-												<span className='text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full'>
+												<span className='text-xs bg-accent text-primary px-2 py-0.5 rounded-full'>
 													当前
 												</span>
 											)}
 										</div>
-										<div className='text-xs text-gray-500 space-y-1'>
+										<div className='text-xs text-muted-foreground space-y-1'>
 											<div className='font-mono break-all whitespace-normal'>
 												{worktree.path}
 											</div>
 											<div>
 												分支:{' '}
-												<span className='font-medium text-gray-700'>
+												<span className='font-medium text-foreground'>
 													{worktree.branch}
 												</span>
 												{worktree.is_detached && (
-													<span className='text-orange-600 ml-2'>
+													<span className='text-warning ml-2'>
 														(分离 HEAD)
 													</span>
 												)}
@@ -229,7 +229,7 @@ function GitWorktreeDialog({
 								</div>
 							))}
 							{worktrees.length === 0 && (
-								<div className='text-center text-gray-400 text-sm py-8'>
+								<div className='text-center text-muted-foreground text-sm py-8'>
 									暂无 Worktree
 								</div>
 							)}
@@ -237,7 +237,7 @@ function GitWorktreeDialog({
 					</div>
 				</div>
 
-				<div className='flex justify-end p-6 border-t bg-gray-50'>
+				<div className='flex justify-end p-6 border-t bg-muted'>
 					<Button variant='outline' onClick={onClose}>
 						关闭
 					</Button>

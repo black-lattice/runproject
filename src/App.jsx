@@ -7,6 +7,7 @@ import TabBar from './components/TabBar';
 import TitleBar from './components/TitleBar';
 import { AppRouter } from './router';
 import { useAppStore } from './store/useAppStore';
+import { startDataSync } from './store/dataSync';
 import { PAGE_CONFIGS } from './config/routes';
 
 const TRAY_SYNC_DELAY = 800;
@@ -53,6 +54,7 @@ function App() {
 	const workspaces = useAppStore(state => state.workspaces);
 
 	useEffect(() => {
+		startDataSync();
 		localStorage.removeItem('agent-storage');
 		localStorage.removeItem('mcp-store');
 
@@ -109,31 +111,6 @@ function App() {
 
 		return () => window.clearTimeout(timer);
 	}, [workspaces]);
-
-	useEffect(() => {
-		const media = window.matchMedia('(prefers-color-scheme: dark)');
-		const syncSystemTheme = () => {
-			document.documentElement.classList.toggle('dark', media.matches);
-			document.documentElement.style.colorScheme = media.matches
-				? 'dark'
-				: 'light';
-
-			if (isTauri()) {
-				invoke('set_tray_theme', {
-					theme: media.matches ? 'dark' : 'light'
-				}).catch(error => {
-					console.error('同步菜单栏图标主题失败:', error);
-				});
-			}
-		};
-
-		syncSystemTheme();
-		media.addEventListener('change', syncSystemTheme);
-
-		return () => {
-			media.removeEventListener('change', syncSystemTheme);
-		};
-	}, []);
 
 	return (
 		<Router>
