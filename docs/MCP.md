@@ -51,9 +51,9 @@ RUNPROJECT_MCP_TOKEN = "从应用连接配置取得的令牌"
 | `get_tasks` | 查询任务/问题，按清单、状态、关键词过滤；支持 offset 和 limit（1–200） |
 | `get_task` | 根据 ID 读取完整任务，包括详情、子任务、回收站状态 |
 | `create_task` | 创建任务，必须传 title；默认收件箱、待处理 |
-| `update_task` | 修改 title/detail/list/date/time/priority/status/tags/section，未传字段保持不变 |
+| `update_task` | 修改 title/detail/list/date/time/priority/status/tags/section/repeat/reminder/important/urgent/pinned，未传字段保持不变 |
 | `delete_task` / `restore_task` | 移入回收站 / 恢复 |
-| `create_list` / `rename_list` / `delete_list` | 创建、重命名、删除清单；重命名同步任务引用，删除后任务移至收件箱 |
+| `create_list` / `rename_list` / `delete_list` | 创建、重命名、删除清单；重命名同步任务引用，删除后保留其他清单归属，无其他归属时移至收件箱 |
 | `get_workspaces` | 工作区路径、名称、项目数量和标签 |
 | `get_projects` | 查询项目，读取路径、Node 版本、包管理器、scripts 和标签 |
 | `add_workspace` / `refresh_workspace` | 扫描并添加 / 刷新工作区，传本机绝对目录路径 |
@@ -65,6 +65,10 @@ RUNPROJECT_MCP_TOKEN = "从应用连接配置取得的令牌"
 | `get_script_run` | 传 run_id，读取状态、退出码及末尾日志；max_bytes 默认 16000，最大 262144 |
 
 任务 ID 使用查询结果中的值，调用时转成字符串（同时兼容旧数字 ID 和新 UUID）。清单名称包含 emoji，需要完整匹配。状态取 `pending`、`in-progress`、`done`、`abandoned`；完成状态会同步 `done` 字段。优先级为 `高`、`中`、`低`、`无`。日期格式 `YYYY-MM-DD`，时间格式 `HH:mm`，传空字符串清除。
+
+`create_task` 和 `update_task` 均支持 `repeat`、`reminder`、`important`、`urgent`、`pinned`。重复规则为 `每天`、`每周一`、`每周`、`每月`，空字符串取消。首次完成当前实例后生成唯一后续任务，响应的 `task.recurrenceNextId` 可用于读取；撤销后再次完成不会重复生成或覆盖已编辑的后续任务。月度规则在短月取最后一天，后续月份恢复原日期；错过的周期跳过，不批量补建历史任务。
+
+`reminder` 使用本机时间 `YYYY-MM-DDTHH:mm`，空字符串取消。提醒显示于应用内通知，需应用前端运行；应用完全退出后不会发送系统通知，重新打开时检查已到期提醒。三个布尔字段分别表示重要、紧急和置顶，重要与紧急独立控制四象限。MCP 对任务的修改会记录在任务动态中。
 
 `set_project_tags` 的 target 为 `workspace`、`project` 或 `command`；path 为对应的绝对路径，脚本使用 `项目路径::脚本名`。脚本通过 npm/pnpm/yarn run 执行，使用项目已保存的 Node 版本偏好。执行前会验证项目属于已登记工作区、脚本存在于当前 package.json；脚本本身可能修改文件或启动服务。
 
@@ -91,7 +95,7 @@ MCP 与页面使用同一个应用数据目录中的 `runproject.db`，不创建
 ## 验证
 
 ```sh
-node --test tests/dataSync.test.js
+node --test tests/*.test.js
 cargo test --manifest-path src-tauri/Cargo.toml --lib
 npm run build
 ```

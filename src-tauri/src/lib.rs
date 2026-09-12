@@ -10,6 +10,7 @@ use modules::tray;
 mod data_merge;
 mod mcp;
 mod storage;
+mod task_lifecycle;
 
 #[tauri::command]
 fn greet(name: &str) -> String {

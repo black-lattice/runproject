@@ -116,3 +116,13 @@ test("retains failed edits and retries them", async () => {
   assert.equal(sync.getSnapshot().status, "ready");
   assert.deepEqual(database.lists, [["new", "0"]]);
 });
+
+test("browser quota failure keeps edits visible and retry persists the combined snapshot", async () => {
+  let blocked=false,persisted,reported=0;
+  const sync=createSyncedData({initial:original,empty:{},read:null,cache:data=>{if(blocked)throw new Error('quota');persisted=structuredClone(data);},onError:()=>reported++});
+  sync.start();blocked=true;
+  sync.update(data=>({...data,lists:[['保留的新清单','0']]}));
+  assert.equal(sync.getSnapshot().status,'error');assert.equal(sync.getSnapshot().data.lists[0][0],'保留的新清单');assert.ok(reported);
+  blocked=false;await sync.refresh();
+  assert.equal(sync.getSnapshot().status,'local');assert.equal(persisted.lists[0][0],'保留的新清单');
+});

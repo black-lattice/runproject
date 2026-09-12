@@ -32,7 +32,18 @@ export function createSyncedData({
     subscribers.forEach((fn) => fn());
   };
   const pump = async () => {
-    if (!read || busy || !started) return;
+    if (!started || busy) return;
+    if (!read) {
+      try {
+        cache?.(snapshot.data);
+        publish(snapshot.data, "local");
+      } catch (error) {
+        const message = String(error);
+        publish(snapshot.data, "error", message);
+        onError?.(message);
+      }
+      return;
+    }
     busy = true;
     try {
       if (!loaded) {
@@ -74,8 +85,18 @@ export function createSyncedData({
       const data =
         typeof updater === "function" ? updater(snapshot.data) : updater;
       if (equalData(data, snapshot.data)) return;
-      publish(data);
-      if (!read) cache?.(data);
+      if (!read) {
+        try {
+          cache?.(data);
+          publish(data, "local");
+        } catch (error) {
+          const message = String(error);
+          publish(data, "error", message);
+          onError?.(message);
+        }
+        return;
+      }
+      publish(data, "saving");
       // Batch list renames + task reference changes into the same transaction.
       queueMicrotask(pump);
     },
@@ -88,7 +109,7 @@ export function createSyncedData({
     },
     refresh: () => {
       requested = true;
-      void pump();
+      return pump();
     },
   };
 }

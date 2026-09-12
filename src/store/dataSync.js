@@ -4,6 +4,8 @@ import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "./useAppStore";
 import { seedTasks, defaultLists } from "./productivityDefaults";
 import { createSyncedData } from "../utils/syncedData";
+import { applyTaskRecurrence } from "../utils/taskRecurrence";
+import { appendTaskActivity } from "../utils/taskExtras";
 import { equalData } from "../utils/mergeData";
 import { toast } from "@/hooks/use-toast";
 
@@ -21,8 +23,11 @@ const error = (message) =>
     description: `修改保留在页面中，将自动重试。${message}`,
     variant: "destructive",
   });
-const savedTasks = stored("runproject-tasks", seedTasks);
-const savedLists = stored("runproject-lists", defaultLists);
+const productivityCache = stored("runproject-productivity", null);
+const savedTasks =
+  productivityCache?.tasks ?? stored("runproject-tasks", seedTasks);
+const savedLists =
+  productivityCache?.lists ?? stored("runproject-lists", defaultLists);
 const productivityEmpty = { tasks: [], lists: [] };
 export const productivityData = createSyncedData({
   initial: {
@@ -62,27 +67,48 @@ export const productivityData = createSyncedData({
     return { tasks: result.tasks, lists: result.lists };
   },
   cache: ({ tasks, lists }) => {
-    localStorage.setItem("runproject-tasks", JSON.stringify(tasks));
-    localStorage.setItem("runproject-lists", JSON.stringify(lists));
+    localStorage.setItem(
+      "runproject-productivity",
+      JSON.stringify({ tasks, lists }),
+    );
   },
   onError: error,
 });
+const updateData = (updater) =>
+  productivityData.update((data) => {
+    const next = typeof updater === "function" ? updater(data) : updater;
+    return {
+      ...next,
+      tasks: appendTaskActivity(
+        data.tasks,
+        applyTaskRecurrence(data.tasks, next.tasks),
+      ),
+    };
+  });
 const setTasks = (updater) =>
-  productivityData.update((data) => ({
+  updateData((data) => ({
     ...data,
     tasks: typeof updater === "function" ? updater(data.tasks) : updater,
   }));
 const setLists = (updater) =>
-  productivityData.update((data) => ({
+  updateData((data) => ({
     ...data,
     lists: typeof updater === "function" ? updater(data.lists) : updater,
   }));
 export function useProductivityData() {
-  const { data } = useSyncExternalStore(
+  const { data, status, error } = useSyncExternalStore(
     productivityData.subscribe,
     productivityData.getSnapshot,
   );
-  return { ...data, setTasks, setLists };
+  return {
+    ...data,
+    setTasks,
+    setLists,
+    updateData,
+    syncStatus: status,
+    syncError: error,
+    refresh: productivityData.refresh,
+  };
 }
 const projectEmpty = {
   workspaces: [],

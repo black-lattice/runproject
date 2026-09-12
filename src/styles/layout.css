@@ -1187,9 +1187,6 @@ html body .dark .task-row.is-done {
   border-top: 1px solid hsl(var(--border));
   font-size: 16px;
 }
-.task-home .task-detail-body > div:not(.flex.items-start) {
-  display: none;
-}
 .task-home .task-detail > .task-calendar {
   display: none;
 }

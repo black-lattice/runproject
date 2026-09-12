@@ -350,6 +350,197 @@ mod tests {
         );
     }
     #[tokio::test]
+    async fn http_recurring_task_completion_preserves_fields_and_has_one_successor() {
+        let s = Server::new().await;
+        // Future fixed dates avoid dependence on the machine's local day and timezone.
+        let created = s
+            .call(
+                "create_task",
+                json!({
+                    "title":"每日巡检集成测试",
+                    "detail":"保留巡检说明",
+                    "list":"工作",
+                    "date":"2050-03-01",
+                    "time":"09:30",
+                    "priority":"高",
+                    "tags":["例行","集成测试"],
+                    "section":"巡检",
+                    "repeat":"每天",
+                    "reminder":"2050-03-01T09:15",
+                    "important":true,
+                    "urgent":false,
+                    "pinned":true
+                }),
+            )
+            .await;
+        let id = created["task"]["id"].as_str().unwrap();
+        assert_eq!(created["task"]["repeat"], "每天");
+        assert_eq!(created["task"]["reminder"], "2050-03-01T09:15");
+        assert_eq!(created["task"]["important"], true);
+        assert_eq!(created["task"]["urgent"], false);
+        assert_eq!(created["task"]["pinned"], true);
+        let create_activity = created["task"]["activity"].as_array().unwrap();
+        assert_eq!(create_activity.len(), 1);
+        assert_eq!(create_activity[0]["message"], "通过 MCP 创建任务");
+        assert!(create_activity[0]["at"].as_u64().unwrap() > 0);
+        assert!(create_activity[0]["id"].as_str().is_some());
+
+        let updated = s
+            .call(
+                "update_task",
+                json!({"id":id,"changes":{
+                    "status":"in-progress","important":false,"urgent":true,"pinned":false
+                }}),
+            )
+            .await;
+        assert_eq!(updated["task"]["status"], "in-progress");
+        assert_eq!(updated["task"]["done"], false);
+        assert_eq!(updated["task"]["important"], false);
+        assert_eq!(updated["task"]["urgent"], true);
+        assert_eq!(updated["task"]["pinned"], false);
+        let update_activity = updated["task"]["activity"].as_array().unwrap();
+        assert_eq!(update_activity.len(), 2);
+        assert_eq!(update_activity[1]["message"], "通过 MCP 更新任务");
+        assert_ne!(update_activity[0]["id"], update_activity[1]["id"]);
+
+        let completed = s
+            .call("update_task", json!({"id":id,"changes":{"status":"done"}}))
+            .await;
+        assert_eq!(completed["task"]["done"], true);
+        assert_eq!(completed["task"]["status"], "done");
+        let successor_id = completed["task"]["recurrenceNextId"]
+            .as_str()
+            .expect("completion response must expose the persisted successor ID");
+        assert_ne!(successor_id, id);
+        let matches = s
+            .call("get_tasks", json!({"query":"每日巡检集成测试"}))
+            .await;
+        assert_eq!(matches["total"], 2, "{matches}");
+        let children: Vec<_> = matches["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|task| task["id"] != id)
+            .collect();
+        assert_eq!(children.len(), 1);
+        let child = children[0];
+        assert_eq!(child["id"], successor_id);
+        assert_eq!(child["date"], "2050-03-02");
+        assert_eq!(child["reminder"], "2050-03-02T09:15");
+        assert_eq!(child["done"], false);
+        assert_eq!(child["status"], "pending");
+        assert_eq!(child["recurrenceRootId"], id);
+        assert_eq!(child["recurrenceIndex"], 1);
+        for field in [
+            "title",
+            "detail",
+            "list",
+            "lists",
+            "categories",
+            "time",
+            "priority",
+            "tags",
+            "section",
+            "repeat",
+            "important",
+            "urgent",
+            "pinned",
+        ] {
+            assert_eq!(child[field], updated["task"][field], "lost field {field}");
+        }
+        assert_eq!(
+            s.call("get_task", json!({"id":id})).await["task"],
+            completed["task"],
+            "mutation response must match the saved task including recurrence and activity"
+        );
+        assert_eq!(
+            completed["task"]["activity"]
+                .as_array()
+                .unwrap()
+                .last()
+                .unwrap()["message"],
+            "通过 MCP 更新任务"
+        );
+
+        for status in ["pending", "done", "done"] {
+            let result = s
+                .call("update_task", json!({"id":id,"changes":{"status":status}}))
+                .await;
+            assert_eq!(result["task"]["recurrenceNextId"], successor_id);
+            let matches = s
+                .call("get_tasks", json!({"query":"每日巡检集成测试"}))
+                .await;
+            assert_eq!(matches["total"], 2, "{status}: {matches}");
+        }
+        let pending = s
+            .call(
+                "get_tasks",
+                json!({"query":"每日巡检集成测试","status":"pending"}),
+            )
+            .await;
+        assert_eq!(pending["total"], 1);
+        assert_eq!(pending["tasks"][0]["id"], successor_id);
+    }
+    #[tokio::test]
+    async fn http_rejects_invalid_recurrence_and_unicode_reminders_without_partial_writes() {
+        let s = Server::new().await;
+        let created = s
+            .call(
+                "create_task",
+                json!({"title":"校验保护任务","date":"2050-03-01","repeat":"每周","reminder":"2050-03-01T12:00"}),
+            )
+            .await;
+        let id = created["task"]["id"].as_str().unwrap();
+        for (field, invalid) in [
+            ("repeat", "每隔三天"),
+            ("repeat", "DAILY"),
+            ("reminder", "2050-03-01T🌕:"),
+            ("reminder", "2050-03-01T12:🌕"),
+            ("reminder", "2050-03-01T24:00"),
+            ("reminder", "2050-03-01T12:60"),
+            ("reminder", "2050-02-30T12:00"),
+            ("reminder", "2050-03-01T12:00T00:00"),
+        ] {
+            for operation in ["create_task", "update_task"] {
+                let mut fields = json!({"title":"不应保存的修改"});
+                fields[field] = json!(invalid);
+                let arguments = if operation == "create_task" {
+                    fields
+                } else {
+                    json!({"id":id,"changes":fields})
+                };
+                let rejected = s
+                    .rpc(
+                        "tools/call",
+                        json!({"name":operation,"arguments":arguments}),
+                    )
+                    .await;
+                assert!(rejected.get("error").is_none(), "{rejected}");
+                assert_eq!(rejected["result"]["isError"], true, "{rejected}");
+                let content = rejected["result"]["content"].to_string();
+                assert!(
+                    content.contains(&format!("{field} 必须")),
+                    "expected a normal validation error, not a caught panic: {rejected}"
+                );
+                assert_eq!(
+                    s.call("get_task", json!({"id":id})).await["task"],
+                    created["task"],
+                    "rejected {operation} must not save title changes or activity"
+                );
+                assert_eq!(s.call("get_tasks", json!({})).await["total"], 2);
+            }
+        }
+        let cleared = s
+            .call(
+                "update_task",
+                json!({"id":id,"changes":{"repeat":"","reminder":""}}),
+            )
+            .await;
+        assert_eq!(cleared["task"]["repeat"], "");
+        assert_eq!(cleared["task"]["reminder"], "");
+        assert_eq!(cleared["task"]["activity"].as_array().unwrap().len(), 2);
+    }
+    #[tokio::test]
     async fn project_crud_does_not_delete_files() {
         let s = Server::new().await;
         let path = s.root.join("workspace");

@@ -23,6 +23,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 portable-pty = "0.8"
 libc = "0.2"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 base64 = "0.21"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

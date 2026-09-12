@@ -7,6 +7,7 @@ import TabBar from './components/TabBar';
 import TitleBar from './components/TitleBar';
 import { AppRouter } from './router';
 import { useAppStore } from './store/useAppStore';
+import ReminderBridge from './components/ReminderBridge';
 import { startDataSync } from './store/dataSync';
 import { PAGE_CONFIGS } from './config/routes';
 
@@ -115,6 +116,7 @@ function App() {
 	return (
 		<Router>
 			<TrayEventBridge />
+            <ReminderBridge />
 			<div className='app-shell h-screen flex flex-col overflow-hidden text-foreground'>
 				{/* 自定义标题栏（包含 TabBar） */}
 				<TitleBar>

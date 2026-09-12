@@ -153,8 +153,7 @@ pub fn save_productivity_data(
         );
         repair_removed_list_references(&base, &mut next);
         next["initialized"] = serde_json::json!(true);
-        write_productivity(&tx, &next)?;
-        next
+        write_productivity(&tx, &next)?
     };
     tx.commit().map_err(|e| e.to_string())?;
     let _ = app.emit("productivity-changed", ());
@@ -199,7 +198,11 @@ fn repair_removed_list_references(base: &Value, next: &mut Value) {
     }
 }
 
-pub(crate) fn write_productivity(transaction: &Connection, data: &Value) -> Result<(), String> {
+pub(crate) fn write_productivity(transaction: &Connection, data: &Value) -> Result<Value, String> {
+    // Every writer shares this transaction-bound completion transition. The
+    // stored predecessor is authoritative even when a stale UI repeats a save.
+    let current = read_productivity(transaction)?;
+    let data = crate::task_lifecycle::apply(&current, data);
     let tasks = data["tasks"].as_array().ok_or("tasks 必须为数组")?;
     let lists = data["lists"].as_array().ok_or("lists 必须为数组")?;
     transaction
@@ -249,7 +252,7 @@ pub(crate) fn write_productivity(transaction: &Connection, data: &Value) -> Resu
             [],
         )
         .map_err(|error| format!("保存数据库状态失败: {}", error))?;
-    Ok(())
+    Ok(data)
 }
 
 #[tauri::command]
@@ -343,6 +346,91 @@ mod tests {
                 1
             );
         }
+        std::fs::remove_file(path).unwrap();
+    }
+    #[test]
+    fn shared_write_lifecycle_survives_stale_ui_merges_and_persists_exactly_once() {
+        let path =
+            std::env::temp_dir().join(format!("runproject-recurrence-{}.db", uuid::Uuid::new_v4()));
+        let mut db = open_database_path(&path).unwrap();
+        let base = json!({"tasks":[{"id":"monthly","title":"保留笔记","date":"2099-01-31","repeat":"每月","done":false,"status":"pending","custom":{"nested":"kept"}}],"lists":[]});
+        {
+            let tx = db
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .unwrap();
+            write_productivity(&tx, &base).unwrap();
+            tx.commit().unwrap();
+        }
+        // MCP mutates the authoritative document in an immediate transaction.
+        let first = {
+            let tx = db
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .unwrap();
+            let mut data = read_productivity(&tx).unwrap();
+            data["tasks"][0]["done"] = json!(true);
+            data["tasks"][0]["status"] = json!("done");
+            let saved = write_productivity(&tx, &data).unwrap();
+            tx.commit().unwrap();
+            saved
+        };
+        assert_eq!(first["tasks"].as_array().unwrap().len(), 2);
+        assert_eq!(first["tasks"][0]["date"], "2099-02-28");
+        assert_eq!(first["tasks"][0]["custom"], base["tasks"][0]["custom"]);
+        let next_id = first["tasks"][0]["id"].clone();
+        // A UI still holding the pre-completion snapshot concurrently changes the title.
+        {
+            let tx = db
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .unwrap();
+            let mut local = base.clone();
+            local["tasks"][0]["title"] = json!("另一端编辑");
+            local["tasks"][0]["done"] = json!(true);
+            local["tasks"][0]["status"] = json!("done");
+            let current = read_productivity(&tx).unwrap();
+            let merged = crate::data_merge::merge(&base, &local, &current, "");
+            let saved = write_productivity(&tx, &merged).unwrap();
+            assert_eq!(saved["tasks"].as_array().unwrap().len(), 2);
+            assert_eq!(saved["tasks"][0]["title"], "另一端编辑");
+            assert_eq!(saved["tasks"][0]["recurrenceNextId"], next_id);
+            tx.commit().unwrap();
+        }
+        // Editing the child, undoing the parent, and completing again never resets that edit.
+        for completed in [false, true] {
+            let tx = db
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .unwrap();
+            let mut data = read_productivity(&tx).unwrap();
+            for task in data["tasks"].as_array_mut().unwrap() {
+                if task["id"] == "monthly" {
+                    task["done"] = json!(completed);
+                    task["status"] = json!(if completed { "done" } else { "pending" });
+                } else {
+                    task["title"] = json!("独立修改下次任务");
+                }
+            }
+            let saved = write_productivity(&tx, &data).unwrap();
+            assert_eq!(saved["tasks"].as_array().unwrap().len(), 2);
+            assert_eq!(
+                saved["tasks"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|task| task["id"] == next_id)
+                    .unwrap()["title"],
+                "独立修改下次任务"
+            );
+            tx.commit().unwrap();
+        }
+        drop(db);
+        let db = open_database_path(&path).unwrap();
+        assert_eq!(
+            read_productivity(&db).unwrap()["tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        drop(db);
         std::fs::remove_file(path).unwrap();
     }
     #[test]
