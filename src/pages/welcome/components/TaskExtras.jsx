@@ -588,6 +588,7 @@ export function TaskNoteEditor({
   disabled = false,
   ariaLabel = "任务备注",
   editorRef,
+  documentMode = false,
 }) {
   const [mode, setMode] = useState("编辑");
   const [focusRequest, setFocusRequest] = useState(0);
@@ -596,12 +597,19 @@ export function TaskNoteEditor({
   useImperativeHandle(
     editorRef,
     () => ({
+      preview() {
+        setMode("预览");
+      },
+      format(kind) {
+        setMode("编辑");
+        format(kind);
+      },
       focus() {
         setMode("编辑");
         setFocusRequest((request) => request + 1);
       },
     }),
-    [],
+    [value, onChange],
   );
   useEffect(() => {
     if (!focusRequest || mode !== "编辑") return;
@@ -620,64 +628,83 @@ export function TaskNoteEditor({
     );
     onChange(next.value);
     requestAnimationFrame(() => {
-      area?.focus();
-      area?.setSelectionRange(next.selectionStart, next.selectionEnd);
+      const editor = ref.current?.resizableTextArea?.textArea;
+      editor?.focus();
+      editor?.setSelectionRange(next.selectionStart, next.selectionEnd);
     });
   };
   return (
-    <section className="space-y-2" aria-labelledby={labelId}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span id={labelId} className="text-sm font-medium">
-          备注
-        </span>
-        <Segmented
-          size="small"
-          value={mode}
-          options={["编辑", "预览"]}
-          onChange={setMode}
-          aria-label="备注显示模式"
-        />
-      </div>
+    <section
+      className="space-y-2"
+      aria-labelledby={documentMode ? undefined : labelId}
+      aria-label={documentMode ? "正文" : undefined}
+    >
+      {!documentMode && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span id={labelId} className="text-sm font-medium">
+            备注
+          </span>
+          <Segmented
+            size="small"
+            value={mode}
+            options={["编辑", "预览"]}
+            onChange={setMode}
+            aria-label="备注显示模式"
+          />
+        </div>
+      )}
       {mode === "编辑" ? (
         <>
-          <div
-            className="flex flex-wrap items-center gap-1"
-            role="toolbar"
-            aria-label="备注格式工具"
-          >
-            {[
-              { kind: "bold", label: "加粗", icon: <BoldOutlined /> },
-              { kind: "italic", label: "斜体", icon: <ItalicOutlined /> },
-              { kind: "heading", label: "标题", text: "H" },
-              { kind: "list", label: "列表", icon: <UnorderedListOutlined /> },
-              { kind: "quote", label: "引用", text: "❞" },
-              { kind: "code", label: "行内代码", icon: <CodeOutlined /> },
-            ].map((item) => (
-              <Tooltip key={item.kind} title={item.label}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={item.icon}
-                  aria-label={`备注${item.label}`}
-                  disabled={disabled}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => format(item.kind)}
-                >
-                  {item.text}
-                </Button>
-              </Tooltip>
-            ))}
-            <span className="ml-1 text-xs text-muted-foreground">
-              Markdown 纯文本
-            </span>
-          </div>
+          {!documentMode && (
+            <div
+              className="flex flex-wrap items-center gap-1"
+              role="toolbar"
+              aria-label="备注格式工具"
+            >
+              {[
+                { kind: "bold", label: "加粗", icon: <BoldOutlined /> },
+                { kind: "italic", label: "斜体", icon: <ItalicOutlined /> },
+                { kind: "heading", label: "标题", text: "H" },
+                {
+                  kind: "list",
+                  label: "列表",
+                  icon: <UnorderedListOutlined />,
+                },
+                { kind: "quote", label: "引用", text: "❞" },
+                { kind: "code", label: "行内代码", icon: <CodeOutlined /> },
+              ].map((item) => (
+                <Tooltip key={item.kind} title={item.label}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={item.icon}
+                    aria-label={`备注${item.label}`}
+                    disabled={disabled}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => format(item.kind)}
+                  >
+                    {item.text}
+                  </Button>
+                </Tooltip>
+              ))}
+              <span className="ml-1 text-xs text-muted-foreground">
+                Markdown 纯文本
+              </span>
+            </div>
+          )}
           <Input.TextArea
             ref={ref}
-            className="task-detail-notes"
+            className={`task-detail-notes${documentMode ? " is-document" : ""}`}
             value={value}
             aria-label={ariaLabel}
-            placeholder="添加备注… 可使用上方工具设置格式"
-            autoSize={{ minRows: 3, maxRows: 8 }}
+            placeholder={
+              documentMode
+                ? "写下正文… 右键打开任务操作"
+                : "添加备注… 可使用上方工具设置格式"
+            }
+            autoSize={
+              documentMode ? { minRows: 14 } : { minRows: 3, maxRows: 8 }
+            }
             disabled={disabled}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={(event) => {
@@ -694,9 +721,12 @@ export function TaskNoteEditor({
       ) : (
         <div className="task-note-preview-pane min-h-24 rounded-lg border border-border bg-muted/20 p-3">
           <TaskNotePreview value={value} />
-          <p className="mt-3 text-xs text-muted-foreground">
-            支持标题、加粗、斜体、列表、引用和行内代码。HTML 与链接按文本显示。
-          </p>
+          {!documentMode && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              支持标题、加粗、斜体、列表、引用和行内代码。HTML
+              与链接按文本显示。
+            </p>
+          )}
         </div>
       )}
     </section>

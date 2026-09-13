@@ -7,6 +7,8 @@ export function TaskSubtasks({
   inputValue = "",
   onInputChange,
   onChange,
+  showComposer = true,
+  onComposerClose,
 }) {
   const subtasks = normalizeSubtasks(task);
   const completed = subtasks.filter((item) => item.done).length;
@@ -26,6 +28,7 @@ export function TaskSubtasks({
       subtasks: [...normalizeSubtasks(current), item],
     }));
     onInputChange("");
+    onComposerClose?.();
   };
 
   return (
@@ -82,32 +85,40 @@ export function TaskSubtasks({
           />
         </div>
       ))}
-      <div className="task-detail-subtask-composer flex items-center gap-2">
-        <Input
-          aria-label="添加子任务"
-          prefix={<PlusOutlined className="text-muted-foreground" />}
-          placeholder="添加子任务，回车保存"
-          value={inputValue}
-          className="min-w-0 flex-1"
-          style={{ height: 36 }}
-          onChange={(event) => onInputChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.nativeEvent?.isComposing || event.isComposing) return;
-            if (event.key === "Enter") {
-              event.preventDefault();
-              addSubtask();
-            }
-          }}
-        />
-        <Button
-          type="text"
-          disabled={!inputValue.trim()}
-          style={{ height: 36, flexShrink: 0 }}
-          onClick={addSubtask}
-        >
-          添加
-        </Button>
-      </div>
+      {showComposer && (
+        <div className="task-detail-subtask-composer flex items-center gap-2">
+          <Input
+            autoFocus
+            aria-label="添加子任务"
+            prefix={<PlusOutlined className="text-muted-foreground" />}
+            placeholder="添加子任务，回车保存"
+            value={inputValue}
+            className="min-w-0 flex-1"
+            style={{ height: 36 }}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.nativeEvent?.isComposing || event.isComposing) return;
+              if (event.key === "Escape") {
+                event.stopPropagation();
+                onInputChange("");
+                onComposerClose?.();
+              }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addSubtask();
+              }
+            }}
+          />
+          <Button
+            type="text"
+            disabled={!inputValue.trim()}
+            style={{ height: 36, flexShrink: 0 }}
+            onClick={addSubtask}
+          >
+            添加
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

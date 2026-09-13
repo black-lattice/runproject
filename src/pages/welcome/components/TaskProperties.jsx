@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Select, Tag, TimePicker } from "antd";
+import { Button, Input, Select, Tag } from "antd";
 import { TagOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
-import { taskLists, taskStatus } from "@/utils/taskModel";
+import { taskLists } from "@/utils/taskModel";
 import { nextOccurrenceDate } from "@/utils/taskRecurrence";
 import { TaskSectionSelect } from "./TaskOrganization";
 import { ReminderEditor } from "./TaskReminders";
@@ -13,49 +12,6 @@ function Field({ label, children }) {
       <span className="task-detail-field-label">{label}</span>
       {children}
     </div>
-  );
-}
-
-export function TaskScheduleFields({ task, today, onChange }) {
-  return (
-    <section className="task-detail-section" aria-label="任务安排">
-      <h3 className="task-detail-section-title">任务安排</h3>
-      <div className="task-detail-form-grid">
-        <Field label="状态">
-          <Select
-            aria-label="任务状态"
-            value={taskStatus(task)}
-            options={[
-              { value: "pending", label: "待处理" },
-              { value: "in-progress", label: "进行中" },
-              { value: "done", label: "已完成" },
-              { value: "abandoned", label: "已放弃" },
-            ]}
-            onChange={(status) =>
-              onChange({ status, done: ["done", "abandoned"].includes(status) })
-            }
-          />
-        </Field>
-        <Field label="时间">
-          <TimePicker
-            aria-label="任务时间"
-            value={
-              task.time ? dayjs(`${task.date || today}T${task.time}`) : null
-            }
-            format="HH:mm"
-            placeholder="全天"
-            needConfirm={false}
-            onChange={(value) =>
-              onChange((current) => ({
-                ...current,
-                time: value?.format("HH:mm") || "",
-                date: value ? current.date || today : current.date,
-              }))
-            }
-          />
-        </Field>
-      </div>
-    </section>
   );
 }
 

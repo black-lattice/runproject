@@ -1036,3 +1036,69 @@ pre,
   .task-row .task-category-list { display: none; }
   .task-row .task-created-date { display: none; }
 }
+
+/* Keep task content separate from the on-demand property controls. */
+.task-detail-date-control.ant-btn {
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  padding-inline: 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+}
+.task-detail-date-control.ant-btn.has-date { color: hsl(var(--primary)); }
+.task-detail-date-control.ant-btn > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-date-panel { width: min(304px, calc(100vw - 56px)); }
+.task-date-panel .ant-picker-calendar-header { padding-top: 4px; }
+.task-date-time-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 12px;
+  border-top: 1px solid hsl(var(--border));
+}
+.task-date-time-row .ant-picker { flex: 1; min-width: 0; height: 36px; }
+.task-date-panel-actions { display: flex; justify-content: space-between; gap: 12px; }
+.task-detail-context-menu .ant-dropdown-menu { max-height: calc(100vh - 48px); overflow-y: auto; }
+.task-property-modal .task-detail-section { margin: 0; padding: 0; border: 0; }
+.task-property-modal .task-detail-section-title { display: none; }
+.task-home .task-detail-body .task-detail-note-section.is-document {
+  margin-top: 20px;
+  padding-top: 0;
+  border: 0;
+}
+.task-home .task-detail-body textarea.task-detail-notes.ant-input.is-document,
+.task-home .task-detail-body textarea.task-detail-notes.ant-input.is-document:focus {
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none !important;
+  font-size: 14px;
+  line-height: 1.85;
+  resize: none;
+}
+.task-detail-note-section.is-document .task-note-preview-pane {
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.85;
+}
+.task-detail-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 8px var(--page-padding);
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}

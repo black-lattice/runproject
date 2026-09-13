@@ -86,8 +86,8 @@ import TaskComments from "./components/TaskComments";
 import TaskTitleInput from "./components/TaskTitleInput";
 import { NotificationPanel } from "./components/TaskReminders";
 import TaskSubtasks from "./components/TaskSubtasks";
+import TaskDateControl from "./components/TaskDateControl";
 import {
-  TaskScheduleFields,
   TaskReminderFields,
   TaskOrganizationFields,
 } from "./components/TaskProperties";
@@ -244,7 +244,17 @@ function WelcomePage() {
   const [hideCompleted, setHideCompleted] = useState(false);
   const [activeTool, setActiveTool] = useState(null);
   const [subtaskInput, setSubtaskInput] = useState("");
-  useEffect(() => setSubtaskInput(""), [selectedId]);
+  const [showSubtaskComposer, setShowSubtaskComposer] = useState(false);
+  const [taskPropertyPanel, setTaskPropertyPanel] = useState(null);
+  const [taskDateOpen, setTaskDateOpen] = useState(false);
+  const [detailContextOpen, setDetailContextOpen] = useState(false);
+  useEffect(() => {
+    setSubtaskInput("");
+    setShowSubtaskComposer(false);
+    setTaskPropertyPanel(null);
+    setTaskDateOpen(false);
+    setDetailContextOpen(false);
+  }, [selectedId, showDetail]);
   const [collapsedSections, setCollapsedSections] = useState({});
   const [listEditor, setListEditor] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
@@ -648,8 +658,10 @@ function WelcomePage() {
       .then(() => toast({ description: success }))
       .catch(() => toast({ description: failure, variant: "destructive" }));
   const handleTaskAction = ({ key }) => {
+    setDetailContextOpen(false);
     if (selected.id == null) return;
     if (key === "subtask") {
+      setShowSubtaskComposer(true);
       document
         .querySelector('input[placeholder="添加子任务，回车保存"]')
         ?.focus();
@@ -669,8 +681,26 @@ function WelcomePage() {
         ),
       );
       toast({ description: "任务已标记为放弃" });
-    } else if (key === "tag") {
-      document.querySelector('input[placeholder="添加标签"]')?.focus();
+    } else if (key === "tag" || key === "reminders" || key === "trash") {
+      setTaskPropertyPanel(key);
+    } else if (key === "date") {
+      setTaskDateOpen(true);
+    } else if (key.startsWith("status-")) {
+      const status = key.slice(7);
+      if (status === "done" && !isFinished(selected)) toggle(selected.id);
+      else
+        updateSelected({
+          status,
+          done: ["done", "abandoned"].includes(status),
+        });
+    } else if (key.startsWith("list-")) {
+      updateSelected((current) => withLists(current, [key.slice(5)]));
+    } else if (key === "edit-note") {
+      noteEditorRef.current?.focus();
+    } else if (key === "preview-note") {
+      noteEditorRef.current?.preview();
+    } else if (key.startsWith("format-")) {
+      noteEditorRef.current?.format(key.slice(7));
     } else if (key === "duplicate") {
       duplicateTask();
     } else if (key === "copy") {
@@ -694,6 +724,72 @@ function WelcomePage() {
     } else if (key === "activity" || key === "attachment") {
       openTaskExtras(key);
     }
+  };
+  const noteMenuItems = [
+    { key: "edit-note", label: "编辑正文" },
+    { key: "preview-note", label: "预览正文" },
+    { type: "divider" },
+    ...[
+      ["bold", "加粗"],
+      ["italic", "斜体"],
+      ["heading", "标题"],
+      ["list", "列表"],
+      ["quote", "引用"],
+      ["code", "行内代码"],
+    ].map(([key, label]) => ({ key: `format-${key}`, label })),
+  ];
+  const detailMenu = {
+    selectable: true,
+    selectedKeys: [`status-${taskStatus(selected)}`],
+    items: [
+      { key: "subtask", label: "添加子任务" },
+      { key: "date", label: "日期与时间" },
+      {
+        key: "status",
+        label: "任务状态",
+        children: [
+          ["pending", "待处理"],
+          ["in-progress", "进行中"],
+          ["done", "已完成"],
+          ["abandoned", "已放弃"],
+        ].map(([value, label]) => ({ key: `status-${value}`, label })),
+      },
+      { key: "reminders", label: "提醒与重复" },
+      {
+        key: "list",
+        label: "移动到清单",
+        children: ["收件箱", ...lists.map(([name]) => name)].map((name) => ({
+          key: `list-${name}`,
+          label: name,
+        })),
+      },
+      { key: "tag", label: "分组与标签" },
+      { type: "divider" },
+      { key: "note", label: "正文编辑与格式", children: noteMenuItems },
+      { key: "attachment", label: "上传附件" },
+      { key: "activity", label: "任务动态" },
+      {
+        key: "organize",
+        label: "整理与导出",
+        children: [
+          { key: "pin", label: selected.pinned ? "取消置顶" : "置顶" },
+          { key: "template", label: "保存为模板" },
+          { key: "duplicate", label: "创建副本" },
+          { type: "divider" },
+          { key: "copy", label: "复制本机链接" },
+          { key: "export", label: "复制任务内容" },
+          { key: "print", label: "打印" },
+        ],
+      },
+      { type: "divider" },
+      ...(selected.deleted
+        ? [
+            { key: "restore", label: "恢复任务" },
+            { key: "trash", label: "垃圾桶操作", danger: true },
+          ]
+        : [{ key: "delete", label: "移入垃圾桶", danger: true }]),
+    ],
+    onClick: handleTaskAction,
   };
   const handleRailAction = (label) => {
     if (label === "同步") {
@@ -1533,34 +1629,12 @@ function WelcomePage() {
                     onChange={() => toggle(selected.id)}
                   />
                   <span className="task-detail-top-divider" />
-                  <DatePicker
-                    aria-label="任务日期"
-                    className={`task-detail-date-picker ${selected.date ? "has-date" : ""}`}
-                    variant="borderless"
-                    placeholder="设置日期"
-                    value={selected.date ? dayjs(selected.date) : null}
-                    format={
-                      selected.date
-                        ? (value) =>
-                            value.isSame(dayjs(), "day")
-                              ? `今天, ${value.format("M月D日")}`
-                              : value.format("YYYY年M月D日")
-                        : "设置日期"
-                    }
-                    suffixIcon={<CalendarDays className="h-5 w-5" />}
-                    onChange={(value) =>
-                      setTasks((current) =>
-                        current.map((task) =>
-                          task.id === selected.id
-                            ? {
-                                ...task,
-                                date: value?.format("YYYY-MM-DD") || "",
-                                time: value ? task.time : "",
-                              }
-                            : task,
-                        ),
-                      )
-                    }
+                  <TaskDateControl
+                    task={selected}
+                    today={today}
+                    open={taskDateOpen}
+                    onOpenChange={setTaskDateOpen}
+                    onChange={updateSelected}
                   />
                   <Dropdown
                     trigger={["click"]}
@@ -1568,7 +1642,9 @@ function WelcomePage() {
                     menu={{
                       selectable: true,
                       selectedKeys: [
-                        { 高: "high", 中: "medium", 低: "low" }[selected.priority] || "none",
+                        { 高: "high", 中: "medium", 低: "low" }[
+                          selected.priority
+                        ] || "none",
                       ],
                       items: [
                         { key: "high", label: "🚩  高优先级" },
@@ -1607,87 +1683,81 @@ function WelcomePage() {
                   </Dropdown>
                 </div>
               </div>
-              <div className="task-detail-body">
-                {!visibleTasks.some((task) => task.id === selected.id) && (
-                  <div
-                    role="status"
-                    className="mb-4 rounded-lg border border-border p-3 text-xs text-muted-foreground"
-                  >
-                    {selected.deleted
-                      ? "此任务已移入垃圾桶。"
-                      : "任务已不在当前视图中，仍可在这里继续编辑。"}
-                    <Button size="sm" onClick={() => revealTask(selected.id)}>
-                      {selected.deleted ? "查看垃圾桶" : "在所有任务中查看"}
-                    </Button>
-                  </div>
-                )}
-                <div className="flex items-start gap-3">
-                  <div className="min-w-0 flex-1">
-                    <TaskTitleInput
-                      task={selected}
-                      onCommit={(title, taskId) =>
-                        setTasks((current) =>
-                          current.map((task) =>
-                            task.id === taskId ? { ...task, title } : task,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                  <ListTodo
-                    className="task-detail-list-icon"
-                    aria-label="清单"
-                  />
+              {!visibleTasks.some((task) => task.id === selected.id) && (
+                <div role="status" className="task-detail-notice">
+                  {selected.deleted
+                    ? "此任务已移入垃圾桶。"
+                    : "任务已不在当前视图中，仍可在这里继续编辑。"}
+                  <Button size="sm" onClick={() => revealTask(selected.id)}>
+                    {selected.deleted ? "查看垃圾桶" : "在所有任务中查看"}
+                  </Button>
                 </div>
-                {selected.deleted && (
-                  <div className="task-detail-section">
-                    <TrashActions
-                      tasks={tasks}
-                      onChange={setTasks}
-                      taskId={selected.id}
-                    />
-                  </div>
-                )}
-                <TaskSubtasks
-                  task={selected}
-                  inputValue={subtaskInput}
-                  onInputChange={setSubtaskInput}
-                  onChange={updateSelected}
-                />
-                <TaskScheduleFields
-                  task={selected}
-                  today={today}
-                  onChange={updateSelected}
-                />
+              )}
+              <Dropdown
+                trigger={["contextMenu"]}
+                open={detailContextOpen}
+                onOpenChange={setDetailContextOpen}
+                align={{
+                  offset: [0, 0],
+                  overflow: {
+                    adjustX: true,
+                    adjustY: true,
+                    shiftX: true,
+                    shiftY: true,
+                  },
+                }}
+                menu={detailMenu}
+                classNames={{ root: "task-detail-context-menu" }}
+              >
                 <div
-                  id="task-note-editor"
-                  className="task-detail-section task-detail-note-section"
+                  className="task-detail-body"
+                  aria-label="任务正文区域"
+                  onClick={() => setDetailContextOpen(false)}
+                  onScroll={() => setDetailContextOpen(false)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") setDetailContextOpen(false);
+                  }}
                 >
-                  <TaskNoteEditor
-                    key={selected.id}
-                    editorRef={noteEditorRef}
-                    value={selected.detail || ""}
-                    onChange={(detail) => updateSelected({ detail })}
-                    ariaLabel="任务备注"
-                  />
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <TaskTitleInput
+                        task={selected}
+                        onCommit={(title, taskId) =>
+                          setTasks((current) =>
+                            current.map((task) =>
+                              task.id === taskId ? { ...task, title } : task,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                  {(normalizeSubtasks(selected).length > 0 ||
+                    showSubtaskComposer) && (
+                    <TaskSubtasks
+                      showComposer={showSubtaskComposer}
+                      onComposerClose={() => setShowSubtaskComposer(false)}
+                      task={selected}
+                      inputValue={subtaskInput}
+                      onInputChange={setSubtaskInput}
+                      onChange={updateSelected}
+                    />
+                  )}
+                  <div
+                    id="task-note-editor"
+                    className="task-detail-section task-detail-note-section is-document"
+                  >
+                    <TaskNoteEditor
+                      documentMode
+                      key={selected.id}
+                      editorRef={noteEditorRef}
+                      value={selected.detail || ""}
+                      onChange={(detail) => updateSelected({ detail })}
+                      ariaLabel="任务备注"
+                    />
+                  </div>
                 </div>
-                <TaskReminderFields
-                  task={selected}
-                  tasks={tasks}
-                  today={today}
-                  onChange={updateSelected}
-                  onReveal={revealTask}
-                />
-                <TaskOrganizationFields
-                  task={selected}
-                  tasks={tasks}
-                  lists={lists}
-                  currentList={currentList}
-                  onChange={updateSelected}
-                  onTasksChange={setTasks}
-                  onDataChange={updateData}
-                />
-              </div>
+              </Dropdown>
               <div className="task-detail-footer">
                 <Dropdown
                   trigger={["click"]}
@@ -1717,14 +1787,20 @@ function WelcomePage() {
                   </button>
                 </Dropdown>
                 <div className="flex items-center gap-4">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => noteEditorRef.current?.focus()}
-                    aria-label="编辑备注"
+                  <Dropdown
+                    trigger={["click"]}
+                    placement="topRight"
+                    menu={{ items: noteMenuItems, onClick: handleTaskAction }}
                   >
-                    <TextFormat className="h-5 w-5" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="正文编辑与格式"
+                      title="编辑、预览与格式"
+                    >
+                      <TextFormat className="h-5 w-5" />
+                    </Button>
+                  </Dropdown>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1737,33 +1813,11 @@ function WelcomePage() {
                   <Dropdown
                     trigger={["click"]}
                     placement="topRight"
-                    menu={{
-                      items: [
-                        { key: "subtask", label: "添加子任务" },
-                        {
-                          key: "pin",
-                          label: selected.pinned ? "取消置顶" : "置顶",
-                        },
-                        { key: "abandon", label: "放弃" },
-                        { key: "tag", label: "标签" },
-                        { key: "attachment", label: "上传附件" },
-                        { type: "divider" },
-                        { key: "activity", label: "任务动态" },
-                        { key: "template", label: "保存为模板" },
-                        { key: "duplicate", label: "创建副本" },
-                        { key: "copy", label: "复制本机链接" },
-                        { key: "export", label: "复制任务内容" },
-                        { key: "print", label: "打印" },
-                        selected.deleted
-                          ? { key: "restore", label: "恢复任务" }
-                          : {
-                              key: "delete",
-                              label: "移入垃圾桶",
-                              danger: true,
-                            },
-                      ],
-                      onClick: handleTaskAction,
+                    classNames={{ root: "task-detail-context-menu" }}
+                    onOpenChange={(open) => {
+                      if (open) setDetailContextOpen(false);
                     }}
+                    menu={detailMenu}
                   >
                     <Button variant="ghost" size="icon" aria-label="更多操作">
                       <MoreHorizontal className="h-5 w-5" />
@@ -1774,6 +1828,57 @@ function WelcomePage() {
             </aside>
           )}
         </div>
+        <Modal
+          open={Boolean(taskPropertyPanel) && showDetail && selected.id != null}
+          title={
+            { reminders: "提醒与重复", tag: "分组与标签", trash: "垃圾桶操作" }[
+              taskPropertyPanel
+            ]
+          }
+          onCancel={() => setTaskPropertyPanel(null)}
+          footer={
+            <AntButton
+              type="primary"
+              onClick={() => setTaskPropertyPanel(null)}
+            >
+              完成
+            </AntButton>
+          }
+          width={420}
+          destroyOnHidden
+          className="task-property-modal"
+        >
+          {taskPropertyPanel === "reminders" && (
+            <TaskReminderFields
+              task={selected}
+              tasks={tasks}
+              today={today}
+              onChange={updateSelected}
+              onReveal={(id) => {
+                setTaskPropertyPanel(null);
+                revealTask(id);
+              }}
+            />
+          )}
+          {taskPropertyPanel === "tag" && (
+            <TaskOrganizationFields
+              task={selected}
+              tasks={tasks}
+              lists={lists}
+              currentList={currentList}
+              onChange={updateSelected}
+              onTasksChange={setTasks}
+              onDataChange={updateData}
+            />
+          )}
+          {taskPropertyPanel === "trash" && (
+            <TrashActions
+              tasks={tasks}
+              onChange={setTasks}
+              taskId={selected.id}
+            />
+          )}
+        </Modal>
         {activeTool && (
           <ToolOverlay
             mode={activeTool}
