@@ -82,6 +82,7 @@ export default function TaskTitleInput({ task, onCommit }) {
   return (
     <div>
       <Input
+        className="task-detail-title-input"
         aria-label="任务标题"
         value={
           sameTask

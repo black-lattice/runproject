@@ -20,6 +20,7 @@ import {
   BellFilled as Bell,
   CalendarFilled as CalendarDays,
   CheckOutlined as Check,
+  CloseOutlined,
   CheckSquareFilled as CheckSquare2,
   ClockCircleFilled as Timer,
   CodeFilled as Code2,
@@ -1613,14 +1614,15 @@ function WelcomePage() {
           {isTaskView && showDetail && selected.id != null && (
             <aside className="task-detail">
               <div className="task-detail-toolbar">
-                <Button
+                <AntButton
                   ref={detailCloseRef}
-                  className="ml-auto"
+                  type="text"
+                  icon={<CloseOutlined />}
+                  className="task-detail-close"
                   aria-label="关闭任务详情"
+                  title="关闭任务详情"
                   onClick={closeTaskDetail}
-                >
-                  关闭
-                </Button>
+                />
                 <div className="flex items-center gap-2">
                   <Checkbox
                     className="task-detail-top-checkbox"

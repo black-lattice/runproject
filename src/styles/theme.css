@@ -1102,3 +1102,26 @@ pre,
   color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
+
+.task-home .task-detail-toolbar { align-items: center; }
+.task-home .task-detail-toolbar > .flex { flex: 1; min-width: 0; width: auto; }
+.task-detail-close.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: hsl(var(--muted-foreground));
+}
+.task-home .task-detail-body input.task-detail-title-input.ant-input,
+.task-home .task-detail-body input.task-detail-title-input.ant-input:focus,
+.task-home .task-detail-body textarea.task-detail-notes.ant-input.is-document,
+.task-home .task-detail-body textarea.task-detail-notes.ant-input.is-document:focus {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent;
+  caret-color: hsl(var(--primary));
+}

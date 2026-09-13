@@ -695,6 +695,7 @@ export function TaskNoteEditor({
           <Input.TextArea
             ref={ref}
             className={`task-detail-notes${documentMode ? " is-document" : ""}`}
+            variant={documentMode ? "borderless" : "outlined"}
             value={value}
             aria-label={ariaLabel}
             placeholder={
