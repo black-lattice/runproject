@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Button, DatePicker, Input, Select, Tag, TimePicker } from "antd";
-import { FlagFilled, TagOutlined } from "@ant-design/icons";
+import { Button, Input, Select, Tag, TimePicker } from "antd";
+import { TagOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { taskLists, taskStatus, withLists } from "@/utils/taskModel";
+import { taskLists, taskStatus } from "@/utils/taskModel";
 import { nextOccurrenceDate } from "@/utils/taskRecurrence";
 import { TaskSectionSelect } from "./TaskOrganization";
 import { ReminderEditor } from "./TaskReminders";
@@ -33,42 +33,6 @@ export function TaskScheduleFields({ task, today, onChange }) {
             ]}
             onChange={(status) =>
               onChange({ status, done: ["done", "abandoned"].includes(status) })
-            }
-          />
-        </Field>
-        <Field label="优先级">
-          <Select
-            aria-label="任务优先级"
-            value={task.priority || "无"}
-            options={[
-              ["高", "high"],
-              ["中", "medium"],
-              ["低", "low"],
-              ["无", "none"],
-            ].map(([value, tone]) => ({
-              value,
-              label: (
-                <span className="task-detail-priority-option">
-                  <FlagFilled className={`task-detail-priority-${tone}`} />
-                  {value === "无" ? "无优先级" : `${value}优先级`}
-                </span>
-              ),
-            }))}
-            onChange={(priority) => onChange({ priority })}
-          />
-        </Field>
-        <Field label="日期">
-          <DatePicker
-            aria-label="任务日期"
-            value={task.date ? dayjs(task.date) : null}
-            format="YYYY-MM-DD"
-            placeholder="选择日期"
-            onChange={(value) =>
-              onChange((current) => ({
-                ...current,
-                date: value?.format("YYYY-MM-DD") || "",
-                time: value ? current.time : "",
-              }))
             }
           />
         </Field>
@@ -153,37 +117,18 @@ export function TaskOrganizationFields({
     ? currentList
     : task.list;
   return (
-    <section className="task-detail-section" aria-label="清单与标签">
-      <h3 className="task-detail-section-title">清单与标签</h3>
-      <div className="task-detail-form-grid">
-        <Field label="清单">
-          <Select
-            aria-label="所属清单"
-            showSearch
-            optionFilterProp="label"
-            value={task.list}
-            options={["收件箱", ...lists.map(([name]) => name)].map(
-              (value) => ({
-                value,
-                label: value,
-              }),
-            )}
-            onChange={(value) =>
-              onChange((current) => withLists(current, [value]))
-            }
-          />
-        </Field>
-        <Field label="分组">
-          <TaskSectionSelect
-            task={task}
-            listName={sectionList}
-            lists={lists}
-            tasks={tasks}
-            onChange={onTasksChange}
-            onDataChange={onDataChange}
-          />
-        </Field>
-      </div>
+    <section className="task-detail-section" aria-label="分组与标签">
+      <h3 className="task-detail-section-title">分组与标签</h3>
+      <Field label="分组">
+        <TaskSectionSelect
+          task={task}
+          listName={sectionList}
+          lists={lists}
+          tasks={tasks}
+          onChange={onTasksChange}
+          onDataChange={onDataChange}
+        />
+      </Field>
       <Field label="标签">
         {task.tags?.length > 0 && (
           <div className="task-detail-tags">

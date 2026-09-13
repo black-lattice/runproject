@@ -812,9 +812,6 @@ html body .dark .task-row.is-done {
 .task-row .ant-checkbox {
   flex: none;
 }
-.task-detail-checkbox {
-  margin-top: 8px;
-}
 .task-antd-calendar .ant-picker-calendar-header {
   padding: 0 0 12px;
 }
@@ -1205,18 +1202,12 @@ html body .dark .task-row.is-done {
   border: 0 !important;
   box-shadow: none !important;
 }
-.task-home .task-detail-body .task-detail-checkbox {
-  display: none;
-}
 .task-home .task-detail-body .task-detail-notes {
   margin-top: 32px;
   font-size: 12px;
   line-height: 1.85;
 }
 .task-home .task-detail-body .task-detail-notes.is-rich-source {
-  display: none;
-}
-.task-home .task-detail-body > .flex.items-start .mt-2.flex {
   display: none;
 }
 .task-detail-list-icon {

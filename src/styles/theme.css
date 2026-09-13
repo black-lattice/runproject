@@ -994,18 +994,12 @@ pre,
 .task-detail-field > .ant-input-affix-wrapper {
   height: 36px;
 }
-.task-detail-section > .task-detail-form-grid + .task-detail-field {
+.task-detail-section > .task-detail-field + .task-detail-field {
   margin-top: 14px;
 }
-.task-detail-priority-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.task-detail-priority-high { color: hsl(var(--destructive)); }
-.task-detail-priority-medium { color: hsl(var(--warning)); }
-.task-detail-priority-low { color: hsl(var(--primary)); }
-.task-detail-priority-none { color: hsl(var(--muted-foreground)); }
+.task-detail-flag.ant-btn[data-priority="高"] { color: hsl(var(--destructive)); }
+.task-detail-flag.ant-btn[data-priority="中"] { color: hsl(var(--warning)); }
+.task-detail-flag.ant-btn[data-priority="低"] { color: hsl(var(--primary)); }
 .task-detail-reminder {
   display: flex;
   flex-direction: column;

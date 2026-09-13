@@ -1534,6 +1534,7 @@ function WelcomePage() {
                   />
                   <span className="task-detail-top-divider" />
                   <DatePicker
+                    aria-label="任务日期"
                     className={`task-detail-date-picker ${selected.date ? "has-date" : ""}`}
                     variant="borderless"
                     placeholder="设置日期"
@@ -1565,6 +1566,10 @@ function WelcomePage() {
                     trigger={["click"]}
                     placement="bottomRight"
                     menu={{
+                      selectable: true,
+                      selectedKeys: [
+                        { 高: "high", 中: "medium", 低: "low" }[selected.priority] || "none",
+                      ],
                       items: [
                         { key: "high", label: "🚩  高优先级" },
                         { key: "medium", label: "🚩  中优先级" },
@@ -1594,6 +1599,8 @@ function WelcomePage() {
                       size="icon"
                       className="task-detail-flag"
                       aria-label="设置优先级"
+                      title={`优先级：${selected.priority || "无"}`}
+                      data-priority={selected.priority || "无"}
                     >
                       <Flag className="h-5 w-5" />
                     </Button>
@@ -1615,12 +1622,6 @@ function WelcomePage() {
                   </div>
                 )}
                 <div className="flex items-start gap-3">
-                  <Checkbox
-                    className="task-detail-checkbox"
-                    aria-label={`${isFinished(selected) ? "重新打开" : "完成"}任务：${selected.title}`}
-                    checked={Boolean(isFinished(selected))}
-                    onChange={() => toggle(selected.id)}
-                  />
                   <div className="min-w-0 flex-1">
                     <TaskTitleInput
                       task={selected}
@@ -1632,12 +1633,6 @@ function WelcomePage() {
                         )
                       }
                     />
-                    <div className="mt-2 flex items-center gap-2 text-sm text-primary">
-                      <CalendarDays className="h-4 w-4" />
-                      {selected.date
-                        ? `${selected.date} ${selected.time || "全天"}`
-                        : "未安排日期"}
-                    </div>
                   </div>
                   <ListTodo
                     className="task-detail-list-icon"
@@ -1711,7 +1706,12 @@ function WelcomePage() {
                       ),
                   }}
                 >
-                  <button type="button" className="task-detail-list-trigger">
+                  <button
+                    type="button"
+                    className="task-detail-list-trigger"
+                    aria-label={`移动任务到清单：${getTaskCategories(selected).join(" · ")}`}
+                    title="移动任务到其他清单"
+                  >
                     <Tag className="h-4 w-4" />
                     <span>{getTaskCategories(selected).join(" · ")}</span>
                   </button>
