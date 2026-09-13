@@ -13,6 +13,93 @@ import {
   normalizeSubtasks,
 } from "../src/utils/taskModel.js";
 const today = "2026-09-13";
+test("moving into every timeline column changes the date into exactly that column", () => {
+  for (const target of ["逾期", "今天", "明天", "以后", "未安排"]) {
+    const moved = moveTaskTo(
+      { id: "move", title: "计划", date: "2026-01-01", time: "09:30" },
+      target,
+      today,
+    );
+    const result = toolGroups([moved], "timeline", today).filter(
+      ([, tasks]) => tasks.length,
+    );
+    assert.equal(result.length, 1);
+    assert.equal(result[0][0], target);
+    if (target === "未安排") assert.equal(moved.time, "");
+  }
+});
+test("status filters normalize legacy records and work with trash, priority and tags", () => {
+  const tasks = [
+    { id: "pending", done: false },
+    { id: "progress", status: "in-progress" },
+    { id: "done", done: true },
+    { id: "abandoned", done: false, status: "abandoned" },
+    {
+      id: "trash",
+      deleted: true,
+      status: "in-progress",
+      priority: "高",
+      tags: ["检查"],
+    },
+  ];
+  for (const [status, id] of [
+    ["pending", "pending"],
+    ["in-progress", "progress"],
+    ["done", "done"],
+    ["abandoned", "abandoned"],
+  ]) {
+    assert.deepEqual(
+      selectTasks(tasks, { status }).map((task) => task.id),
+      [id],
+    );
+  }
+  assert.deepEqual(
+    selectTasks(tasks, { nav: "completed" }).map((task) => task.id),
+    ["done", "abandoned"],
+  );
+  assert.deepEqual(
+    selectTasks(tasks, {
+      nav: "trash",
+      status: "in-progress",
+      priority: "高",
+      tag: "检查",
+    }).map((task) => task.id),
+    ["trash"],
+  );
+  assert.deepEqual(selectTasks(tasks, { nav: "trash", status: "pending" }), []);
+});
+
+test("relative views use the supplied current date across midnight", () => {
+  const tasks = [
+    { id: "old", date: "2026-09-13" },
+    { id: "new", date: "2026-09-14" },
+    { id: "last", date: "2026-09-20" },
+  ];
+  assert.deepEqual(
+    selectTasks(tasks, { nav: "today", day: "2026-09-13" }).map(
+      (task) => task.id,
+    ),
+    ["old"],
+  );
+  assert.deepEqual(
+    selectTasks(tasks, { nav: "today", day: "2026-09-14" }).map(
+      (task) => task.id,
+    ),
+    ["new"],
+  );
+  assert.deepEqual(
+    selectTasks(tasks, { nav: "overdue", day: "2026-09-14" }).map(
+      (task) => task.id,
+    ),
+    ["old"],
+  );
+  assert.deepEqual(
+    selectTasks(tasks, { nav: "upcoming", day: "2026-09-14" }).map(
+      (task) => task.id,
+    ),
+    ["new", "last"],
+  );
+});
 test("quick add preserves normal numbers and rejects invalid times while respecting context", () => {
   assert.deepEqual(parseQuickTask("明天下午3点开会", today), {
     title: "开会",

@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useProductivityData } from "@/store/dataSync";
 import {
   newReminders,
-  reminderKey,
-  markRemindersNotified,
+  reminderSnapshot,
+  claimReminderNotifications,
+  watchReminderClock,
 } from "@/utils/taskReminders";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -15,25 +16,21 @@ export default function ReminderBridge() {
   const [now, setNow] = useState(Date.now);
   const { toast } = useToast();
   const navigate = useNavigate();
+  useEffect(() => watchReminderClock(setNow), []);
   useEffect(() => {
-    const refresh = () => setNow(Date.now());
-    const timer = setInterval(refresh, 15000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, []);
-  useEffect(() => {
-    if (["loading", "error", "saving"].includes(syncStatus)) return;
-    const due = newReminders(tasks, now);
+    if (document.hidden || ["loading", "error", "saving"].includes(syncStatus))
+      return;
+    const keys = reminderSnapshot(newReminders(tasks, Date.now()));
+    if (!keys.size) return;
+    let due = [];
+    // The external store updater is synchronous. Recheck against its current
+    // snapshot so replayed effects or a concurrent edit cannot claim twice.
+    setTasks((current) => {
+      const claimed = claimReminderNotifications(current, keys, Date.now());
+      due = claimed.notifications;
+      return claimed.tasks;
+    });
     if (!due.length) return;
-    const keys = new Map(
-      due.map((task) => [String(task.id), reminderKey(task)]),
-    );
-    setTasks((current) => markRemindersNotified(current, keys));
     toast({
       title: due.length === 1 ? "任务到期提醒" : `${due.length} 个任务到期`,
       description: due

@@ -68,6 +68,8 @@ RUNPROJECT_MCP_TOKEN = "从应用连接配置取得的令牌"
 
 `create_task` 和 `update_task` 均支持 `repeat`、`reminder`、`important`、`urgent`、`pinned`。重复规则为 `每天`、`每周一`、`每周`、`每月`，空字符串取消。首次完成当前实例后生成唯一后续任务，响应的 `task.recurrenceNextId` 可用于读取；撤销后再次完成不会重复生成或覆盖已编辑的后续任务。月度规则在短月取最后一天，后续月份恢复原日期；错过的周期跳过，不批量补建历史任务。
 
+`section` 会去除首尾空白，最多 40 个 UTF-16 字符，不能使用 `已完成`、`已放弃`、`未分组` 等系统名称，空字符串解除分组。明确设置时覆盖任务当前各清单中的分组；重命名和删除清单保留其他清单的分组。读取旧任务时，`status=abandoned` 优先，`status=done` 或 `done=true` 视为完成，任务过滤与清单未完成计数使用同一规则。
+
 `reminder` 使用本机时间 `YYYY-MM-DDTHH:mm`，空字符串取消。提醒显示于应用内通知，需应用前端运行；应用完全退出后不会发送系统通知，重新打开时检查已到期提醒。三个布尔字段分别表示重要、紧急和置顶，重要与紧急独立控制四象限。MCP 对任务的修改会记录在任务动态中。
 
 `set_project_tags` 的 target 为 `workspace`、`project` 或 `command`；path 为对应的绝对路径，脚本使用 `项目路径::脚本名`。脚本通过 npm/pnpm/yarn run 执行，使用项目已保存的 Node 版本偏好。执行前会验证项目属于已登记工作区、脚本存在于当前 package.json；脚本本身可能修改文件或启动服务。

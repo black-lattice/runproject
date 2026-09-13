@@ -1,4 +1,5 @@
 import PageHeading from "@/components/PageHeading";
+import { useAppAppearance } from "@/components/AppTheme";
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -177,9 +178,7 @@ const FORMATTERS = {
 };
 
 function FormatterPage() {
-  const [isDarkMode, setIsDarkMode] = useState(
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
-  );
+  const { isDark: isDarkMode } = useAppAppearance();
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [selectedFormat, setSelectedFormat] = useState("json");
@@ -188,12 +187,6 @@ function FormatterPage() {
   const workspaceRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const syncTheme = (event) => setIsDarkMode(event.matches);
-    media.addEventListener("change", syncTheme);
-    return () => media.removeEventListener("change", syncTheme);
-  }, []);
   const { toast } = useToast();
 
   const handleMouseMove = (e) => {

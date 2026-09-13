@@ -24,6 +24,11 @@ export function withLists(task, values) {
 export function isFinished(task) {
   return task.done || ["done", "abandoned"].includes(task.status);
 }
+export function taskStatus(task) {
+  if (task.status === "abandoned") return "abandoned";
+  if (isFinished(task)) return "done";
+  return task.status === "in-progress" ? "in-progress" : "pending";
+}
 export function parseQuickTask(raw, today, defaultDate = "") {
   let title = raw.trim(),
     date = defaultDate,
@@ -75,15 +80,21 @@ export function selectTasks(
     day = dateKey(),
     priority = "全部",
     tag = "",
+    status = "all",
     hideCompleted = false,
     sort = "默认排序",
   } = {},
 ) {
   return tasks
     .filter((t) => {
-      if (nav === "trash") return Boolean(t.deleted);
-      if (t.deleted) return false;
-      if (hideCompleted && nav !== "completed" && isFinished(t)) return false;
+      if (Boolean(t.deleted) !== (nav === "trash")) return false;
+      if (
+        hideCompleted &&
+        !["completed", "trash"].includes(nav) &&
+        isFinished(t)
+      )
+        return false;
+      if (status !== "all" && taskStatus(t) !== status) return false;
       if (
         priority !== "全部" &&
         (priority === "无"
@@ -92,6 +103,7 @@ export function selectTasks(
       )
         return false;
       if (tag && !(t.tags || []).includes(tag)) return false;
+      if (nav === "trash") return true;
       if (nav === "today") return t.date === day;
       if (nav === "tomorrow") return t.date === shiftDay(day, 1);
       if (nav === "upcoming")
@@ -146,6 +158,7 @@ export function moveTaskTo(task, target, today = dateKey()) {
       done: ["done", "abandoned"].includes(states[target]),
     };
   if (target === "未安排") return { ...task, date: "", time: "" };
+  if (target === "逾期") return { ...task, date: shiftDay(today, -1) };
   if (target === "今天") return { ...task, date: today };
   if (target === "明天") return { ...task, date: shiftDay(today, 1) };
   if (target === "以后") return { ...task, date: shiftDay(today, 2) };

@@ -1,7 +1,22 @@
-import { useLayoutEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { ConfigProvider, theme } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import {
+  APPEARANCE_STORAGE_KEY,
+  normalizeAppearance,
+  readAppearance,
+  isDarkAppearance,
+} from "@/utils/appearance";
+
+const AppearanceContext = createContext(null);
+export const useAppAppearance = () => useContext(AppearanceContext);
 
 // Read the CSS roles so native controls, Tailwind and Ant portals stay in sync.
 function readTheme(isDark) {
@@ -9,6 +24,12 @@ function readTheme(isDark) {
   const color = (name) => `hsl(${styles.getPropertyValue(`--${name}`).trim()})`;
   return {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+    // Ant defaults these solid primary controls to light text. Our dark palette
+    // uses a light blue primary surface, whose matching foreground is dark.
+    components: {
+      Radio: { buttonSolidCheckedColor: color("primary-foreground") },
+      Button: { primaryColor: color("primary-foreground") },
+    },
     token: {
       colorPrimary: color("primary"),
       colorInfo: color("primary"),
@@ -41,25 +62,66 @@ function readTheme(isDark) {
 }
 
 export default function AppTheme({ children }) {
+  const [preference, setStoredPreference] = useState(() => {
+    try {
+      return readAppearance(window.localStorage);
+    } catch {
+      return "system";
+    }
+  });
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  const [saveError, setSaveError] = useState("");
   const [appTheme, setAppTheme] = useState({});
+  const isDark = isDarkAppearance(preference, systemDark);
+  const setPreference = useCallback((value) => {
+    const next = normalizeAppearance(value);
+    setStoredPreference(next);
+    try {
+      window.localStorage.setItem(APPEARANCE_STORAGE_KEY, next);
+      setSaveError("");
+    } catch {
+      setSaveError("本次外观已生效，但无法保存到本机。重新打开后会恢复上次保存的外观。");
+    }
+  }, []);
   useLayoutEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const sync = () => {
-      document.documentElement.classList.toggle("dark", media.matches);
-      setAppTheme(readTheme(media.matches));
-      if (isTauri()) {
-        invoke("set_tray_theme", {
-          theme: media.matches ? "dark" : "light",
-        }).catch((error) => console.error("同步菜单栏图标主题失败:", error));
+    const syncSystem = () => setSystemDark(media.matches);
+    const syncStorage = (event) => {
+      if (event.storageArea && event.storageArea !== window.localStorage) return;
+      if (event.key === APPEARANCE_STORAGE_KEY || event.key === null) {
+        setStoredPreference(normalizeAppearance(event.newValue));
+        setSaveError("");
       }
     };
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
+    syncSystem();
+    media.addEventListener("change", syncSystem);
+    window.addEventListener("storage", syncStorage);
+    return () => {
+      media.removeEventListener("change", syncSystem);
+      window.removeEventListener("storage", syncStorage);
+    };
   }, []);
+  useLayoutEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+    setAppTheme(readTheme(isDark));
+  }, [isDark]);
+  useLayoutEffect(() => {
+    // The menu-bar icon follows its system surface, independently of the app's override.
+    if (isTauri()) {
+      invoke("set_tray_theme", { theme: systemDark ? "dark" : "light" }).catch(
+        (error) => console.error("同步菜单栏图标主题失败:", error),
+      );
+    }
+  }, [systemDark]);
   return (
-    <ConfigProvider locale={zhCN} theme={appTheme}>
-      {children}
-    </ConfigProvider>
+    <AppearanceContext.Provider
+      value={{ preference, isDark, setPreference, saveError }}
+    >
+      <ConfigProvider locale={zhCN} theme={appTheme}>
+        {children}
+      </ConfigProvider>
+    </AppearanceContext.Provider>
   );
 }

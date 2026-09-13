@@ -860,3 +860,66 @@ pre,
 
 .tool-columns.is-kanban { grid-template-columns: repeat(4,minmax(220px,1fr)); overflow: auto; }
 .tool-columns.is-timeline { grid-template-columns: repeat(5,minmax(220px,1fr)); overflow: auto; }
+
+.task-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.task-section-toggle:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.task-rail-button { position: relative; }
+.home-notification-badge {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding-inline: 4px;
+  border-radius: 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 10px;
+  line-height: 17px;
+  font-weight: 600;
+}
+.task-detail-list-trigger { min-width: 0; max-width: 55%; }
+.task-detail-list-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-title-button {
+  border: 0;
+  padding: 3px 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.task-title-button:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.task-main-header { align-items: flex-start; gap: 12px; }
+.task-main-header > div:first-child { min-width: 0; }
+.task-main-header h1 { overflow-wrap: anywhere; }
+.task-main-actions { justify-content: flex-end; }
+.task-row > :not(.task-title-button) { flex-shrink: 0; }
+.task-row .task-category-list { max-width: 28%; overflow: hidden; }
+.task-category-badge { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) {
+  .task-main-header { flex-wrap: wrap; }
+  .task-main-actions { justify-content: flex-start; }
+  .task-row .task-category-list { display: none; }
+  .task-row .task-created-date { display: none; }
+}

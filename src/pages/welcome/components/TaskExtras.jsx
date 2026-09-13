@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Alert,
   Button,
@@ -43,6 +50,7 @@ const feedback = (callback, description, failed = false) =>
 export function TaskTemplateLibrary({
   open,
   onClose,
+  onAfterClose,
   sourceTask,
   lists = [],
   onCreateTask,
@@ -101,9 +109,12 @@ export function TaskTemplateLibrary({
     if (!onCreateTask) return;
     setCreating(template.id);
     try {
+      if (!listNames.includes(targetList)) {
+        throw new Error("所选清单已被删除或重命名，请重新选择清单后创建");
+      }
       await onCreateTask(
         createTaskFromTemplate(template, {
-          list: listNames.includes(targetList) ? targetList : "收件箱",
+          list: targetList,
         }),
       );
       feedback(onFeedback, "已从模板创建任务，可继续安排日期和提醒");
@@ -124,6 +135,7 @@ export function TaskTemplateLibrary({
       title="任务模板"
       open={open}
       onCancel={onClose}
+      afterClose={onAfterClose}
       footer={null}
       width={640}
       destroyOnHidden
@@ -174,7 +186,9 @@ export function TaskTemplateLibrary({
                     value={name}
                     maxLength={80}
                     onChange={(event) => setName(event.target.value)}
-                    onPressEnter={save}
+                    onPressEnter={(event) => {
+                      if (!event.nativeEvent?.isComposing) save();
+                    }}
                     placeholder="为模板取个名字"
                   />
                   <Button
@@ -573,10 +587,29 @@ export function TaskNoteEditor({
   onChange,
   disabled = false,
   ariaLabel = "任务备注",
+  editorRef,
 }) {
   const [mode, setMode] = useState("编辑");
+  const [focusRequest, setFocusRequest] = useState(0);
   const ref = useRef(null);
   const labelId = useId();
+  useImperativeHandle(
+    editorRef,
+    () => ({
+      focus() {
+        setMode("编辑");
+        setFocusRequest((request) => request + 1);
+      },
+    }),
+    [],
+  );
+  useEffect(() => {
+    if (!focusRequest || mode !== "编辑") return;
+    const frame = requestAnimationFrame(() =>
+      ref.current?.resizableTextArea?.textArea?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [focusRequest, mode]);
   const format = (kind) => {
     const area = ref.current?.resizableTextArea?.textArea;
     const next = insertNoteFormat(

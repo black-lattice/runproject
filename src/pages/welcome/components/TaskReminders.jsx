@@ -7,9 +7,14 @@ import {
   localDateTime,
   setTaskReminder,
   acknowledgeReminders,
+  reminderSnapshot,
+  updateReminderTasks,
+  watchReminderClock,
 } from "@/utils/taskReminders";
 export function ReminderEditor({ task, onChange }) {
   const valid = !task.reminder || reminderTime(task) !== null;
+  const [error, setError] = useState("");
+  useEffect(() => setError(""), [task.id, task.reminder]);
   return (
     <div className="space-y-2 py-2">
       <div className="flex flex-wrap justify-between items-center gap-2">
@@ -18,15 +23,31 @@ export function ReminderEditor({ task, onChange }) {
           id="task-reminder-at"
           type="datetime-local"
           aria-label="任务提醒时间"
+          aria-invalid={Boolean(error)}
+          status={error ? "error" : undefined}
           style={{ width: 220 }}
           value={
             valid && task.reminder ? localDateTime(reminderTime(task)) : ""
           }
-          onChange={(event) =>
-            onChange((current) => setTaskReminder(current, event.target.value))
-          }
+          onChange={(event) => {
+            const value = event.target.value;
+            if (
+              event.target.validity?.badInput ||
+              (value && reminderTime({ reminder: value }) === null)
+            ) {
+              setError("请选择有效的提醒日期和时间");
+              return;
+            }
+            setError("");
+            onChange((current) => setTaskReminder(current, value));
+          }}
         />
       </div>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
       {!valid && (
         <Alert
           type="warning"
@@ -51,6 +72,7 @@ export function ReminderEditor({ task, onChange }) {
 export function NotificationPanel({
   open,
   onClose,
+  onAfterClose,
   tasks,
   setTasks,
   onSelect,
@@ -58,9 +80,7 @@ export function NotificationPanel({
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     if (!open) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 15000);
-    return () => clearInterval(timer);
+    return watchReminderClock(setNow);
   }, [open]);
   const due = pendingReminders(tasks, now),
     upcoming = upcomingReminders(tasks, now);
@@ -91,7 +111,7 @@ export function NotificationPanel({
                     size="small"
                     onClick={() =>
                       setTasks((current) =>
-                        acknowledgeReminders(current, [task.id]),
+                        acknowledgeReminders(current, reminderSnapshot([task])),
                       )
                     }
                   >
@@ -101,13 +121,14 @@ export function NotificationPanel({
                     size="small"
                     onClick={() =>
                       setTasks((current) =>
-                        current.map((item) =>
-                          item.id === task.id
-                            ? setTaskReminder(
-                                item,
-                                localDateTime(Date.now() + 10 * 60000),
-                              )
-                            : item,
+                        updateReminderTasks(
+                          current,
+                          reminderSnapshot([task]),
+                          (item) =>
+                            setTaskReminder(
+                              item,
+                              localDateTime(Date.now() + 10 * 60000),
+                            ),
                         ),
                       )
                     }
@@ -120,10 +141,10 @@ export function NotificationPanel({
                 size="small"
                 onClick={() =>
                   setTasks((current) =>
-                    current.map((item) =>
-                      item.id === task.id
-                        ? { ...item, done: true, status: "done" }
-                        : item,
+                    updateReminderTasks(
+                      current,
+                      reminderSnapshot([task]),
+                      (item) => ({ ...item, done: true, status: "done" }),
                     ),
                   )
                 }
@@ -141,7 +162,15 @@ export function NotificationPanel({
       />
     );
   return (
-    <Drawer title="任务通知" open={open} onClose={onClose} size={420}>
+    <Drawer
+      title="任务通知"
+      open={open}
+      onClose={onClose}
+      afterOpenChange={(visible) => {
+        if (!visible) onAfterClose?.();
+      }}
+      size={420}
+    >
       <Alert
         type="info"
         showIcon
@@ -154,10 +183,7 @@ export function NotificationPanel({
           className="mb-3"
           onClick={() =>
             setTasks((current) =>
-              acknowledgeReminders(
-                current,
-                due.map((t) => t.id),
-              ),
+              acknowledgeReminders(current, reminderSnapshot(due)),
             )
           }
         >

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Empty, Input } from "antd";
 export default function TaskComments({ task, onChange }) {
   const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
   const comments = Array.isArray(task.comments) ? task.comments : [];
   const add = () => {
     if (!draft.trim()) return;
@@ -10,11 +11,19 @@ export default function TaskComments({ task, onChange }) {
       text: draft.trim(),
       at: Date.now(),
     };
-    onChange((current) => ({
-      ...current,
-      comments: [...(current.comments || []), comment],
-    }));
-    setDraft("");
+    try {
+      onChange((current) => ({
+        ...current,
+        comments: [
+          ...(Array.isArray(current.comments) ? current.comments : []),
+          comment,
+        ],
+      }));
+      setDraft("");
+      setError("");
+    } catch (failure) {
+      setError(failure.message || "评论未保存，请重试；输入内容已保留");
+    }
   };
   return (
     <div className="space-y-3">
@@ -47,13 +56,25 @@ export default function TaskComments({ task, onChange }) {
         aria-label="评论内容"
         value={draft}
         maxLength={10000}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          setError("");
+        }}
         placeholder="记录任务进展…"
         autoSize={{ minRows: 3, maxRows: 8 }}
         onKeyDown={(event) => {
-          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") add();
+          if (event.nativeEvent?.isComposing) return;
+          if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            event.preventDefault();
+            add();
+          }
         }}
       />
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <Button type="primary" disabled={!draft.trim()} onClick={add}>
         添加评论
       </Button>

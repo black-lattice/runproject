@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Button,
@@ -26,6 +26,7 @@ import {
   renameSection,
   restoreTrash,
   selectedTrash,
+  SYSTEM_SECTION_NAMES,
   taskSection,
 } from "@/utils/taskOrganization";
 import { taskLists } from "@/utils/taskModel";
@@ -38,13 +39,22 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [error, setError] = useState("");
-  const sections = listSections(lists, tasks, listName);
+  const [targetList, setTargetList] = useState(listName);
+  const managedList = open ? targetList : listName;
+  const sections = listSections(lists, tasks, managedList);
+  const staleError = !lists.some((item) => item[0] === managedList)
+    ? "清单已被删除或重命名，请关闭后重新选择清单"
+    : [editing, deleting].some(
+          (name) => name !== null && !sections.includes(name),
+        )
+      ? "分组已被删除或重命名，请取消当前操作后重新选择"
+      : "";
   const count = (name) =>
     tasks.filter(
       (task) =>
         !task.deleted &&
-        taskLists(task).includes(listName) &&
-        taskSection(task, listName) === name,
+        taskLists(task).includes(managedList) &&
+        taskSection(task, managedList) === name,
     ).length;
   const apply = (transform) => {
     try {
@@ -64,8 +74,8 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
   const save = () =>
     apply((data) =>
       editing === null
-        ? createSection(data, listName, draft)
-        : renameSection(data, listName, editing, draft),
+        ? createSection(data, managedList, draft)
+        : renameSection(data, managedList, editing, draft),
     );
 
   return (
@@ -76,19 +86,30 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
           setError("");
           setDraft("");
           setEditing(null);
+          setTargetList(listName);
+          setDeleting(null);
           setOpen(true);
         }}
       >
         管理分组
       </Button>
       <Modal
-        title={`管理分组 · ${listName}`}
+        title={`管理分组 · ${managedList}`}
         open={open}
         onCancel={() => {
           setOpen(false);
           setDeleting(null);
         }}
-        footer={<Button onClick={() => setOpen(false)}>完成</Button>}
+        footer={
+          <Button
+            onClick={() => {
+              setOpen(false);
+              setDeleting(null);
+            }}
+          >
+            完成
+          </Button>
+        }
         width={480}
       >
         <div className="flex flex-col gap-4 py-2">
@@ -118,6 +139,7 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
             <Button
               type="primary"
               htmlType="submit"
+              disabled={Boolean(staleError)}
               icon={editing === null ? <PlusOutlined /> : undefined}
             >
               {editing === null ? "添加" : "保存"}
@@ -134,7 +156,9 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
               </Button>
             )}
           </form>
-          {error && <Alert type="error" title={error} showIcon />}
+          {(staleError || error) && (
+            <Alert type="error" title={staleError || error} showIcon />
+          )}
           {!sections.length ? (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -169,7 +193,12 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
                     size="small"
                     icon={<DeleteOutlined />}
                     aria-label={`移除分组 ${name}`}
-                    onClick={() => setDeleting(name)}
+                    onClick={() => {
+                      setDeleting(name);
+                      setEditing(null);
+                      setDraft("");
+                      setError("");
+                    }}
                   />
                 </div>
               ))}
@@ -183,11 +212,15 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
         onCancel={() => setDeleting(null)}
         okText="移除分组，保留任务"
         cancelText="取消"
+        okButtonProps={{ disabled: Boolean(staleError) }}
         onOk={() => {
-          if (apply((data) => removeSection(data, listName, deleting)))
+          if (apply((data) => removeSection(data, managedList, deleting)))
             setDeleting(null);
         }}
       >
+        {(staleError || error) && (
+          <Alert type="error" title={staleError || error} showIcon />
+        )}
         <p>
           移除“{deleting}”后，当前清单中的 {count(deleting)}{" "}
           项任务会移至未分组。任务内容和其他所属清单中的分组保持不变。
@@ -198,26 +231,67 @@ export function TaskSectionManager({ listName, lists, tasks, onChange }) {
 }
 
 // onChange receives a tasks updater, matching useProductivityData.setTasks.
-export function TaskSectionSelect({ task, listName, lists, tasks, onChange }) {
+export function TaskSectionSelect({
+  task,
+  listName,
+  lists,
+  tasks,
+  onChange,
+  onDataChange,
+}) {
+  const [error, setError] = useState("");
+  useEffect(() => setError(""), [task.id, listName]);
   if (!listName || !taskLists(task).includes(listName)) return null;
   const sections = listSections(lists, tasks, listName);
   const current = taskSection(task, listName);
   const options = [...new Set([...sections, current].filter(Boolean))];
   return (
-    <Select
-      aria-label={`${listName}中的任务分组`}
-      className="w-full"
-      showSearch
-      optionFilterProp="label"
-      value={current}
-      options={[
-        { value: "", label: "未分组" },
-        ...options.map((name) => ({ value: name, label: name })),
-      ]}
-      onChange={(name) =>
-        onChange((items) => assignTaskSection(items, task.id, listName, name))
-      }
-    />
+    <div>
+      <Select
+        aria-label={`${listName}中的任务分组`}
+        className="w-full"
+        showSearch
+        optionFilterProp="label"
+        value={current}
+        options={[
+          { value: "", label: "未分组" },
+          ...options.map((name) => ({
+            value: name,
+            label: name,
+            disabled: SYSTEM_SECTION_NAMES.includes(name),
+          })),
+        ]}
+        status={error ? "error" : undefined}
+        onChange={(name) => {
+          try {
+            if (onDataChange) {
+              onDataChange((data) => ({
+                ...data,
+                tasks: assignTaskSection(
+                  data.tasks,
+                  task.id,
+                  listName,
+                  name,
+                  data.lists,
+                ),
+              }));
+            } else {
+              onChange((items) =>
+                assignTaskSection(items, task.id, listName, name, lists),
+              );
+            }
+            setError("");
+          } catch (reason) {
+            setError(reason.message || "分组设置失败，请重试");
+          }
+        }}
+      />
+      {error && (
+        <Typography.Text type="danger" role="alert">
+          {error}
+        </Typography.Text>
+      )}
+    </div>
   );
 }
 

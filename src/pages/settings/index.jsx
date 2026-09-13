@@ -1,13 +1,20 @@
 import { useSearchParams } from "react-router-dom";
 import { McpSettings } from "./coms/McpSettings";
 import PageHeading from "@/components/PageHeading";
-import { Terminal, Info, PlugZap } from "lucide-react";
+import { Terminal, Info, PlugZap, Palette } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { TerminalSettings } from "./coms/TerminalSettings";
 import { AboutSettings } from "./coms/AboutSettings";
+import { AppearanceSettings } from "./coms/AppearanceSettings";
 
 const NAV_ITEMS = [
+  {
+    id: "appearance",
+    label: "外观",
+    icon: Palette,
+    component: AppearanceSettings,
+  },
   { id: "mcp", label: "MCP 服务", icon: PlugZap, component: McpSettings },
   {
     id: "terminal",
@@ -29,10 +36,7 @@ function SettingsPage() {
 
   return (
     <div className="settings-page h-full flex flex-col">
-      <PageHeading
-        title="设置"
-        description="管理 MCP 连接、终端偏好与应用信息"
-      />
+      <PageHeading title="设置" description="调整外观、MCP 连接与终端偏好" />
       <div className="flex flex-1 min-h-0">
         {/* Sidebar Navigation */}
         <aside className="settings-sidebar w-64 border-r flex flex-col">

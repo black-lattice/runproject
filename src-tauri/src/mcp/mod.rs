@@ -350,6 +350,121 @@ mod tests {
         );
     }
     #[tokio::test]
+    async fn http_section_updates_and_list_renames_preserve_membership_metadata() {
+        let s = Server::new().await;
+        {
+            let db = crate::storage::open_database_path(&s.root.join("test.db")).unwrap();
+            crate::storage::write_productivity(&db, &json!({
+                "lists":[["工作","1",{"sections":["空分组"],"color":"blue"},"extra"],["个人","2"]],
+                "tasks":[
+                    {"id":1,"title":"共享分组任务","list":"工作","lists":["工作","个人"],"categories":["工作","个人"],"section":"准备","sections":{"工作":"工作分组","历史清单":"保留历史"},"done":false},
+                    {"id":2,"title":"其他清单独立任务","list":"个人","section":"个人分组","done":false}
+                ]
+            })).unwrap();
+        }
+        let untouched = s.call("get_task", json!({"id":"2"})).await;
+        let assigned = s
+            .call(
+                "update_task",
+                json!({"id":"1","changes":{"section":"  执行  "}}),
+            )
+            .await;
+        assert_eq!(assigned["task"]["section"], "执行");
+        assert_eq!(assigned["task"]["sections"]["工作"], "执行");
+        assert_eq!(assigned["task"]["sections"]["个人"], "执行");
+        assert_eq!(assigned["task"]["sections"]["历史清单"], "保留历史");
+        assert_eq!(s.call("get_task", json!({"id":"2"})).await, untouched);
+
+        for invalid in [
+            " 已完成 ".to_string(),
+            "已放弃".to_string(),
+            "未分组".to_string(),
+            "a".repeat(41),
+            "🌕".repeat(21),
+        ] {
+            for name in ["create_task", "update_task"] {
+                let fields = json!({"title":"不应写入","section":invalid});
+                let args = if name == "create_task" {
+                    fields
+                } else {
+                    json!({"id":"1","changes":fields})
+                };
+                let rejected = s
+                    .rpc("tools/call", json!({"name":name,"arguments":args}))
+                    .await;
+                assert_eq!(rejected["result"]["isError"], true, "{rejected}");
+                assert!(
+                    rejected["result"]["content"].to_string().contains("分组"),
+                    "{rejected}"
+                );
+                assert_eq!(s.call("get_task", json!({"id":"1"})).await, assigned);
+                assert_eq!(s.call("get_tasks", json!({})).await["total"], 2);
+            }
+        }
+        let emoji_group = "🌕".repeat(20);
+        let emoji = s
+            .call(
+                "update_task",
+                json!({"id":"1","changes":{"section":emoji_group}}),
+            )
+            .await;
+        assert_eq!(emoji["task"]["sections"]["工作"], emoji_group);
+        let cleared = s
+            .call("update_task", json!({"id":"1","changes":{"section":" "}}))
+            .await;
+        assert_eq!(cleared["task"]["section"], "");
+        assert_eq!(cleared["task"]["sections"]["工作"], "");
+        assert_eq!(cleared["task"]["sections"]["个人"], "");
+
+        s.call("rename_list", json!({"name":"工作","new_name":"新工作"}))
+            .await;
+        let renamed = s.call("get_task", json!({"id":"1"})).await;
+        assert_eq!(renamed["task"]["lists"], json!(["新工作", "个人"]));
+        assert!(renamed["task"]["sections"].get("工作").is_none());
+        assert_eq!(renamed["task"]["sections"]["新工作"], "");
+        {
+            let db = crate::storage::open_database_path(&s.root.join("test.db")).unwrap();
+            let saved = crate::storage::read_productivity(&db).unwrap();
+            assert_eq!(
+                saved["lists"][0],
+                json!(["新工作","1",{"sections":["空分组"],"color":"blue"},"extra"])
+            );
+        }
+        for (name, args) in [
+            (
+                "rename_list",
+                json!({"name":"工作","new_name":"失效重命名"}),
+            ),
+            ("delete_list", json!({"name":"工作"})),
+            (
+                "update_task",
+                json!({"id":"1","changes":{"list":"工作","section":"不应写入"}}),
+            ),
+        ] {
+            let rejected = s
+                .rpc("tools/call", json!({"name":name,"arguments":args}))
+                .await;
+            assert_eq!(rejected["result"]["isError"], true, "{rejected}");
+            assert_eq!(s.call("get_task", json!({"id":"1"})).await, renamed);
+        }
+        s.call("delete_list", json!({"name":"新工作"})).await;
+        let removed = s.call("get_task", json!({"id":"1"})).await;
+        assert_eq!(removed["task"]["list"], "个人");
+        assert_eq!(removed["task"]["lists"], json!(["个人"]));
+        assert_eq!(removed["task"]["categories"], json!(["个人"]));
+        assert!(removed["task"]["sections"].get("新工作").is_none());
+        assert_eq!(removed["task"]["sections"]["个人"], "");
+        assert_eq!(s.call("get_task", json!({"id":"2"})).await, untouched);
+        let stale = s
+            .rpc(
+                "tools/call",
+                json!({"name":"delete_list","arguments":{"name":"新工作"}}),
+            )
+            .await;
+        assert_eq!(stale["result"]["isError"], true);
+        assert_eq!(s.call("get_tasks", json!({})).await["total"], 2);
+    }
+    #[tokio::test]
     async fn http_recurring_task_completion_preserves_fields_and_has_one_successor() {
         let s = Server::new().await;
         // Future fixed dates avoid dependence on the machine's local day and timezone.

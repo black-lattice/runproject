@@ -4,7 +4,18 @@ import { FitAddon } from '@xterm/addon-fit';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, emit } from '@tauri-apps/api/event';
 import { useAppStore } from '@/store/useAppStore';
+import { useAppAppearance } from '@/components/AppTheme';
 import 'xterm/css/xterm.css';
+
+function terminalTheme(element, isDark) {
+  const styles = getComputedStyle(element);
+  return {
+    background: styles.backgroundColor,
+    foreground: styles.color,
+    cursor: styles.color,
+    selectionBackground: isDark ? '#779cff55' : '#315cc533',
+  };
+}
 
 const XtermTerminal = ({
 	sessionId,
@@ -12,11 +23,18 @@ const XtermTerminal = ({
 	onClose,
 	existingSession = false
 }) => {
+	const { isDark } = useAppAppearance();
 	const containerRef = useRef(null);
 	const terminalRef = useRef(null);
 	const fitAddonRef = useRef(null);
 	const reconnectingRef = useRef(false);
 	const closedRef = useRef(false);
+
+    useEffect(() => {
+        if (terminalRef.current && containerRef.current) {
+            terminalRef.current.options.theme = terminalTheme(containerRef.current, isDark);
+        }
+    }, [isDark]);
 
 	useEffect(() => {
 		console.log(
@@ -89,12 +107,9 @@ const XtermTerminal = ({
 		terminal = new Terminal({
 			cursorBlink: true,
 			fontSize: 14,
+			minimumContrastRatio: 4.5,
 			fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-			theme: {
-				background: '#1e1e1e',
-				foreground: '#d4d4d4',
-				cursor: '#ffffff'
-			},
+			theme: terminalTheme(containerRef.current, isDark),
 			scrollback: 1000,
 			cols: 80,
 			rows: 24
@@ -314,7 +329,7 @@ const XtermTerminal = ({
 	return (
 		<div
 			ref={containerRef}
-			className='w-full h-full bg-[#1e1e1e]'
+			className='w-full h-full bg-background text-foreground'
 			style={{ minHeight: '400px' }}
 		/>
 	);

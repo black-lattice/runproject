@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Button as AntButton,
-  Calendar,
   Card,
   Checkbox,
   DatePicker,
@@ -11,6 +10,7 @@ import {
   Input,
   Menu,
   Modal,
+  Popover,
   Select,
   Tag as AntTag,
 } from "antd";
@@ -47,6 +47,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ApiOutlined } from "@ant-design/icons";
 import {
   dateKey,
+  isFinished,
+  taskStatus,
   parseQuickTask,
   taskLists,
   withLists,
@@ -55,7 +57,6 @@ import {
   moveTaskTo,
   toolGroups,
   normalizeSubtasks,
-  changeList,
 } from "@/utils/taskModel";
 import {
   TaskTemplateLibrary,
@@ -68,7 +69,20 @@ import {
   TaskSectionSelect,
   TrashActions,
 } from "./components/TaskOrganization";
-import { listSections, taskSection } from "@/utils/taskOrganization";
+import {
+  listSections,
+  saveTaskList,
+  removeTaskList,
+  addTaskToList,
+  updateActiveTask,
+} from "@/utils/taskOrganization";
+import {
+  taskGroups,
+  collectTaskActivity,
+  shiftCalendarAnchor,
+  nextTaskSelection,
+} from "@/utils/taskViews";
+import { TaskExportDialog } from "./components/TaskExport";
 import {
   resetTaskRecurrence,
   nextOccurrenceDate,
@@ -76,7 +90,7 @@ import {
 import TaskComments from "./components/TaskComments";
 import TaskTitleInput from "./components/TaskTitleInput";
 import { ReminderEditor, NotificationPanel } from "./components/TaskReminders";
-import { pendingReminders } from "@/utils/taskReminders";
+import { pendingReminders, watchReminderClock } from "@/utils/taskReminders";
 import { useProductivityData } from "@/store/dataSync";
 
 function Button({ variant, size, children, ...props }) {
@@ -97,8 +111,6 @@ function Button({ variant, size, children, ...props }) {
     </AntButton>
   );
 }
-
-const INITIAL_DAY = dayjs().format("YYYY-MM-DD");
 
 function formatDate(date) {
   return [
@@ -143,16 +155,8 @@ function WelcomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { addTab } = useAppStore();
   const { toast } = useToast();
-  const {
-    tasks,
-    lists,
-    setTasks,
-    setLists,
-    updateData,
-    syncStatus,
-    syncError,
-    refresh,
-  } = useProductivityData();
+  const { tasks, lists, setTasks, updateData, syncStatus, syncError, refresh } =
+    useProductivityData();
   const [selectedId, setSelectedId] = useState(null);
   const [input, setInput] = useState("");
   const [activeNav, setActiveNav] = useState("today");
@@ -160,7 +164,18 @@ function WelcomePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(null);
-  const unreadCount = pendingReminders(tasks).length;
+  const [extrasTargetId, setExtrasTargetId] = useState(null);
+  const extrasTask = tasks.find((task) => task.id === extrasTargetId);
+  const openTaskExtras = (kind) => {
+    setExtrasTargetId(selected.id);
+    setExtrasOpen(kind);
+  };
+  const updateExtraTask = (updater) =>
+    updateData((current) => updateActiveTask(current, extrasTargetId, updater));
+  const noteEditorRef = useRef(null);
+  const [exportRequest, setExportRequest] = useState(null);
+  const [newTaskSection, setNewTaskSection] = useState(null);
+  useEffect(() => setNewTaskSection(null), [activeNav]);
   const updateSelected = (updater) =>
     setTasks((current) =>
       current.map((task) =>
@@ -173,25 +188,77 @@ function WelcomePage() {
     );
   const [showDetail, setShowDetail] = useState(true);
   const [smallDetailOpen, setSmallDetailOpen] = useState(false);
+  const detailCloseRef = useRef(null);
+  const detailFocusRequest = useRef(null);
+  const [detailFocusVersion, setDetailFocusVersion] = useState(0);
+  const requestDetailFocus = (id) => {
+    detailFocusRequest.current = {
+      id,
+      waitForOverlay:
+        searchOpen || notificationsOpen || extrasOpen === "templates",
+    };
+    setDetailFocusVersion((version) => version + 1);
+  };
+  const focusRequestedDetail = () => {
+    const request = detailFocusRequest.current;
+    if (!request || request.waitForOverlay) return;
+    requestAnimationFrame(() => {
+      if (detailFocusRequest.current !== request || !detailCloseRef.current)
+        return;
+      detailCloseRef.current.focus();
+      detailFocusRequest.current = null;
+    });
+  };
+  const afterDetailSourceClosed = () => {
+    if (!detailFocusRequest.current) return;
+    detailFocusRequest.current.waitForOverlay = false;
+    focusRequestedDetail();
+  };
+  const openTaskDetail = (id) => {
+    setSelectedId(id);
+    setShowDetail(true);
+    setSmallDetailOpen(true);
+    requestDetailFocus(id);
+  };
+  const closeTaskDetail = () => {
+    const id = selected.id;
+    detailFocusRequest.current = null;
+    setSmallDetailOpen(false);
+    setShowDetail(false);
+    requestAnimationFrame(() => {
+      const trigger = [
+        ...document.querySelectorAll("[data-task-open-id]"),
+      ].find((element) => element.dataset.taskOpenId === String(id));
+      (trigger || document.getElementById("task-input"))?.focus();
+    });
+  };
   const [priorityFilter, setPriorityFilter] = useState("全部");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [tagFilter, setTagFilter] = useState("");
-  const [today, setToday] = useState(dateKey);
-  useEffect(() => {
-    const timer = setInterval(() => setToday(dateKey()), 30000);
-    return () => clearInterval(timer);
-  }, []);
+  const [now, setNow] = useState(Date.now);
+  const today = dateKey(new Date(now));
+  const unreadCount = pendingReminders(tasks, now).length;
+  useEffect(() => watchReminderClock(setNow), []);
   const [sortMode, setSortMode] = useState("默认排序");
   const [hideCompleted, setHideCompleted] = useState(false);
   const [activeTool, setActiveTool] = useState(null);
   const [subtaskInput, setSubtaskInput] = useState("");
   useEffect(() => setSubtaskInput(""), [selectedId]);
   const [collapsedSections, setCollapsedSections] = useState({});
-  const [calendarSelectedDay, setCalendarSelectedDay] = useState(INITIAL_DAY);
   const [listEditor, setListEditor] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const isTaskView = activeTool === null;
-  const tomorrowDate = shiftDate(calendarSelectedDay, 1);
-  const upcomingEndDate = shiftDate(calendarSelectedDay, 6);
+  useEffect(() => {
+    if (
+      isTaskView &&
+      showDetail &&
+      detailFocusRequest.current?.id === selectedId
+    ) {
+      focusRequestedDetail();
+    }
+  }, [detailFocusVersion, isTaskView, showDetail, selectedId]);
+  const tomorrowDate = shiftDate(today, 1);
+  const upcomingEndDate = shiftDate(today, 6);
   const toggleSection = (section) => {
     setCollapsedSections((current) => ({
       ...current,
@@ -209,10 +276,13 @@ function WelcomePage() {
       setActiveTool(null);
       setActiveNav(task.deleted ? "trash" : "all");
       setPriorityFilter("全部");
+      setStatusFilter("all");
       setTagFilter("");
       setHideCompleted(false);
       setShowDetail(true);
+      setSmallDetailOpen(true);
       setSelectedId(task.id);
+      requestDetailFocus(task.id);
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, tasks]);
@@ -243,8 +313,9 @@ function WelcomePage() {
     () =>
       selectTasks(tasks, {
         nav: activeNav,
-        day: calendarSelectedDay,
+        day: today,
         priority: priorityFilter,
+        status: statusFilter,
         tag: tagFilter,
         hideCompleted,
         sort: sortMode,
@@ -252,8 +323,9 @@ function WelcomePage() {
     [
       tasks,
       activeNav,
-      calendarSelectedDay,
+      today,
       priorityFilter,
+      statusFilter,
       tagFilter,
       hideCompleted,
       sortMode,
@@ -269,20 +341,31 @@ function WelcomePage() {
     ),
   ].sort();
   const revealTask = (id) => {
-    setActiveNav("all");
+    setActiveNav(
+      tasks.find((task) => task.id === id)?.deleted ? "trash" : "all",
+    );
     setPriorityFilter("全部");
+    setStatusFilter("all");
     setTagFilter("");
     setHideCompleted(false);
-    setSelectedId(id);
-    setShowDetail(true);
-    setSmallDetailOpen(true);
+    openTaskDetail(id);
     setActiveTool(null);
   };
 
+  const selectionView = JSON.stringify([
+    activeNav,
+    priorityFilter,
+    statusFilter,
+    tagFilter,
+    hideCompleted,
+  ]);
+  const previousSelectionView = useRef(selectionView);
   useEffect(() => {
-    if (visibleTasks.some((task) => task.id === selectedId)) return;
-    setSelectedId(visibleTasks[0]?.id || null);
-  }, [selectedId, visibleTasks]);
+    const changed = previousSelectionView.current !== selectionView;
+    previousSelectionView.current = selectionView;
+    const next = nextTaskSelection(selectedId, visibleTasks, tasks, changed);
+    if (next !== selectedId) setSelectedId(next);
+  }, [selectedId, visibleTasks, tasks, selectionView]);
 
   const selected = tasks.find((task) => task.id === selectedId) ||
     visibleTasks[0] || {
@@ -321,11 +404,26 @@ function WelcomePage() {
       today,
       options.defaultDate ??
         (["today", "upcoming"].includes(activeNav)
-          ? calendarSelectedDay
+          ? today
           : activeNav === "tomorrow"
             ? tomorrowDate
             : ""),
     );
+    const group =
+      newTaskSection?.list === currentList && !overrides.list
+        ? newTaskSection
+        : null;
+    if (
+      group &&
+      !listSections(lists, tasks, group.list).includes(group.section)
+    ) {
+      setNewTaskSection(null);
+      toast({
+        description: "该分组已变更，请重新选择后添加",
+        variant: "destructive",
+      });
+      return;
+    }
     const createdAt = Date.now();
     const task = {
       id: crypto.randomUUID(),
@@ -334,7 +432,7 @@ function WelcomePage() {
       title: parsed.title || "未命名任务",
       time: parsed.time,
       list: activeNav.startsWith("list:") ? activeNav.slice(5) : "收件箱",
-      section: undefined,
+      ...(group ? { sections: { [group.list]: group.section } } : {}),
       priority: "中",
       done: false,
       status: "pending",
@@ -345,12 +443,27 @@ function WelcomePage() {
       detail: "",
       ...overrides,
     };
-    setTasks((current) => [task, ...current]);
+    try {
+      updateData((current) => {
+        if (
+          group &&
+          !listSections(current.lists, current.tasks, group.list).includes(
+            group.section,
+          )
+        )
+          throw new Error("分组已被删除或重命名，请重新选择分组");
+        return addTaskToList(current, task);
+      });
+    } catch (error) {
+      toast({ description: error.message, variant: "destructive" });
+      return;
+    }
     const matchesCurrentView =
       selectTasks([task], {
         nav: activeNav,
-        day: calendarSelectedDay,
+        day: today,
         priority: priorityFilter,
+        status: statusFilter,
         tag: tagFilter,
         hideCompleted,
       }).length > 0;
@@ -360,8 +473,9 @@ function WelcomePage() {
       setSelectedId(task.id);
       setShowDetail(true);
       setSmallDetailOpen(true);
+      if (!activeTool) requestDetailFocus(task.id);
     }
-    setInput("");
+    if (!overrides.list) setInput("");
     return task;
   };
   const toggle = (id) =>
@@ -370,8 +484,8 @@ function WelcomePage() {
         task.id === id
           ? {
               ...task,
-              done: !task.done,
-              status: task.done ? "pending" : "done",
+              done: !isFinished(task),
+              status: isFinished(task) ? "pending" : "done",
             }
           : task,
       ),
@@ -389,36 +503,46 @@ function WelcomePage() {
   };
   const currentList = activeNav.startsWith("list:") ? activeNav.slice(5) : null;
   const activeTasks = tasks.filter((task) => !task.deleted);
-  const groupedVisibleTasks = useMemo(() => {
-    const groups = new Map(
-      currentList
-        ? listSections(lists, tasks, currentList).map((label) => [label, []])
-        : [],
-    );
-    visibleTasks
-      .filter((task) => !task.done)
-      .forEach((task) => {
-        const label = taskSection(task, currentList || task.list) || "未分组";
-        if (!groups.has(label)) groups.set(label, []);
-        groups.get(label).push(task);
-      });
-    const completedTasks = visibleTasks.filter((task) => task.done);
-    if (completedTasks.length > 0) groups.set("已完成", completedTasks);
-    return Array.from(groups, ([label, items]) => ({ label, items }));
-  }, [visibleTasks, currentList, lists, tasks]);
+  const currentViewTitle =
+    currentList ||
+    {
+      all: "所有任务",
+      overdue: "已逾期",
+      today: "今天",
+      tomorrow: "明天",
+      upcoming: "最近 7 天",
+      inbox: "收件箱",
+      completed: "已结束",
+      trash: "垃圾桶",
+      summary: "任务摘要",
+    }[activeNav] ||
+    "今天";
+  const groupedVisibleTasks = useMemo(
+    () => taskGroups(visibleTasks, { lists, tasks, listName: currentList }),
+    [visibleTasks, currentList, lists, tasks],
+  );
+  const exportView = () =>
+    setExportRequest({
+      title: `${currentViewTitle} · 当前视图`,
+      tasks: visibleTasks,
+    });
+  const activityTasks = currentList
+    ? tasks.filter((task) => taskLists(task).includes(currentList))
+    : visibleTasks;
   const navItems = [
     [
       "all",
       "所有任务",
       ListTodo,
-      String(activeTasks.filter((t) => !t.done).length),
+      String(activeTasks.filter((t) => !isFinished(t)).length),
     ],
     [
       "overdue",
       "已逾期",
       Timer,
       String(
-        activeTasks.filter((t) => !t.done && t.date && t.date < today).length,
+        activeTasks.filter((t) => !isFinished(t) && t.date && t.date < today)
+          .length,
       ),
     ],
     [
@@ -426,8 +550,7 @@ function WelcomePage() {
       "今天",
       CalendarDays,
       String(
-        activeTasks.filter((t) => !t.done && t.date === calendarSelectedDay)
-          .length,
+        activeTasks.filter((t) => !isFinished(t) && t.date === today).length,
       ),
     ],
     [
@@ -436,10 +559,7 @@ function WelcomePage() {
       CalendarDays,
       String(
         activeTasks.filter(
-          (t) =>
-            !t.done &&
-            t.date >= calendarSelectedDay &&
-            t.date <= upcomingEndDate,
+          (t) => !isFinished(t) && t.date >= today && t.date <= upcomingEndDate,
         ).length,
       ),
     ],
@@ -449,44 +569,38 @@ function WelcomePage() {
       Inbox,
       String(
         activeTasks.filter(
-          (t) => !t.done && getTaskCategories(t).includes("收件箱"),
+          (t) => !isFinished(t) && getTaskCategories(t).includes("收件箱"),
         ).length,
       ),
     ],
   ];
   const saveList = () => {
-    const nextLabel = listEditor?.value?.trim();
-    if (
-      !nextLabel ||
-      nextLabel === "收件箱" ||
-      lists.some(
-        ([label]) => label === nextLabel && label !== listEditor.previousLabel,
-      )
-    ) {
-      toast({
-        description: "清单名称不能为空、重复或使用保留名称“收件箱”",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (listEditor.previousLabel) {
-      const previous = listEditor.previousLabel;
-      setLists((current) =>
-        current.map((item) =>
-          item[0] === previous ? [nextLabel, ...item.slice(1)] : item,
+    try {
+      updateData((current) =>
+        saveTaskList(
+          current,
+          listEditor?.previousLabel || "",
+          listEditor?.value || "",
         ),
       );
-      setTasks((current) => changeList(current, previous, nextLabel));
-      if (activeNav === `list:${previous}`) setActiveNav(`list:${nextLabel}`);
-    } else setLists((current) => [...current, [nextLabel, "0"]]);
-    setListEditor(null);
+      if (activeNav === `list:${listEditor?.previousLabel}`)
+        setActiveNav(`list:${listEditor.value.trim()}`);
+      setListEditor(null);
+    } catch (error) {
+      toast({ description: error.message, variant: "destructive" });
+    }
   };
   const executeConfirmedAction = () => {
     if (confirmAction?.type === "delete-list") {
       const label = confirmAction.label;
-      setLists((current) => current.filter((item) => item[0] !== label));
-      setTasks((current) => changeList(current, label, null));
-      if (activeNav === `list:${label}`) setActiveNav("today");
+      try {
+        updateData((current) => removeTaskList(current, label));
+        if (activeNav === `list:${label}`) setActiveNav("inbox");
+      } catch (error) {
+        toast({ description: error.message, variant: "destructive" });
+        setConfirmAction(null);
+        return;
+      }
     }
     if (confirmAction?.type === "delete-task") {
       setTasks((current) =>
@@ -501,7 +615,7 @@ function WelcomePage() {
     setConfirmAction(null);
   };
   const duplicateTask = () => {
-    if (!selected.id) return;
+    if (selected.id == null) return;
     const copy = {
       ...resetTaskRecurrence(selected),
       activity: [],
@@ -521,7 +635,7 @@ function WelcomePage() {
       status: "pending",
     };
     setTasks((current) => [copy, ...current]);
-    setSelectedId(copy.id);
+    revealTask(copy.id);
     toast({ description: "已创建任务副本" });
   };
   const copyText = (value, success, failure = "复制失败") =>
@@ -533,7 +647,7 @@ function WelcomePage() {
       .then(() => toast({ description: success }))
       .catch(() => toast({ description: failure, variant: "destructive" }));
   const handleTaskAction = ({ key }) => {
-    if (!selected.id) return;
+    if (selected.id == null) return;
     if (key === "subtask") {
       document
         .querySelector('input[placeholder="添加子任务，回车保存"]')
@@ -561,10 +675,10 @@ function WelcomePage() {
     } else if (key === "copy") {
       copyText(
         `${window.location.href.split("#")[0]}#/welcome?task=${selected.id}`,
-        "已复制任务链接",
+        "已复制本机任务链接，仅在此设备中打开",
       );
-    } else if (key === "print") {
-      window.print();
+    } else if (key === "print" || key === "export") {
+      setExportRequest({ title: selected.title, tasks: [selected] });
     } else if (key === "delete") {
       setConfirmAction({ type: "delete-task", id: selected.id });
     } else if (key === "restore") {
@@ -575,9 +689,9 @@ function WelcomePage() {
       );
       toast({ description: "任务已恢复" });
     } else if (key === "template") {
-      setExtrasOpen("templates");
+      openTaskExtras("templates");
     } else if (key === "activity" || key === "attachment") {
-      setExtrasOpen(key);
+      openTaskExtras(key);
     }
   };
   const handleRailAction = (label) => {
@@ -667,6 +781,14 @@ function WelcomePage() {
                   onClick={() => handleRailAction(label)}
                 >
                   <Icon className="h-5 w-5" />
+                  {label === "通知" && unreadCount > 0 && (
+                    <span
+                      className="home-notification-badge"
+                      aria-hidden="true"
+                    >
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </Button>
               ))}
             </div>
@@ -750,7 +872,7 @@ function WelcomePage() {
                         {
                           activeTasks.filter(
                             (task) =>
-                              !task.done &&
+                              !isFinished(task) &&
                               getTaskCategories(task).includes(label),
                           ).length
                         }
@@ -827,6 +949,7 @@ function WelcomePage() {
                         size="sm"
                         onClick={() => {
                           setPriorityFilter("全部");
+                          setStatusFilter("all");
                           setTagFilter("");
                         }}
                       >
@@ -891,11 +1014,12 @@ function WelcomePage() {
                     icon: <Check className="h-4 w-4" />,
                     label: (
                       <span className="task-menu-label">
-                        <span>已完成</span>
+                        <span>已结束</span>
                         <span className="task-menu-count">
                           {
-                            tasks.filter((task) => task.done && !task.deleted)
-                              .length
+                            tasks.filter(
+                              (task) => isFinished(task) && !task.deleted,
+                            ).length
                           }
                         </span>
                       </span>
@@ -939,7 +1063,7 @@ function WelcomePage() {
                       value: `list:${label}`,
                       label,
                     })),
-                    { value: "completed", label: "已完成" },
+                    { value: "completed", label: "已结束" },
                     { value: "trash", label: "垃圾桶" },
                   ]}
                 />
@@ -956,7 +1080,7 @@ function WelcomePage() {
                 <div>
                   {!activeNav.startsWith("list:") && (
                     <p className="text-xs font-medium text-primary">
-                      {formatDateLabel(calendarSelectedDay)}
+                      {formatDateLabel(today)}
                     </p>
                   )}
                   <h1 className="mt-1 text-2xl font-semibold text-foreground">
@@ -973,20 +1097,87 @@ function WelcomePage() {
                               : activeNav === "all"
                                 ? "所有任务"
                                 : activeNav === "completed"
-                                  ? "已完成"
+                                  ? "已结束"
                                   : activeNav === "trash"
                                     ? "垃圾桶"
                                     : activeNav.startsWith("list:")
                                       ? activeNav.slice(5)
                                       : "今天"}{" "}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">
-                      {activeNav === "completed"
-                        ? visibleTasks.length
-                        : visibleTasks.filter((t) => !t.done).length}
+                      {visibleTasks.length}
                     </span>
                   </h1>
                 </div>
                 <div className="task-main-actions flex-wrap">
+                  <Popover
+                    trigger="click"
+                    placement="bottomRight"
+                    title="筛选当前任务"
+                    content={
+                      <div className="grid gap-3" style={{ width: 250 }}>
+                        <label className="grid gap-1 text-xs">
+                          状态
+                          <Select
+                            aria-label="筛选任务状态"
+                            value={statusFilter}
+                            onChange={setStatusFilter}
+                            options={[
+                              { value: "all", label: "全部状态" },
+                              { value: "pending", label: "待处理" },
+                              { value: "in-progress", label: "进行中" },
+                              { value: "done", label: "已完成" },
+                              { value: "abandoned", label: "已放弃" },
+                            ]}
+                          />
+                        </label>
+                        <label className="grid gap-1 text-xs">
+                          优先级
+                          <Select
+                            aria-label="筛选任务优先级"
+                            value={priorityFilter}
+                            onChange={setPriorityFilter}
+                            options={["全部", "高", "中", "低", "无"].map(
+                              (value) => ({ value, label: value }),
+                            )}
+                          />
+                        </label>
+                        <label className="grid gap-1 text-xs">
+                          标签
+                          <Select
+                            aria-label="筛选任务标签"
+                            value={tagFilter}
+                            onChange={setTagFilter}
+                            options={[
+                              { value: "", label: "全部标签" },
+                              ...allTags.map((value) => ({
+                                value,
+                                label: value,
+                              })),
+                            ]}
+                          />
+                        </label>
+                        <Button
+                          onClick={() => {
+                            setStatusFilter("all");
+                            setPriorityFilter("全部");
+                            setTagFilter("");
+                            setHideCompleted(false);
+                          }}
+                        >
+                          清除筛选
+                        </Button>
+                      </div>
+                    }
+                  >
+                    <Button>
+                      筛选
+                      {statusFilter !== "all" ||
+                      priorityFilter !== "全部" ||
+                      tagFilter
+                        ? " · 已启用"
+                        : ""}
+                    </Button>
+                  </Popover>
                   {currentList && (
                     <TaskSectionManager
                       listName={currentList}
@@ -995,7 +1186,7 @@ function WelcomePage() {
                       onChange={updateData}
                     />
                   )}
-                  <Button onClick={() => setExtrasOpen("templates")}>
+                  <Button onClick={() => openTaskExtras("templates")}>
                     模板
                   </Button>
                   <Dropdown
@@ -1059,7 +1250,11 @@ function WelcomePage() {
                         {
                           key: "show-detail",
                           label: showDetail ? "隐藏详情" : "显示详情",
-                          onClick: () => setShowDetail((value) => !value),
+                          onClick: () =>
+                            showDetail
+                              ? closeTaskDetail()
+                              : selected.id != null &&
+                                openTaskDetail(selected.id),
                         },
                         {
                           key: "settings",
@@ -1075,23 +1270,18 @@ function WelcomePage() {
                         },
                         {
                           key: "share",
-                          label: "分享",
-                          onClick: () =>
-                            copyText(
-                              window.location.href,
-                              "已复制首页链接",
-                              "分享链接复制失败",
-                            ),
+                          label: "复制任务内容",
+                          onClick: exportView,
                         },
                         {
                           key: "activity",
-                          label: "清单动态",
+                          label: currentList ? "清单动态" : "当前视图动态",
                           onClick: () => setExtrasOpen("list-activity"),
                         },
                         {
                           key: "print",
                           label: "打印",
-                          onClick: () => window.print(),
+                          onClick: exportView,
                         },
                       ],
                     }}
@@ -1113,22 +1303,21 @@ function WelcomePage() {
                   <Card size="small" className="task-summary-card is-blue">
                     <div className="text-xs text-primary">待完成</div>
                     <div className="mt-1 text-2xl font-semibold text-primary">
-                      {tasks.filter((t) => !t.done && !t.deleted).length}
+                      {tasks.filter((t) => !isFinished(t) && !t.deleted).length}
                     </div>
                   </Card>
                   <Card size="small" className="task-summary-card is-green">
-                    <div className="text-xs text-success">已完成</div>
+                    <div className="text-xs text-success">已结束</div>
                     <div className="mt-1 text-2xl font-semibold text-success">
-                      {tasks.filter((t) => t.done && !t.deleted).length}
+                      {tasks.filter((t) => isFinished(t) && !t.deleted).length}
                     </div>
                   </Card>
                   <Card size="small" className="task-summary-card is-orange">
                     <div className="text-xs text-warning">今日任务</div>
                     <div className="mt-1 text-2xl font-semibold text-warning">
                       {
-                        tasks.filter(
-                          (t) => t.date === calendarSelectedDay && !t.deleted,
-                        ).length
+                        tasks.filter((t) => t.date === today && !t.deleted)
+                          .length
                       }
                     </div>
                   </Card>
@@ -1154,6 +1343,23 @@ function WelcomePage() {
                     重试
                   </Button>
                 )}
+                {statusFilter !== "all" && (
+                  <AntTag closable onClose={() => setStatusFilter("all")}>
+                    {
+                      {
+                        pending: "待处理",
+                        "in-progress": "进行中",
+                        done: "已完成",
+                        abandoned: "已放弃",
+                      }[statusFilter]
+                    }
+                  </AntTag>
+                )}
+                {priorityFilter !== "全部" && (
+                  <AntTag closable onClose={() => setPriorityFilter("全部")}>
+                    优先级：{priorityFilter}
+                  </AntTag>
+                )}
                 {tagFilter && (
                   <AntTag closable onClose={() => setTagFilter("")}>
                     #{tagFilter}
@@ -1163,6 +1369,14 @@ function WelcomePage() {
               {activeNav === "trash" && (
                 <div className="mb-4">
                   <TrashActions tasks={tasks} onChange={setTasks} />
+                </div>
+              )}
+              {newTaskSection?.list === currentList && (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  添加到分组{" "}
+                  <AntTag closable onClose={() => setNewTaskSection(null)}>
+                    {newTaskSection.section}
+                  </AntTag>
                 </div>
               )}
               <div className="task-quick-add">
@@ -1181,6 +1395,14 @@ function WelcomePage() {
                     if (!event.nativeEvent.isComposing) addTask();
                   }}
                 />
+                <Button
+                  disabled={
+                    !input.trim() || ["completed", "trash"].includes(activeNav)
+                  }
+                  onClick={() => addTask()}
+                >
+                  添加
+                </Button>
               </div>
               {visibleTasks.length === 0 && (
                 <Empty
@@ -1191,112 +1413,122 @@ function WelcomePage() {
                       ? "垃圾桶为空"
                       : activeNav === "completed"
                         ? "还没有已结束任务"
-                        : priorityFilter !== "全部" || tagFilter
+                        : priorityFilter !== "全部" ||
+                            statusFilter !== "all" ||
+                            tagFilter
                           ? "没有符合筛选条件的任务"
                           : "这里还没有任务，按 N 快速添加"
                   }
                 />
               )}
-              {groupedVisibleTasks.map(({ label, items }) => (
-                <div className="task-section" key={label}>
-                  {(() => {
-                    const sectionKey = `tasks:${label}`;
-                    const isHeaderless = [
-                      "更多任务",
-                      "任务",
-                      "未分组",
-                    ].includes(label);
-                    const isCollapsed = isHeaderless
-                      ? false
-                      : (collapsedSections[sectionKey] ?? label === "已完成");
-                    return (
-                      <>
-                        {!isHeaderless && (
-                          <div
-                            className="task-section-title"
-                            role="button"
-                            tabIndex={0}
-                            aria-expanded={!isCollapsed}
-                            onClick={() => toggleSection(sectionKey)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                toggleSection(sectionKey);
-                              }
-                            }}
-                          >
-                            <ChevronDown
-                              className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
-                            />
-                            <span>{label}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {items.length}
-                            </span>
-                            {activeNav.startsWith("list:") &&
-                              label !== "已完成" && (
-                                <Plus className="ml-auto h-4 w-4 text-muted-foreground" />
+              {groupedVisibleTasks.map(
+                ({ key: groupKey, label, items, section, finished }) => (
+                  <div className="task-section" key={groupKey}>
+                    {(() => {
+                      const sectionKey = `tasks:${activeNav}:${groupKey}`;
+                      const isHeaderless = !finished && !section;
+                      const isCollapsed = isHeaderless
+                        ? false
+                        : (collapsedSections[sectionKey] ??
+                          (finished &&
+                            !["completed", "trash"].includes(activeNav)));
+                      return (
+                        <>
+                          {!isHeaderless && (
+                            <div className="task-section-title">
+                              <button
+                                type="button"
+                                className="task-section-toggle"
+                                aria-expanded={!isCollapsed}
+                                onClick={() => toggleSection(sectionKey)}
+                              >
+                                <ChevronDown
+                                  className={`h-4 w-4 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                                />
+                                <span className="truncate">{label}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {items.length}
+                                </span>
+                              </button>
+                              {currentList && !finished && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`在“${label}”分组新建任务`}
+                                  onClick={() => {
+                                    setNewTaskSection({
+                                      list: currentList,
+                                      section,
+                                    });
+                                    setCollapsedSections((current) => ({
+                                      ...current,
+                                      [sectionKey]: false,
+                                    }));
+                                    document
+                                      .getElementById("task-input")
+                                      ?.focus();
+                                  }}
+                                >
+                                  <Plus />
+                                </Button>
                               )}
-                          </div>
-                        )}
-                        {!isCollapsed &&
-                          items.map((task) => (
-                            <TaskRow
-                              key={task.id}
-                              task={task}
-                              showCreatedDate={
-                                activeNav === "upcoming" ||
-                                activeNav === "inbox"
-                              }
-                              selected={task.id === selectedId}
-                              onSelect={() => {
-                                setSelectedId(task.id);
-                                setShowDetail(true);
-                                setSmallDetailOpen(true);
-                              }}
-                              onToggle={() => toggle(task.id)}
-                              onPriority={() =>
-                                setTasks((current) =>
-                                  current.map((item) =>
-                                    item.id === task.id
-                                      ? {
-                                          ...item,
-                                          priority:
-                                            item.priority === "高"
-                                              ? "中"
-                                              : item.priority === "中"
-                                                ? "低"
-                                                : "高",
-                                        }
-                                      : item,
-                                  ),
-                                )
-                              }
-                            />
-                          ))}
-                      </>
-                    );
-                  })()}
-                </div>
-              ))}
+                            </div>
+                          )}
+                          {!isCollapsed &&
+                            items.map((task) => (
+                              <TaskRow
+                                key={task.id}
+                                task={task}
+                                showCreatedDate={
+                                  activeNav === "upcoming" ||
+                                  activeNav === "inbox"
+                                }
+                                selected={task.id === selectedId}
+                                onSelect={() => openTaskDetail(task.id)}
+                                onToggle={() => toggle(task.id)}
+                                onPriority={() =>
+                                  setTasks((current) =>
+                                    current.map((item) =>
+                                      item.id === task.id
+                                        ? {
+                                            ...item,
+                                            priority:
+                                              item.priority === "高"
+                                                ? "中"
+                                                : item.priority === "中"
+                                                  ? "低"
+                                                  : "高",
+                                          }
+                                        : item,
+                                    ),
+                                  )
+                                }
+                              />
+                            ))}
+                        </>
+                      );
+                    })()}
+                  </div>
+                ),
+              )}
             </main>
           )}
-          {isTaskView && showDetail && selected.id && (
+          {isTaskView && showDetail && selected.id != null && (
             <aside className="task-detail">
               <div className="task-detail-toolbar">
                 <Button
+                  ref={detailCloseRef}
                   className="ml-auto"
                   aria-label="关闭任务详情"
-                  onClick={() => {
-                    setSmallDetailOpen(false);
-                    setShowDetail(false);
-                  }}
+                  onClick={closeTaskDetail}
                 >
                   关闭
                 </Button>
                 <div className="flex items-center gap-2">
                   <Checkbox
                     className="task-detail-top-checkbox"
-                    checked={selected.done}
+                    aria-label={`${isFinished(selected) ? "重新打开" : "完成"}任务：${selected.title}`}
+                    checked={Boolean(isFinished(selected))}
                     onChange={() => toggle(selected.id)}
                   />
                   <span className="task-detail-top-divider" />
@@ -1347,7 +1579,7 @@ function WelcomePage() {
                                     high: "高",
                                     medium: "中",
                                     low: "低",
-                                    none: "",
+                                    none: "无",
                                   }[key],
                                 }
                               : task,
@@ -1367,16 +1599,36 @@ function WelcomePage() {
                 </div>
               </div>
               <div className="task-detail-body">
+                {!visibleTasks.some((task) => task.id === selected.id) && (
+                  <div
+                    role="status"
+                    className="mb-4 rounded-lg border border-border p-3 text-xs text-muted-foreground"
+                  >
+                    {selected.deleted
+                      ? "此任务已移入垃圾桶。"
+                      : "任务已不在当前视图中，仍可在这里继续编辑。"}
+                    <Button size="sm" onClick={() => revealTask(selected.id)}>
+                      {selected.deleted ? "查看垃圾桶" : "在所有任务中查看"}
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
                   <Checkbox
                     className="task-detail-checkbox"
-                    checked={selected.done}
+                    aria-label={`${isFinished(selected) ? "重新打开" : "完成"}任务：${selected.title}`}
+                    checked={Boolean(isFinished(selected))}
                     onChange={() => toggle(selected.id)}
                   />
                   <div className="min-w-0 flex-1">
                     <TaskTitleInput
                       task={selected}
-                      onCommit={(title) => updateSelected({ title })}
+                      onCommit={(title, taskId) =>
+                        setTasks((current) =>
+                          current.map((task) =>
+                            task.id === taskId ? { ...task, title } : task,
+                          ),
+                        )
+                      }
                     />
                     <div className="mt-2 flex items-center gap-2 text-sm text-primary">
                       <CalendarDays className="h-4 w-4" />
@@ -1392,6 +1644,8 @@ function WelcomePage() {
                 </div>
                 <div id="task-note-editor">
                   <TaskNoteEditor
+                    key={selected.id}
+                    editorRef={noteEditorRef}
                     value={selected.detail || ""}
                     onChange={(detail) => updateSelected({ detail })}
                     ariaLabel="任务备注"
@@ -1435,15 +1689,14 @@ function WelcomePage() {
                       lists={lists}
                       tasks={tasks}
                       onChange={setTasks}
+                      onDataChange={updateData}
                     />
                   </div>
                   <div className="flex items-center justify-between gap-3 py-2">
                     <span>状态</span>
                     <Select
                       aria-label="任务状态"
-                      value={
-                        selected.status || (selected.done ? "done" : "pending")
-                      }
+                      value={taskStatus(selected)}
                       options={[
                         { value: "pending", label: "待处理" },
                         { value: "in-progress", label: "进行中" },
@@ -1491,20 +1744,25 @@ function WelcomePage() {
                   <DetailRow
                     icon={Star}
                     label="优先级"
-                    value={selected.priority}
+                    value={selected.priority || "无"}
                   />
                   <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
                     <CalendarDays className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">日期</span>
                     <Input
                       type="date"
+                      aria-label="任务日期"
                       className="ml-auto h-8 w-32 text-xs"
                       value={selected.date || ""}
                       onChange={(e) =>
                         setTasks((current) =>
                           current.map((task) =>
                             task.id === selected.id
-                              ? { ...task, date: e.target.value }
+                              ? {
+                                  ...task,
+                                  date: e.target.value,
+                                  time: e.target.value ? task.time : "",
+                                }
                               : task,
                           ),
                         )
@@ -1516,6 +1774,7 @@ function WelcomePage() {
                     <Timer className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">重复</span>
                     <Select
+                      aria-label="重复规则"
                       className="ml-auto w-32"
                       size="small"
                       value={selected.repeat || ""}
@@ -1597,7 +1856,11 @@ function WelcomePage() {
                       className="h-7 w-24 text-xs"
                       placeholder="添加标签"
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                        if (
+                          !e.nativeEvent.isComposing &&
+                          e.key === "Enter" &&
+                          e.currentTarget.value.trim()
+                        ) {
                           const tag = e.currentTarget.value
                             .trim()
                             .replace(/^#/, "");
@@ -1712,7 +1975,11 @@ function WelcomePage() {
                         value={subtaskInput}
                         onChange={(e) => setSubtaskInput(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && subtaskInput.trim()) {
+                          if (
+                            !e.nativeEvent.isComposing &&
+                            e.key === "Enter" &&
+                            subtaskInput.trim()
+                          ) {
                             const value = subtaskInput.trim();
                             setTasks((current) =>
                               current.map((task) =>
@@ -1738,16 +2005,6 @@ function WelcomePage() {
                     </div>
                   </div>
                 }
-              </div>
-              <div className="task-calendar">
-                <Calendar
-                  className="task-antd-calendar"
-                  fullscreen={false}
-                  value={dayjs(calendarSelectedDay)}
-                  onSelect={(value) =>
-                    setCalendarSelectedDay(value.format("YYYY-MM-DD"))
-                  }
-                />
               </div>
               <div className="task-detail-footer">
                 <Dropdown
@@ -1776,11 +2033,7 @@ function WelcomePage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() =>
-                      document
-                        .querySelector("#task-note-editor textarea")
-                        ?.focus()
-                    }
+                    onClick={() => noteEditorRef.current?.focus()}
                     aria-label="编辑备注"
                   >
                     <TextFormat className="h-5 w-5" />
@@ -1790,7 +2043,7 @@ function WelcomePage() {
                     size="icon"
                     aria-label="评论"
                     title="添加评论"
-                    onClick={() => setExtrasOpen("comments")}
+                    onClick={() => openTaskExtras("comments")}
                   >
                     <Comment className="h-5 w-5" />
                   </Button>
@@ -1800,7 +2053,10 @@ function WelcomePage() {
                     menu={{
                       items: [
                         { key: "subtask", label: "添加子任务" },
-                        { key: "pin", label: "置顶" },
+                        {
+                          key: "pin",
+                          label: selected.pinned ? "取消置顶" : "置顶",
+                        },
                         { key: "abandon", label: "放弃" },
                         { key: "tag", label: "标签" },
                         { key: "attachment", label: "上传附件" },
@@ -1808,7 +2064,8 @@ function WelcomePage() {
                         { key: "activity", label: "任务动态" },
                         { key: "template", label: "保存为模板" },
                         { key: "duplicate", label: "创建副本" },
-                        { key: "copy", label: "复制链接" },
+                        { key: "copy", label: "复制本机链接" },
+                        { key: "export", label: "复制任务内容" },
                         { key: "print", label: "打印" },
                         selected.deleted
                           ? { key: "restore", label: "恢复任务" }
@@ -1835,22 +2092,30 @@ function WelcomePage() {
             mode={activeTool}
             tasks={tasks.filter((task) => !task.deleted)}
             lists={lists}
-            baseDate={calendarSelectedDay}
+            baseDate={today}
             onClose={() => setActiveTool(null)}
             onCreate={addTask}
             onMove={moveTask}
             onSelect={revealTask}
           />
         )}
+        <TaskExportDialog
+          open={Boolean(exportRequest)}
+          onClose={() => setExportRequest(null)}
+          title={exportRequest?.title || "任务"}
+          tasks={exportRequest?.tasks || []}
+          onFeedback={toast}
+        />
         <TaskTemplateLibrary
           open={extrasOpen === "templates"}
           onClose={() => setExtrasOpen(null)}
-          sourceTask={selected.id ? selected : null}
+          onAfterClose={afterDetailSourceClosed}
+          sourceTask={extrasTask && !extrasTask.deleted ? extrasTask : null}
           lists={lists.map(([name]) => name)}
           onFeedback={toast}
           onCreateTask={(task) => {
             const fresh = resetTaskRecurrence(task);
-            setTasks((current) => [fresh, ...current]);
+            updateData((current) => addTaskToList(current, fresh));
             revealTask(fresh.id);
           }}
         />
@@ -1865,7 +2130,7 @@ function WelcomePage() {
             {
               activity: "任务动态",
               attachment: "任务附件",
-              "list-activity": "清单动态",
+              "list-activity": currentList ? "清单动态" : "当前视图动态",
               comments: "任务评论",
             }[extrasOpen]
           }
@@ -1874,38 +2139,55 @@ function WelcomePage() {
           destroyOnHidden
           width={560}
         >
-          {extrasOpen === "activity" && <TaskActivity task={selected} />}
-          {extrasOpen === "list-activity" && (
-            <TaskActivity
-              task={{
-                activity: visibleTasks.flatMap((task) =>
-                  (task.activity || []).map((event) => ({
-                    ...event,
-                    message: `${task.title} · ${event.message}`,
-                  })),
-                ),
-              }}
-            />
+          {["activity", "attachment", "comments"].includes(extrasOpen) && (
+            <p className="mb-3 text-xs text-muted-foreground">
+              {extrasTask
+                ? `任务：${extrasTask.title}`
+                : "原任务已被删除，请关闭此窗口后重新选择。"}
+            </p>
           )}
-          {extrasOpen === "attachment" && (
+          {extrasOpen === "activity" && extrasTask && (
+            <TaskActivity task={extrasTask} />
+          )}
+          {extrasTask?.deleted &&
+            ["attachment", "comments"].includes(extrasOpen) && (
+              <p role="alert" className="mb-3 text-sm text-destructive">
+                任务已在垃圾桶中，请先恢复任务。
+              </p>
+            )}
+          {extrasOpen === "list-activity" && (
+            <>
+              <p className="mb-3 text-xs text-muted-foreground">
+                {currentList
+                  ? "此清单全部任务（含垃圾桶）的最近 100 条动态，不受筛选影响。"
+                  : "当前视图任务的最近 100 条动态。"}
+              </p>
+              <TaskActivity
+                task={{ activity: collectTaskActivity(activityTasks) }}
+              />
+            </>
+          )}
+          {extrasOpen === "attachment" && extrasTask && (
             <TaskAttachments
-              key={selected.id}
-              task={selected}
-              onChange={(attachments) => updateSelected({ attachments })}
+              key={extrasTask.id}
+              task={extrasTask}
+              disabled={extrasTask.deleted}
+              onChange={(attachments) => updateExtraTask({ attachments })}
               onFeedback={toast}
             />
           )}
-          {extrasOpen === "comments" && (
+          {extrasOpen === "comments" && extrasTask && (
             <TaskComments
-              key={selected.id}
-              task={selected}
-              onChange={updateSelected}
+              key={extrasTask.id}
+              task={extrasTask}
+              onChange={updateExtraTask}
             />
           )}
         </Modal>
         <NotificationPanel
           open={notificationsOpen}
           onClose={() => setNotificationsOpen(false)}
+          onAfterClose={afterDetailSourceClosed}
           tasks={tasks}
           setTasks={setTasks}
           onSelect={revealTask}
@@ -1958,7 +2240,9 @@ function WelcomePage() {
                 value: event.target.value,
               }))
             }
-            onPressEnter={saveList}
+            onPressEnter={(event) => {
+              if (!event.nativeEvent.isComposing) saveList();
+            }}
           />
         </Modal>
         <Modal
@@ -1977,7 +2261,7 @@ function WelcomePage() {
         >
           <p className="text-sm text-muted-foreground">
             {confirmAction?.type === "delete-list"
-              ? "清单中的任务将移入收件箱。"
+              ? "任务保留其他清单归属；没有其他归属时移入收件箱。"
               : "你可以在垃圾桶中恢复此任务。"}
           </p>
         </Modal>
@@ -1986,6 +2270,7 @@ function WelcomePage() {
           title="搜索全部任务、备注或标签"
           footer={null}
           onCancel={() => setSearchOpen(false)}
+          afterClose={afterDetailSourceClosed}
           destroyOnHidden
         >
           <Input
@@ -2042,7 +2327,7 @@ function ToolOverlay({
   const scoped = tasks.filter(
     (t) =>
       (!scope || taskLists(t).includes(scope)) &&
-      (mode === "kanban" || showFinished || !t.done),
+      (mode === "kanban" || showFinished || !isFinished(t)),
   );
   const groups = toolGroups(scoped, mode, today);
   const names = {
@@ -2052,18 +2337,7 @@ function ToolOverlay({
     kanban: "看板",
   };
   const navigateDate = (direction) =>
-    setAnchor(
-      dayjs(anchor)
-        .add(
-          direction,
-          calendarView === "日"
-            ? "day"
-            : calendarView === "周"
-              ? "week"
-              : "month",
-        )
-        .format("YYYY-MM-DD"),
-    );
+    setAnchor(shiftCalendarAnchor(anchor, calendarView, direction));
   const start =
     calendarView === "月"
       ? getWeekStart(dayjs(anchor).startOf("month").format("YYYY-MM-DD"))
@@ -2086,6 +2360,7 @@ function ToolOverlay({
     setDraft({
       title: "",
       date: initialDate,
+      list: scope || "收件箱",
       target,
       dateExplicit: Boolean(initialDate) || target === "未安排",
     });
@@ -2093,7 +2368,7 @@ function ToolOverlay({
   const saveDraft = () => {
     if (!draft?.title.trim()) return;
     const overrides = moveTaskTo(
-      { list: scope || "收件箱", tags: [], priority: "无" },
+      { list: draft.list, tags: [], priority: "无" },
       draft.target,
       today,
     );
@@ -2110,9 +2385,8 @@ function ToolOverlay({
     if (created) {
       setDraft(null);
       if (
-        mode === "calendar" &&
-        created.date &&
-        !dates.includes(created.date)
+        (scope && !taskLists(created).includes(scope)) ||
+        (mode === "calendar" && created.date && !dates.includes(created.date))
       ) {
         onSelect(created.id);
       }
@@ -2120,7 +2394,7 @@ function ToolOverlay({
   };
   const card = (task) => (
     <div
-      className={`tool-task ${task.done ? "is-done" : ""}`}
+      className={`tool-task ${isFinished(task) ? "is-done" : ""}`}
       key={task.id}
       draggable
       onDragStart={(event) =>
@@ -2130,8 +2404,10 @@ function ToolOverlay({
       <div className="flex items-start gap-2">
         <Checkbox
           aria-label={`完成任务：${task.title}`}
-          checked={task.done}
-          onChange={() => onMove(task.id, task.done ? "待处理" : "已完成")}
+          checked={Boolean(isFinished(task))}
+          onChange={() =>
+            onMove(task.id, isFinished(task) ? "待处理" : "已完成")
+          }
         />
         <button
           className="tool-task-title min-w-0 flex-1 text-left"
@@ -2334,6 +2610,9 @@ function ToolOverlay({
                 className="tool-column"
                 key={label}
                 {...dropProps(label)}
+                title={
+                  label === "逾期" ? "拖入此栏将到期日改为昨天" : undefined
+                }
               >
                 <h3>
                   {label}
@@ -2353,7 +2632,9 @@ function ToolOverlay({
                 {items.map(card)}
                 {!items.length && (
                   <p className="text-xs text-muted-foreground py-3">
-                    暂无任务，可拖入任务或通过菜单移动
+                    {label === "逾期"
+                      ? "暂无逾期任务，拖入将到期日改为昨天"
+                      : "暂无任务，可拖入任务或通过菜单移动"}
                   </p>
                 )}
               </section>
@@ -2378,7 +2659,20 @@ function ToolOverlay({
             onChange={(event) =>
               setDraft((current) => ({ ...current, title: event.target.value }))
             }
-            onPressEnter={saveDraft}
+            onPressEnter={(event) => {
+              if (!event.nativeEvent.isComposing) saveDraft();
+            }}
+          />
+          <Select
+            aria-label="新任务所属清单"
+            className="mt-3 w-full"
+            value={draft?.list || "收件箱"}
+            onChange={(value) =>
+              setDraft((current) => ({ ...current, list: value }))
+            }
+            options={["收件箱", ...lists.map(([name]) => name)].map(
+              (value) => ({ value, label: value }),
+            )}
           />
           <DatePicker
             aria-label="新任务日期"
@@ -2415,29 +2709,33 @@ function TaskCategories({ task }) {
 function TaskRow({ task, showCreatedDate, selected, onSelect, onToggle }) {
   return (
     <div
-      role="button"
-      tabIndex={0}
-      className={`task-row ${selected ? "is-selected" : ""} ${task.done ? "is-done" : ""}`}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") onSelect();
-      }}
+      className={`task-row ${selected ? "is-selected" : ""} ${isFinished(task) ? "is-done" : ""}`}
     >
       <Checkbox
-        checked={task.done}
-        onClick={(event) => event.stopPropagation()}
+        aria-label={`${isFinished(task) ? "重新打开" : "完成"}任务：${task.title}`}
+        checked={Boolean(isFinished(task))}
         onChange={onToggle}
       />
-      <span className="min-w-0 flex-1 truncate text-left">
+      <button
+        type="button"
+        className="task-title-button min-w-0 flex-1 truncate text-left"
+        data-task-open-id={String(task.id)}
+        onClick={onSelect}
+        title={task.title}
+        aria-label={`打开任务：${task.title}`}
+      >
         {task.pinned ? "📌 " : ""}
         {task.title}
-      </span>
+      </button>
+      {taskStatus(task) === "in-progress" && (
+        <span className="text-xs text-primary">进行中</span>
+      )}
       {task.status === "abandoned" && (
         <span className="text-xs text-muted-foreground">已放弃</span>
       )}
       {task.date && (
         <span
-          className={`text-xs ${!task.done && task.date < dateKey() ? "text-destructive" : "text-muted-foreground"}`}
+          className={`text-xs ${!isFinished(task) && task.date < dateKey() ? "text-destructive" : "text-muted-foreground"}`}
         >
           {task.date}
         </span>
