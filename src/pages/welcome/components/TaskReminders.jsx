@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Drawer, Empty, Input, Tabs } from "antd";
+import { Alert, Button, DatePicker, Drawer, Empty, Tabs } from "antd";
+import dayjs from "dayjs";
 import {
   pendingReminders,
   upcomingReminders,
@@ -12,27 +13,31 @@ import {
   watchReminderClock,
 } from "@/utils/taskReminders";
 export function ReminderEditor({ task, onChange }) {
-  const valid = !task.reminder || reminderTime(task) !== null;
+  const time = reminderTime(task);
+  const valid = !task.reminder || time !== null;
   const [error, setError] = useState("");
   useEffect(() => setError(""), [task.id, task.reminder]);
   return (
-    <div className="space-y-2 py-2">
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <label htmlFor="task-reminder-at">提醒时间</label>
-        <Input
+    <div className="task-detail-reminder">
+      <div className="task-detail-field">
+        <label htmlFor="task-reminder-at" className="task-detail-field-label">
+          提醒时间
+        </label>
+        <DatePicker
           id="task-reminder-at"
-          type="datetime-local"
           aria-label="任务提醒时间"
           aria-invalid={Boolean(error)}
           status={error ? "error" : undefined}
-          style={{ width: 220 }}
-          value={
-            valid && task.reminder ? localDateTime(reminderTime(task)) : ""
-          }
-          onChange={(event) => {
-            const value = event.target.value;
+          style={{ width: "100%", height: 36 }}
+          showTime={{ format: "HH:mm" }}
+          format="YYYY-MM-DD HH:mm"
+          placeholder="选择提醒日期和时间"
+          allowClear
+          value={time === null ? null : dayjs(time)}
+          onChange={(date) => {
+            const value = date ? date.format("YYYY-MM-DDTHH:mm") : "";
             if (
-              event.target.validity?.badInput ||
+              (date && !date.isValid()) ||
               (value && reminderTime({ reminder: value }) === null)
             ) {
               setError("请选择有效的提醒日期和时间");
@@ -55,12 +60,12 @@ export function ReminderEditor({ task, onChange }) {
           title={`旧提醒“${task.reminder}”无法识别，请重新选择时间。`}
         />
       )}
-      <p className="text-xs text-muted-foreground">
+      <p className="task-detail-help">
         应用打开期间显示站内提醒；离开首页仍可提醒，恢复窗口时会检查错过的提醒。
       </p>
       {task.reminder && (
         <Button
-          size="small"
+          style={{ height: 36 }}
           onClick={() => onChange((current) => setTaskReminder(current, ""))}
         >
           取消提醒

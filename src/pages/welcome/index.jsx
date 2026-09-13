@@ -36,7 +36,6 @@ import {
   RightOutlined as ChevronRight,
   SearchOutlined as Search,
   SortAscendingOutlined as SortAscending,
-  StarFilled as Star,
   SyncOutlined as RefreshCw,
   TagFilled as Tag,
   UnorderedListOutlined as ListTodo,
@@ -66,7 +65,6 @@ import {
 } from "./components/TaskExtras";
 import {
   TaskSectionManager,
-  TaskSectionSelect,
   TrashActions,
 } from "./components/TaskOrganization";
 import {
@@ -83,13 +81,16 @@ import {
   nextTaskSelection,
 } from "@/utils/taskViews";
 import { TaskExportDialog } from "./components/TaskExport";
-import {
-  resetTaskRecurrence,
-  nextOccurrenceDate,
-} from "@/utils/taskRecurrence";
+import { resetTaskRecurrence } from "@/utils/taskRecurrence";
 import TaskComments from "./components/TaskComments";
 import TaskTitleInput from "./components/TaskTitleInput";
-import { ReminderEditor, NotificationPanel } from "./components/TaskReminders";
+import { NotificationPanel } from "./components/TaskReminders";
+import TaskSubtasks from "./components/TaskSubtasks";
+import {
+  TaskScheduleFields,
+  TaskReminderFields,
+  TaskOrganizationFields,
+} from "./components/TaskProperties";
 import { pendingReminders, watchReminderClock } from "@/utils/taskReminders";
 import { useProductivityData } from "@/store/dataSync";
 
@@ -1553,6 +1554,7 @@ function WelcomePage() {
                             ? {
                                 ...task,
                                 date: value?.format("YYYY-MM-DD") || "",
+                                time: value ? task.time : "",
                               }
                             : task,
                         ),
@@ -1642,7 +1644,30 @@ function WelcomePage() {
                     aria-label="清单"
                   />
                 </div>
-                <div id="task-note-editor">
+                {selected.deleted && (
+                  <div className="task-detail-section">
+                    <TrashActions
+                      tasks={tasks}
+                      onChange={setTasks}
+                      taskId={selected.id}
+                    />
+                  </div>
+                )}
+                <TaskSubtasks
+                  task={selected}
+                  inputValue={subtaskInput}
+                  onInputChange={setSubtaskInput}
+                  onChange={updateSelected}
+                />
+                <TaskScheduleFields
+                  task={selected}
+                  today={today}
+                  onChange={updateSelected}
+                />
+                <div
+                  id="task-note-editor"
+                  className="task-detail-section task-detail-note-section"
+                >
                   <TaskNoteEditor
                     key={selected.id}
                     editorRef={noteEditorRef}
@@ -1651,360 +1676,22 @@ function WelcomePage() {
                     ariaLabel="任务备注"
                   />
                 </div>
-                {selected.deleted && (
-                  <div className="my-4">
-                    <TrashActions
-                      tasks={tasks}
-                      onChange={setTasks}
-                      taskId={selected.id}
-                    />
-                  </div>
-                )}
-                <div className="mt-8 space-y-1 text-sm">
-                  <div className="flex items-center justify-between gap-3 py-2">
-                    <span>清单</span>
-                    <Select
-                      aria-label="所属清单"
-                      value={selected.list}
-                      options={["收件箱", ...lists.map(([label]) => label)].map(
-                        (value) => ({ value, label: value }),
-                      )}
-                      onChange={(value) =>
-                        setTasks((current) =>
-                          current.map((task) =>
-                            task.id === selected.id
-                              ? withLists(task, [value])
-                              : task,
-                          ),
-                        )
-                      }
-                      style={{ minWidth: 150 }}
-                    />
-                  </div>
-                  <div className="py-2">
-                    <label className="block mb-2 text-sm">分组</label>
-                    <TaskSectionSelect
-                      task={selected}
-                      listName={currentList || selected.list}
-                      lists={lists}
-                      tasks={tasks}
-                      onChange={setTasks}
-                      onDataChange={updateData}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3 py-2">
-                    <span>状态</span>
-                    <Select
-                      aria-label="任务状态"
-                      value={taskStatus(selected)}
-                      options={[
-                        { value: "pending", label: "待处理" },
-                        { value: "in-progress", label: "进行中" },
-                        { value: "done", label: "已完成" },
-                        { value: "abandoned", label: "已放弃" },
-                      ]}
-                      onChange={(status) =>
-                        setTasks((current) =>
-                          current.map((task) =>
-                            task.id === selected.id
-                              ? {
-                                  ...task,
-                                  status,
-                                  done: ["done", "abandoned"].includes(status),
-                                }
-                              : task,
-                          ),
-                        )
-                      }
-                      style={{ minWidth: 150 }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-3 py-2">
-                    <span>时间</span>
-                    <Input
-                      aria-label="任务时间"
-                      type="time"
-                      value={selected.time || ""}
-                      onChange={(event) =>
-                        setTasks((current) =>
-                          current.map((task) =>
-                            task.id === selected.id
-                              ? {
-                                  ...task,
-                                  time: event.target.value,
-                                  date: task.date || today,
-                                }
-                              : task,
-                          ),
-                        )
-                      }
-                      style={{ width: 150 }}
-                    />
-                  </div>
-                  <DetailRow
-                    icon={Star}
-                    label="优先级"
-                    value={selected.priority || "无"}
-                  />
-                  <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
-                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">日期</span>
-                    <Input
-                      type="date"
-                      aria-label="任务日期"
-                      className="ml-auto h-8 w-32 text-xs"
-                      value={selected.date || ""}
-                      onChange={(e) =>
-                        setTasks((current) =>
-                          current.map((task) =>
-                            task.id === selected.id
-                              ? {
-                                  ...task,
-                                  date: e.target.value,
-                                  time: e.target.value ? task.time : "",
-                                }
-                              : task,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                  <ReminderEditor task={selected} onChange={updateSelected} />
-                  <div className="flex items-center gap-3 rounded-lg px-2 py-2.5">
-                    <Timer className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">重复</span>
-                    <Select
-                      aria-label="重复规则"
-                      className="ml-auto w-32"
-                      size="small"
-                      value={selected.repeat || ""}
-                      options={[
-                        { value: "", label: "不重复" },
-                        { value: "每天", label: "每天" },
-                        { value: "每周一", label: "每周一" },
-                        { value: "每周", label: "每周" },
-                        { value: "每月", label: "每月" },
-                      ]}
-                      onChange={(value) =>
-                        setTasks((current) =>
-                          current.map((task) =>
-                            task.id === selected.id
-                              ? {
-                                  ...task,
-                                  repeat: value,
-                                  date: value ? task.date || today : task.date,
-                                }
-                              : task,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-                {selected.repeat && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    完成后创建下一次：{nextOccurrenceDate(selected, today)}
-                    。取消本次完成不会删除已生成的后续任务。
-                  </p>
-                )}
-                {selected.recurrenceNextId && (
-                  <div className="mt-2">
-                    {tasks.some(
-                      (task) =>
-                        String(task.id) === String(selected.recurrenceNextId) &&
-                        !task.deleted,
-                    ) ? (
-                      <Button
-                        size="sm"
-                        onClick={() => revealTask(selected.recurrenceNextId)}
-                      >
-                        查看下次任务
-                      </Button>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        下次任务已移除，不会重复生成。
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div className="mt-5">
-                  <div className="mb-2 text-xs text-muted-foreground">标签</div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selected.tags?.map((tag) => (
-                      <AntTag
-                        key={tag}
-                        closable
-                        onClose={() =>
-                          setTasks((current) =>
-                            current.map((task) =>
-                              task.id === selected.id
-                                ? {
-                                    ...task,
-                                    tags: task.tags.filter(
-                                      (item) => item !== tag,
-                                    ),
-                                  }
-                                : task,
-                            ),
-                          )
-                        }
-                      >
-                        #{tag}
-                      </AntTag>
-                    ))}
-                    <Input
-                      className="h-7 w-24 text-xs"
-                      placeholder="添加标签"
-                      onKeyDown={(e) => {
-                        if (
-                          !e.nativeEvent.isComposing &&
-                          e.key === "Enter" &&
-                          e.currentTarget.value.trim()
-                        ) {
-                          const tag = e.currentTarget.value
-                            .trim()
-                            .replace(/^#/, "");
-                          setTasks((current) =>
-                            current.map((task) =>
-                              task.id === selected.id
-                                ? {
-                                    ...task,
-                                    tags: [
-                                      ...new Set([...(task.tags || []), tag]),
-                                    ],
-                                  }
-                                : task,
-                            ),
-                          );
-                          e.currentTarget.value = "";
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-                {
-                  <div className="mt-6">
-                    <div className="mb-2 text-sm font-medium text-foreground">
-                      子任务
-                    </div>
-                    {normalizeSubtasks(selected).map((item, index) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center gap-2 py-1"
-                      >
-                        <Checkbox
-                          aria-label={`完成子任务：${item.title}`}
-                          checked={item.done}
-                          onChange={(event) =>
-                            setTasks((current) =>
-                              current.map((task) =>
-                                task.id === selected.id
-                                  ? {
-                                      ...task,
-                                      subtasks: normalizeSubtasks(task).map(
-                                        (sub, i) =>
-                                          i === index
-                                            ? {
-                                                ...sub,
-                                                done: event.target.checked,
-                                              }
-                                            : sub,
-                                      ),
-                                    }
-                                  : task,
-                              ),
-                            )
-                          }
-                        />
-                        <Input
-                          aria-label={`子任务 ${index + 1}`}
-                          value={item.title}
-                          variant="borderless"
-                          style={{
-                            textDecoration: item.done ? "line-through" : "none",
-                          }}
-                          onChange={(event) =>
-                            setTasks((current) =>
-                              current.map((task) =>
-                                task.id === selected.id
-                                  ? {
-                                      ...task,
-                                      subtasks: normalizeSubtasks(task).map(
-                                        (sub, i) =>
-                                          i === index
-                                            ? {
-                                                ...sub,
-                                                title: event.target.value,
-                                              }
-                                            : sub,
-                                      ),
-                                    }
-                                  : task,
-                              ),
-                            )
-                          }
-                        />
-                        <Button
-                          aria-label={`删除子任务：${item.title}`}
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            setTasks((current) =>
-                              current.map((task) =>
-                                task.id === selected.id
-                                  ? {
-                                      ...task,
-                                      subtasks: normalizeSubtasks(task).filter(
-                                        (_, i) => i !== index,
-                                      ),
-                                    }
-                                  : task,
-                              ),
-                            )
-                          }
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    ))}
-                    <div className="mt-2 flex items-center gap-2">
-                      <Plus className="h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="h-8 text-xs"
-                        placeholder="添加子任务，回车保存"
-                        value={subtaskInput}
-                        onChange={(e) => setSubtaskInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (
-                            !e.nativeEvent.isComposing &&
-                            e.key === "Enter" &&
-                            subtaskInput.trim()
-                          ) {
-                            const value = subtaskInput.trim();
-                            setTasks((current) =>
-                              current.map((task) =>
-                                task.id === selected.id
-                                  ? {
-                                      ...task,
-                                      subtasks: [
-                                        ...(task.subtasks || []),
-                                        {
-                                          id: crypto.randomUUID(),
-                                          title: value,
-                                          done: false,
-                                        },
-                                      ],
-                                    }
-                                  : task,
-                              ),
-                            );
-                            setSubtaskInput("");
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                }
+                <TaskReminderFields
+                  task={selected}
+                  tasks={tasks}
+                  today={today}
+                  onChange={updateSelected}
+                  onReveal={revealTask}
+                />
+                <TaskOrganizationFields
+                  task={selected}
+                  tasks={tasks}
+                  lists={lists}
+                  currentList={currentList}
+                  onChange={updateSelected}
+                  onTasksChange={setTasks}
+                  onDataChange={updateData}
+                />
               </div>
               <div className="task-detail-footer">
                 <Dropdown
@@ -2745,15 +2432,6 @@ function TaskRow({ task, showCreatedDate, selected, onSelect, onToggle }) {
         <span className="task-created-date">{getTaskCreatedDate(task)}</span>
       )}
       <TaskCategories task={task} />
-    </div>
-  );
-}
-function DetailRow({ icon: Icon, label, value }) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-muted">
-      <Icon className="h-4 w-4 text-muted-foreground" />
-      <span className="text-muted-foreground">{label}</span>
-      <span className="ml-auto text-foreground">{value}</span>
     </div>
   );
 }

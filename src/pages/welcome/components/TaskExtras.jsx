@@ -677,7 +677,7 @@ export function TaskNoteEditor({
             value={value}
             aria-label={ariaLabel}
             placeholder="添加备注… 可使用上方工具设置格式"
-            autoSize={{ minRows: 4, maxRows: 16 }}
+            autoSize={{ minRows: 3, maxRows: 8 }}
             disabled={disabled}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={(event) => {
@@ -692,7 +692,7 @@ export function TaskNoteEditor({
           />
         </>
       ) : (
-        <div className="min-h-24 rounded-lg border border-border bg-muted/20 p-3">
+        <div className="task-note-preview-pane min-h-24 rounded-lg border border-border bg-muted/20 p-3">
           <TaskNotePreview value={value} />
           <p className="mt-3 text-xs text-muted-foreground">
             支持标题、加粗、斜体、列表、引用和行内代码。HTML 与链接按文本显示。

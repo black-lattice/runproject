@@ -915,6 +915,125 @@ pre,
 .task-main-header h1 { overflow-wrap: anywhere; }
 .task-main-actions { justify-content: flex-end; }
 .task-row > :not(.task-title-button) { flex-shrink: 0; }
+
+/* Task details use the same Ant control size and a predictable field grid. */
+.task-home .task-detail-body {
+  container: task-detail / inline-size;
+}
+.task-detail-section,
+.task-detail-subtasks {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid hsl(var(--border));
+}
+.task-detail-subtasks {
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: 0;
+}
+.task-detail-section-title,
+.task-detail-subtasks-header h3 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.task-detail-section-title,
+.task-detail-subtasks-header {
+  margin-bottom: 12px;
+}
+.task-detail-subtasks-count {
+  font-variant-numeric: tabular-nums;
+}
+.task-detail-subtask-row {
+  min-width: 0;
+  padding: 2px 0;
+  border-radius: 8px;
+}
+.task-detail-subtask-row:hover,
+.task-detail-subtask-row:focus-within {
+  background: hsl(var(--muted) / 0.55);
+}
+.task-detail-subtask-row.is-done .ant-input {
+  color: hsl(var(--muted-foreground));
+}
+.task-detail-subtask-row .ant-btn {
+  color: hsl(var(--muted-foreground));
+}
+.task-detail-subtask-row .ant-btn:hover {
+  color: hsl(var(--destructive));
+}
+.task-detail-subtask-composer {
+  margin-top: 6px;
+}
+.task-detail-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+.task-detail-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+}
+.task-detail-field-label {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.task-detail-field .ant-select,
+.task-detail-field .ant-picker {
+  width: 100%;
+  min-width: 0;
+}
+.task-detail-field .ant-select-single,
+.task-detail-field .ant-picker,
+.task-detail-field > .ant-input-affix-wrapper {
+  height: 36px;
+}
+.task-detail-section > .task-detail-form-grid + .task-detail-field {
+  margin-top: 14px;
+}
+.task-detail-priority-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.task-detail-priority-high { color: hsl(var(--destructive)); }
+.task-detail-priority-medium { color: hsl(var(--warning)); }
+.task-detail-priority-low { color: hsl(var(--primary)); }
+.task-detail-priority-none { color: hsl(var(--muted-foreground)); }
+.task-detail-reminder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.task-detail-reminder > .ant-btn { align-self: flex-start; }
+.task-detail-help {
+  margin: 6px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.task-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.task-detail-tags .ant-tag { margin: 0; }
+.task-detail-note-section .task-note-preview-pane {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@container task-detail (max-width: 310px) {
+  .task-detail-form-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .task-row .task-category-list { max-width: 28%; overflow: hidden; }
 .task-category-badge { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) {
