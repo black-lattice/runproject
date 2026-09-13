@@ -20,7 +20,9 @@ const stored = (key, fallback) => {
 const error = (message) =>
   toast({
     title: "数据同步失败",
-    description: `修改保留在页面中，将自动重试。${message}`,
+    description: native
+      ? `修改保留在页面中，将自动重试。${message}`
+      : `修改保留在页面中，请点击重试保存。${message}`,
     variant: "destructive",
   });
 const productivityCache = stored("runproject-productivity", null);
