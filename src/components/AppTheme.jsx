@@ -7,7 +7,6 @@ import {
 } from "react";
 import { ConfigProvider, theme } from "antd";
 import zhCN from "antd/locale/zh_CN";
-import { invoke, isTauri } from "@tauri-apps/api/core";
 import {
   APPEARANCE_STORAGE_KEY,
   normalizeAppearance,
@@ -107,14 +106,6 @@ export default function AppTheme({ children }) {
     document.documentElement.classList.toggle("dark", isDark);
     setAppTheme(readTheme(isDark));
   }, [isDark]);
-  useLayoutEffect(() => {
-    // The menu-bar icon follows its system surface, independently of the app's override.
-    if (isTauri()) {
-      invoke("set_tray_theme", { theme: systemDark ? "dark" : "light" }).catch(
-        (error) => console.error("同步菜单栏图标主题失败:", error),
-      );
-    }
-  }, [systemDark]);
   return (
     <AppearanceContext.Provider
       value={{ preference, isDark, setPreference, saveError }}

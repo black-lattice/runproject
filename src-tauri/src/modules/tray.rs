@@ -14,7 +14,10 @@ const OPEN_TERMINAL_ID: &str = "tray:open:terminal";
 const OPEN_SETTINGS_ID: &str = "tray:open:settings";
 const OPEN_FORMATTER_ID: &str = "tray:open:formatter";
 const RUN_PREFIX: &str = "tray:run:";
-const LOGO_DARK: &[u8] = include_bytes!("../../../src/assets/logo/moon-logo-dark-512.png");
+#[cfg(target_os = "macos")]
+const TRAY_ICON: &[u8] = include_bytes!("../../icons/tray-template.png");
+#[cfg(not(target_os = "macos"))]
+const TRAY_ICON: &[u8] = include_bytes!("../../icons/32x32.png");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,21 +62,13 @@ pub fn sync_tray_projects(
         .map_err(|error| format!("更新菜单栏项目菜单失败: {}", error))
 }
 
-#[tauri::command]
-pub fn set_tray_theme(app: AppHandle, theme: String) -> Result<(), String> {
-    let tray = app
-        .tray_by_id(TRAY_ID)
-        .ok_or_else(|| "未找到菜单栏图标".to_string())?;
-    tray.set_icon(Some(logo_for_theme(&theme)?))
-        .map_err(|error| format!("更新菜单栏图标失败: {}", error))
-}
-
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let menu = build_empty_menu(app.handle())?;
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(logo_for_theme("light")?)
-        .icon_as_template(false)
+        .icon(tray_icon()?)
+        // AppKit chooses the correct tint for the menu bar and selection state.
+        .icon_as_template(cfg!(target_os = "macos"))
         .tooltip("RunProject")
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -131,8 +126,8 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
     }
 }
 
-fn logo_for_theme(_theme: &str) -> Result<Image<'static>, String> {
-    Image::from_bytes(LOGO_DARK)
+fn tray_icon() -> Result<Image<'static>, String> {
+    Image::from_bytes(TRAY_ICON)
         .map(|image| image.to_owned())
         .map_err(|error| format!("读取 logo 图片失败: {}", error))
 }

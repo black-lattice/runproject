@@ -228,7 +228,6 @@ pub fn run() {
             storage::save_project_data,
             storage::clear_project_data,
             tray::sync_tray_projects,
-            tray::set_tray_theme,
             modules::kitty::executor::execute_command_in_kitty,
             modules::kitty::executor::execute_command_with_kitten,
             modules::kitty::process::terminate_command,
