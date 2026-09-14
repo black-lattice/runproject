@@ -371,8 +371,21 @@ html body .dark .task-row.is-done {
 
 .task-sidebar {
   min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
   gap: 10px;
   padding: 17px 11px 14px;
+}
+
+.task-sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+.task-sidebar > * {
+  flex-shrink: 0;
 }
 
 .task-antd-menu .ant-menu-item {

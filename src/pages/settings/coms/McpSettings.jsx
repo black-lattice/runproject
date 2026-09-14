@@ -27,10 +27,10 @@ export function McpSettings() {
   const copy = async (value) => {
     try {
       await navigator.clipboard.writeText(value);
-      toast({ description: "配置已复制" });
+      toast({ description: "完整配置已复制，已包含访问令牌" });
     } catch {
       toast({
-        description: "复制失败，请手动选择配置文本",
+        description: "复制失败，请重试。下方预览隐藏了令牌，不能直接用于连接。",
         variant: "destructive",
       });
     }
@@ -130,7 +130,7 @@ export function McpSettings() {
       </section>
       <section className="settings-section p-5 space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-medium">Codex 配置</h3>
+          <h3 className="font-medium">添加到 Codex</h3>
           <Button
             variant="outline"
             size="sm"
@@ -138,19 +138,40 @@ export function McpSettings() {
             onClick={() => copy(codexConfig)}
           >
             <Copy className="h-3.5 w-3.5 mr-2" />
-            复制配置
+            复制完整配置
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          添加到 ~/.codex/config.toml，随后在 Codex 中重新连接 MCP
-          服务。配置中的令牌用于访问本机数据。
+        <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+          <li>保持 RunProject 桌面应用运行，确认上方状态为“运行中”，点击“复制完整配置”。</li>
+          <li>
+            用代码编辑器打开 <code>~/.codex/config.toml</code>（~ 表示你的用户主目录）。
+            如果文件不存在，先创建这个文件。
+          </li>
+          <li>
+            将配置粘贴到文件末尾并保存。如果已有 <code>[mcp_servers.runproject]</code>，
+            替换原来的这一段，保留其他配置。
+          </li>
+          <li>
+            重启 Codex，在新任务中输入“通过 RunProject 列出我的清单”，确认能够读取数据。
+          </li>
+        </ol>
+        <div className="rounded-lg border bg-muted/40 p-4 text-sm space-y-2">
+          <p className="font-medium">为什么需要访问令牌？</p>
+          <p className="text-muted-foreground">
+            RunProject 的 MCP 可以读写任务、运行项目脚本。访问令牌相当于连接密码，
+            用来校验连接方是否获得授权；即使服务只在本机运行，也需要校验。
+          </p>
+          <p className="text-muted-foreground">
+            令牌由 RunProject 自动生成并保存，不是 OpenAI API Key，无需申请或手动填写。
+            复制按钮会自动带上它，请保留配置中的 Authorization 这一行。
+          </p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          下方仅为配置预览，令牌已隐藏。请使用“复制完整配置”按钮，不要直接复制预览文字。
         </p>
         <pre className="rounded-lg border bg-muted/40 p-4 text-xs overflow-x-auto whitespace-pre-wrap break-all select-text">
           {codexConfig
-            ? codexConfig.replace(
-                status.token,
-                "••••••••（复制配置时包含完整令牌）",
-              )
+            ? codexConfig.replace(status.token, "<访问令牌已隐藏>")
             : "启动桌面应用后显示连接配置"}
         </pre>
         <div className="flex items-center justify-between gap-3 pt-2">

@@ -2,16 +2,18 @@ import { Menu } from "antd";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PAGE_CONFIGS } from "../config/routes";
 
-const menuItems = Object.values(PAGE_CONFIGS).map((config) => {
-  const Icon = config.icon;
-  return {
-    key: config.id,
-    icon: Icon ? <Icon className="app-tab-icon" /> : null,
-    label: config.title,
-    title: config.title,
-    "aria-label": config.title,
-  };
-});
+const menuItems = Object.values(PAGE_CONFIGS)
+  .filter((config) => config.id !== "settings")
+  .map((config) => {
+    const Icon = config.icon;
+    return {
+      key: config.id,
+      icon: Icon ? <Icon className="app-tab-icon" /> : null,
+      label: config.title,
+      title: config.title,
+      "aria-label": config.title,
+    };
+  });
 
 function TabBar() {
   const navigate = useNavigate();

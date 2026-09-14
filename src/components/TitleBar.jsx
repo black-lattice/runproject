@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { NavLink } from 'react-router-dom';
+import { PAGE_CONFIGS } from '../config/routes';
 import AppLogo from './AppLogo';
 
 /**
@@ -11,6 +13,7 @@ import AppLogo from './AppLogo';
  */
 function TitleBar({ children }) {
 	const titleBarRef = useRef(null);
+	const SettingsIcon = PAGE_CONFIGS.settings.icon;
 
 	useEffect(() => {
 		const handleMouseDown = async e => {
@@ -62,11 +65,15 @@ function TitleBar({ children }) {
 				{children}
 			</div>
 
-			{/* 右侧拖拽区域 - 保留固定宽度，避免挤压导航菜单 */}
-			<div
-				className='app-titlebar-surface w-16 h-full flex-shrink-0'
-				data-tauri-drag-region
-			/>
+			<NavLink
+				to={PAGE_CONFIGS.settings.path}
+				aria-label='设置'
+				title='设置'
+				className={({ isActive }) =>
+					`mx-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'bg-accent text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`
+				}>
+				<SettingsIcon className='text-base' />
+			</NavLink>
 		</div>
 	);
 }

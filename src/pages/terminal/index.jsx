@@ -1,4 +1,3 @@
-import PageHeading from "@/components/PageHeading";
 import PageEmptyState from "@/components/PageEmptyState";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -240,25 +239,25 @@ function TerminalPage() {
     }
   }, [terminals, activeTerminalId]);
 
+  const terminalActions = (
+    <div className="flex shrink-0 items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleAddTerminalWithDialog()}
+      >
+        <FolderOpen className="h-4 w-4" />
+        选择目录
+      </Button>
+      <Button size="sm" onClick={() => handleAddTerminal()}>
+        <Plus className="h-4 w-4" />
+        新建终端
+      </Button>
+    </div>
+  );
+
   return (
     <div className="terminal-page h-full flex flex-col">
-      <PageHeading
-        title="终端"
-        description={
-          terminals.length
-            ? `${terminals.length} 个会话 · 在标签间切换工作环境`
-            : "在独立会话中运行命令，随时查看输出"
-        }
-      >
-        <Button variant="outline" onClick={() => handleAddTerminalWithDialog()}>
-          <FolderOpen className="h-4 w-4" />
-          选择目录
-        </Button>
-        <Button onClick={() => handleAddTerminal()}>
-          <Plus className="h-4 w-4" />
-          新建终端
-        </Button>
-      </PageHeading>
       {terminals.length === 0 ? (
         <div className="flex-1 flex flex-col">
           <div className="terminal-empty flex-1 flex items-center justify-center">
@@ -267,24 +266,21 @@ function TerminalPage() {
               title="准备好开始工作了吗？"
               description="新建终端使用默认目录，也可以选择项目文件夹开始。"
             >
-              <Button onClick={() => handleAddTerminal()}>
-                <Plus className="h-4 w-4" />
-                开启新终端
-              </Button>
+              {terminalActions}
             </PageEmptyState>
           </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="terminal-toolbar terminal-tabs flex items-center border-b h-10">
-            <div className="flex items-center overflow-x-auto no-scrollbar flex-1 h-full">
+          <div className="terminal-toolbar terminal-tabs flex items-center border-b h-10 pr-2">
+            <div className="flex min-w-0 items-center overflow-x-auto no-scrollbar flex-1 h-full">
               {terminals.map((terminal) => {
                 const isActive = activeTerminalId === terminal.id;
                 return (
                   <div
                     key={terminal.id}
                     className={`
-                      group relative flex items-center gap-2 px-4 h-full min-w-[120px] max-w-[200px] 
+                      group relative flex shrink-0 items-center gap-2 px-4 h-full min-w-[120px] max-w-[200px]
                       cursor-pointer transition-all duration-150 border-r border-border/60
                       ${
                         isActive
@@ -318,6 +314,7 @@ function TerminalPage() {
                 );
               })}
             </div>
+            {terminalActions}
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden bg-[#1e1e1e]">

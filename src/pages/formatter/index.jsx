@@ -1,4 +1,3 @@
-import PageHeading from "@/components/PageHeading";
 import { useAppAppearance } from "@/components/AppTheme";
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
@@ -323,15 +322,6 @@ function FormatterPage() {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <PageHeading
-        title="数据格式化"
-        description="整理代码与数据，让输入和输出一目了然"
-      >
-        <Button onClick={handleFormat}>
-          <Play className="h-4 w-4" />
-          格式化
-        </Button>
-      </PageHeading>
       {error && (
         <div className="m-4 p-3 bg-destructive/10 border border-destructive/25 rounded-lg flex items-start gap-2">
           <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -371,6 +361,10 @@ function FormatterPage() {
               </Select>
             </div>
             <div className="flex gap-1">
+              <Button size="sm" className="h-8 px-2" onClick={handleFormat}>
+                <Play className="h-4 w-4" />
+                格式化
+              </Button>
               <label>
                 <input
                   type="file"

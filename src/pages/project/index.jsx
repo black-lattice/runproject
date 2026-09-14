@@ -1,4 +1,3 @@
-import PageHeading from '@/components/PageHeading';
 import { useEffect, useCallback, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -574,7 +573,6 @@ function ProjectPage() {
 
 	return (
 		<div className='project-page h-full flex flex-col overflow-hidden'>
-            <PageHeading title='项目管理' description={`${workspaces.length} 个工作区 · ${workspaces.reduce((count, workspace) => count + (workspace.projects?.length || 0), 0)} 个项目`} />
 			<div className='flex-1 flex overflow-hidden'>
 				<Sidebar
 					workspaces={workspaces}
