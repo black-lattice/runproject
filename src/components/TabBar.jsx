@@ -21,7 +21,7 @@ function TabBar() {
   const activeTab =
     Object.values(PAGE_CONFIGS).find(
       (config) => config.path === location.pathname,
-    )?.id || "welcome";
+    )?.id || "projects";
 
   return (
     <div className="app-tabbar">

@@ -115,7 +115,7 @@ export function McpSettings() {
         <h3 className="font-medium mb-4">可用功能</h3>
         <div className="space-y-4 text-sm">
           <div>
-            <p className="font-medium">首页清单与任务</p>
+            <p className="font-medium">清单与任务</p>
             <p className="text-muted-foreground mt-1">
               查询清单、搜索任务或问题、读取详情、添加任务、更新状态、删除与恢复任务、创建与重命名清单。
             </p>

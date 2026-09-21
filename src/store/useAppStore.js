@@ -5,7 +5,7 @@ import { isTauri, invoke } from '@tauri-apps/api/core';
 import { upsertTerminalPageSession } from '@/utils/terminalPageState';
 
 const DEFAULT_TABS = [];
-const LEGACY_TABS = new Set(['massage-web', 'codex', 'agent']);
+const LEGACY_TABS = new Set(['massage-web', 'codex', 'agent', 'formatter']);
 const sanitizeTabs = tabs => (tabs || []).filter(id => !LEGACY_TABS.has(id));
 let commandStatusSyncInitialized = false;
 
@@ -15,6 +15,7 @@ export const useAppStore = create(
 			// === 现有的应用状态 ===
 			workspaces: [],
 			selectedProject: null,
+			lastSelectedProjectPath: null,
 			isLoading: false,
 			runningCommand: null,
 			runningCommands: {},
@@ -47,7 +48,14 @@ export const useAppStore = create(
 			// Workspace 相关
 			setWorkspaces: workspaces => {
 				const normalized = get().normalizeWorkspaces(workspaces);
-				set({ workspaces: normalized });
+				const selectedProject = normalized
+					.flatMap(workspace => workspace.projects)
+					.find(project => project.path === get().lastSelectedProjectPath) ?? null;
+				set({
+					workspaces: normalized,
+					selectedProject,
+					lastSelectedProjectPath: selectedProject?.path ?? null
+				});
 			},
 
 			// 数据规范化
@@ -77,13 +85,17 @@ export const useAppStore = create(
 				set({
 					workspaces: [],
 					selectedProject: null,
+					lastSelectedProjectPath: null,
 					projectTerminals: {}
 				});
 				localStorage.removeItem('nodejs-workspaces');
 				localStorage.removeItem('nodejs-workspaces-version');
 			},
 
-			setSelectedProject: project => set({ selectedProject: project }),
+			setSelectedProject: project => set({
+				selectedProject: project,
+				lastSelectedProjectPath: project?.path ?? null
+			}),
 			setIsLoading: loading => set({ isLoading: loading }),
 			setRunningCommand: command => set({ runningCommand: command }),
 			setCommandRunning: (commandKey, payload) => {
@@ -415,6 +427,7 @@ export const useAppStore = create(
 				set({
 					workspaces: [],
 					selectedProject: null,
+					lastSelectedProjectPath: null,
 					isLoading: false,
 					runningCommand: null,
 					runningCommands: {},
@@ -441,6 +454,7 @@ export const useAppStore = create(
 			partialize: state => {
 				const persisted = {
 					workspaces: state.workspaces,
+					lastSelectedProjectPath: state.lastSelectedProjectPath,
 				collapsedWorkspaces: state.collapsedWorkspaces,
 				useKittenRemote: state.useKittenRemote,
 				terminalType: state.terminalType,
@@ -472,6 +486,9 @@ export const useAppStore = create(
 					...source
 				};
 				nextState.tabs = sanitizeTabs(nextState.tabs);
+				nextState.selectedProject = nextState.workspaces
+					.flatMap(workspace => workspace.projects || [])
+					.find(project => project.path === nextState.lastSelectedProjectPath) ?? null;
 				return nextState;
 			}
 		}

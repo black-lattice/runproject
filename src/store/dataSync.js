@@ -148,21 +148,23 @@ export function startDataSync() {
   started = true;
   let applying = false;
   projectData.subscribe(() => {
-    const { data } = projectData.getSnapshot();
+    const { data, status } = projectData.getSnapshot();
     applying = true;
     const current = useAppStore.getState();
     const workspaces = current.normalizeWorkspaces(data.workspaces ?? []);
-    const selected = current.selectedProject;
+    const selectedPath = current.selectedProject?.path ?? current.lastSelectedProjectPath;
+    const selectedProject = workspaces
+      .flatMap((workspace) => workspace.projects)
+      .find((project) => project.path === selectedPath) ?? null;
     useAppStore.setState({
       workspaces,
       workspaceTags: data.workspaceTags ?? {},
       projectTags: data.projectTags ?? {},
       commandTags: data.commandTags ?? {},
-      selectedProject: selected
-        ? (workspaces
-            .flatMap((w) => w.projects)
-            .find((p) => p.path === selected.path) ?? null)
-        : null,
+      selectedProject,
+      lastSelectedProjectPath: status === "ready" || status === "local"
+        ? selectedProject?.path ?? null
+        : selectedPath,
     });
     if (data.preferences)
       localStorage.setItem(

@@ -12,7 +12,6 @@ const QUIT_ID: &str = "tray:quit";
 const EMPTY_ID: &str = "tray:empty";
 const OPEN_TERMINAL_ID: &str = "tray:open:terminal";
 const OPEN_SETTINGS_ID: &str = "tray:open:settings";
-const OPEN_FORMATTER_ID: &str = "tray:open:formatter";
 const RUN_PREFIX: &str = "tray:run:";
 #[cfg(target_os = "macos")]
 const TRAY_ICON: &[u8] = include_bytes!("../../icons/tray-template.png");
@@ -104,7 +103,6 @@ fn handle_menu_event(app: &AppHandle, event: MenuEvent) {
         QUIT_ID => app.exit(0),
         OPEN_TERMINAL_ID => open_page(app, "terminal"),
         OPEN_SETTINGS_ID => open_page(app, "settings"),
-        OPEN_FORMATTER_ID => open_page(app, "formatter"),
         _ if id.starts_with(RUN_PREFIX) => {
             let action = app
                 .state::<TrayState>()
@@ -157,7 +155,6 @@ fn build_empty_menu<R: Runtime, M: Manager<R>>(manager: &M) -> tauri::Result<Men
     MenuBuilder::new(manager)
         .text(OPEN_TERMINAL_ID, "终端")
         .text(OPEN_SETTINGS_ID, "设置")
-        .text(OPEN_FORMATTER_ID, "数据格式化")
         .separator()
         .text(EMPTY_ID, "暂无项目")
         .separator()
@@ -175,7 +172,6 @@ fn build_projects_menu<R: Runtime>(
     let mut menu_builder = MenuBuilder::new(app)
         .text(OPEN_TERMINAL_ID, "终端")
         .text(OPEN_SETTINGS_ID, "设置")
-        .text(OPEN_FORMATTER_ID, "数据格式化")
         .separator();
     let mut action_index = 0usize;
     let mut has_projects = false;

@@ -61,7 +61,7 @@ export function ReminderEditor({ task, onChange }) {
         />
       )}
       <p className="task-detail-help">
-        应用打开期间显示站内提醒；离开首页仍可提醒，恢复窗口时会检查错过的提醒。
+        应用打开期间显示站内提醒；离开任务页仍可提醒，恢复窗口时会检查错过的提醒。
       </p>
       {task.reminder && (
         <Button

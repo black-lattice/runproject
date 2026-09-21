@@ -1988,7 +1988,7 @@ function WelcomePage() {
         />
         <Modal
           open={extrasOpen === "help"}
-          title="首页使用帮助"
+          title="任务使用帮助"
           footer={<Button onClick={() => setExtrasOpen(null)}>知道了</Button>}
           onCancel={() => setExtrasOpen(null)}
         >
