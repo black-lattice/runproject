@@ -40,6 +40,15 @@ function ProjectInfoCard({
   const [isLoadingWorktrees, setIsLoadingWorktrees] = useState(false);
   const { toast } = useToast();
 
+  const handleCopyProjectPath = async () => {
+    try {
+      await navigator.clipboard.writeText(project.path);
+      toast({ description: "项目地址已复制到剪贴板" });
+    } catch (error) {
+      toast({ title: "复制失败", description: String(error), variant: "destructive" });
+    }
+  };
+
   const loadWorktrees = async () => {
     if (!project?.path) return;
     setIsLoadingWorktrees(true);
@@ -132,9 +141,15 @@ function ProjectInfoCard({
               </h2>
               <div className="flex items-center gap-2 text-muted-foreground text-sm mt-1">
                 <Folder className="w-3.5 h-3.5" />
-                <span className="truncate max-w-[300px] font-mono">
+                <button
+                  type="button"
+                  className="truncate max-w-[300px] rounded-sm font-mono text-left cursor-default hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={handleCopyProjectPath}
+                  aria-label="复制项目地址"
+                  title={project.path}
+                >
                   {project.path}
-                </span>
+                </button>
               </div>
             </div>
           </div>
