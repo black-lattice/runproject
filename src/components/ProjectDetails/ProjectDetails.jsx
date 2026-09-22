@@ -559,7 +559,7 @@ function ProjectDetails({
   }
 
   return (
-    <div className="project-main flex-1 p-6 overflow-y-auto h-full">
+    <div className="project-main p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <ProjectInfoCard
           project={project}
@@ -586,6 +586,7 @@ function ProjectDetails({
         />
 
         <CommandList
+          key={project.path}
           project={project}
           runningCommands={runningCommands}
           commands={sortedCommands}

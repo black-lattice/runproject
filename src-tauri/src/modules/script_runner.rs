@@ -9,10 +9,12 @@ use std::{
     collections::HashMap,
     io::Read,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, Weak},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Emitter};
+
+mod lifecycle;
 
 pub type EventSink = Arc<dyn Fn(&str, Value) + Send + Sync>;
 const MAX_LOG: usize = 2 * 1024 * 1024;
@@ -29,18 +31,24 @@ pub struct ScriptRun {
     pub ended_at: Option<u64>,
     pub exit_code: Option<u32>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub restart_pending: bool,
+    #[serde(default)]
+    pub restarted_as: Option<String>,
 }
 struct Record {
     info: ScriptRun,
     session: Option<TerminalSession>,
     buffer: Arc<Mutex<Vec<u8>>>,
     dropped_bytes: u64,
+    emit: EventSink,
 }
 type Entry = Arc<Mutex<Record>>;
 #[derive(Default)]
 pub struct ScriptRunner {
     runs: Mutex<HashMap<String, Entry>>,
-    starts: Mutex<()>,
+    operations: Mutex<HashMap<(String, String), Weak<Mutex<()>>>>,
+    launches: Mutex<()>,
 }
 lazy_static! {
     pub static ref RUNNER: ScriptRunner = ScriptRunner::default();
@@ -95,59 +103,6 @@ fn build_command(project: &Value, script: &str, version: Option<&str>) -> Result
     Ok(command)
 }
 impl ScriptRunner {
-    pub fn start(
-        &self,
-        database: &Path,
-        project_path: &str,
-        script: &str,
-        emit: EventSink,
-    ) -> Result<ScriptRun, String> {
-        let _serial = self.starts.lock().map_err(|e| e.to_string())?;
-        let path =
-            std::fs::canonicalize(project_path).map_err(|e| format!("项目路径不可用: {e}"))?;
-        let db = storage::open_database_path(database)?;
-        let data = storage::read_projects(&db)?["data"].clone();
-        let mut project = None;
-        for w in data["workspaces"].as_array().into_iter().flatten() {
-            for p in w["projects"].as_array().into_iter().flatten() {
-                if p["path"]
-                    .as_str()
-                    .is_some_and(|p| std::fs::canonicalize(p).is_ok_and(|p| p == path))
-                {
-                    project = Some(p.clone());
-                    break;
-                }
-            }
-        }
-        let mut project =
-            project.ok_or("项目未添加到工作区，请先 add_workspace 或 refresh_workspace")?;
-        // Validate against today's package.json, not a possibly stale script cache.
-        let package: Value = serde_json::from_str(
-            &std::fs::read_to_string(path.join("package.json")).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
-        let script_body = package["scripts"][script]
-            .as_str()
-            .ok_or("package.json 中不存在该脚本，请刷新项目后重试")?;
-        let command = json!({"name":script,"script":script_body});
-        let canonical = path.to_string_lossy().to_string();
-        for existing in self.list(Some(&canonical), true)? {
-            if existing.command["name"] == script {
-                return Ok(existing);
-            }
-        }
-        let preference_key = format!(
-            "{}_{}",
-            project["name"].as_str().unwrap_or(""),
-            project["path"].as_str().unwrap_or("")
-        );
-        let version = data["preferences"][&preference_key]["nodeVersion"]
-            .as_str()
-            .or(project["nodeVersion"].as_str());
-        let command_line = build_command(&project, script, version)?;
-        project["path"] = json!(canonical);
-        self.launch(project, command, command_line, emit)
-    }
     fn launch(
         &self,
         project: Value,
@@ -155,6 +110,13 @@ impl ScriptRunner {
         command_line: String,
         emit: EventSink,
     ) -> Result<ScriptRun, String> {
+        let _launch = self.launches.lock().map_err(|e| e.to_string())?;
+        // Recheck after a restart's stop phase: portable-pty may otherwise fall
+        // back to another working directory if this directory disappeared.
+        let cwd = project["path"].as_str().ok_or("项目路径无效")?;
+        if !Path::new(cwd).is_dir() {
+            return Err("项目目录不存在或不可访问，请恢复目录后重试".into());
+        }
         {
             let mut runs = self.runs.lock().map_err(|e| e.to_string())?;
             if runs
@@ -169,7 +131,10 @@ impl ScriptRunner {
                 .iter()
                 .filter_map(|(id, r)| {
                     let r = r.lock().unwrap();
-                    r.info.ended_at.map(|time| (id.clone(), time))
+                    r.info
+                        .ended_at
+                        .filter(|_| !r.info.restart_pending)
+                        .map(|time| (id.clone(), time))
                 })
                 .collect();
             finished.sort_by_key(|(_, time)| *time);
@@ -218,12 +183,15 @@ impl ScriptRunner {
             ended_at: None,
             exit_code: None,
             error: None,
+            restart_pending: false,
+            restarted_as: None,
         };
         let entry = Arc::new(Mutex::new(Record {
             info: info.clone(),
             buffer: session.buffer.clone(),
             session: Some(session.clone()),
             dropped_bytes: 0,
+            emit: emit.clone(),
         }));
         self.runs
             .lock()
@@ -367,7 +335,12 @@ impl ScriptRunner {
             let mut guard = session.child.lock().map_err(|e| e.to_string())?;
             let child = guard.as_mut().ok_or("进程句柄不存在")?;
             if child.try_wait().map_err(|e| e.to_string())?.is_none() {
-                entry.lock().unwrap().info.status = "stopping".into();
+                {
+                    let mut record = entry.lock().unwrap();
+                    record.info.status = "stopping".into();
+                    record.info.error = None;
+                }
+                self.publish_run(id);
                 let pid = child.process_id().ok_or("无法读取脚本进程 ID")?;
                 #[cfg(unix)]
                 {
@@ -413,6 +386,8 @@ impl ScriptRunner {
                 record.info.status = "running".into();
             }
             record.info.error = Some(error.clone());
+            drop(record);
+            self.publish_run(id);
             return Err(error);
         }
         for _ in 0..60 {
@@ -422,7 +397,10 @@ impl ScriptRunner {
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        Err("停止请求已发送，进程尚未确认退出，请查询 get_script_run".into())
+        let message = "停止请求已发送，进程尚未确认退出，请稍后重试".to_string();
+        self.entry(id)?.lock().unwrap().info.error = Some(message.clone());
+        self.publish_run(id);
+        Err(message)
     }
     pub fn bytes(&self, id: &str) -> Result<Vec<u8>, String> {
         let entry = self.entry(id)?;
@@ -486,110 +464,21 @@ pub async fn stop_project_script(run_id: String, force: Option<bool>) -> Result<
         .await
         .map_err(|e| e.to_string())?
 }
+
+#[tauri::command]
+pub async fn restart_project_script(app: AppHandle, run_id: String) -> Result<ScriptRun, String> {
+    let db = storage::database_path(&app)?;
+    tauri::async_runtime::spawn_blocking(move || RUNNER.restart(&db, &run_id, app_sink(app)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub fn list_script_runs() -> Result<Vec<ScriptRun>, String> {
     RUNNER.list(None, false)
 }
 
 #[cfg(all(test, unix))]
-mod tests {
-    use super::*;
-    fn launch(runner: &ScriptRunner, command: &str) -> ScriptRun {
-        runner
-            .launch(
-                json!({"name":"test","path":std::env::temp_dir()}),
-                json!({"name":"test"}),
-                command.into(),
-                Arc::new(|_, _| {}),
-            )
-            .unwrap()
-    }
-    fn finished(runner: &ScriptRunner, id: &str) -> ScriptRun {
-        for _ in 0..100 {
-            let run = runner.get(id).unwrap();
-            if !active(&run.status) {
-                return run;
-            }
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        panic!("script did not exit");
-    }
-    #[test]
-    fn captures_real_exit_codes_and_keeps_bounded_logs() {
-        let runner = ScriptRunner::default();
-        let run = launch(&runner, "printf 'hello script'; exit 7");
-        let end = finished(&runner, &run.id);
-        assert_eq!(end.status, "failed");
-        assert_eq!(end.exit_code, Some(7));
-        assert!(runner.logs(&run.id, 16000).unwrap()["output"]
-            .as_str()
-            .unwrap()
-            .contains("hello script"));
-        assert_eq!(runner.stop(&run.id, false).unwrap().exit_code, Some(7));
-        let run = launch(
-            &runner,
-            "head -c 2200000 /dev/zero | tr '\\0' x; printf 'FINAL'; exit 0",
-        );
-        assert_eq!(finished(&runner, &run.id).status, "succeeded");
-        let logs = runner.logs(&run.id, 100).unwrap();
-        assert_eq!(logs["truncated"], true);
-        assert_eq!(logs["retainedBytes"], MAX_LOG);
-        assert!(logs["output"].as_str().unwrap().ends_with("FINAL"));
-        assert!(runner.logs(&run.id, 0).is_err());
-    }
-    #[test]
-    fn stop_terminates_child_process_group_and_shutdown_cleans_up() {
-        let runner = ScriptRunner::default();
-        let file = std::env::temp_dir().join(format!("runproject-child-{}", uuid::Uuid::new_v4()));
-        let command = format!(
-            "trap '' INT; sleep 60 & echo $! > {}; wait",
-            quote(file.to_str().unwrap())
-        );
-        let run = launch(&runner, &command);
-        for _ in 0..100 {
-            if file.exists() {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(20));
-        }
-        let pid: i32 = std::fs::read_to_string(&file)
-            .unwrap()
-            .trim()
-            .parse()
-            .unwrap();
-        assert_eq!(unsafe { libc::kill(pid, 0) }, 0);
-        assert_eq!(runner.stop(&run.id, false).unwrap().status, "stopped");
-        let mut gone = false;
-        for _ in 0..100 {
-            let output = std::process::Command::new("ps")
-                .args(["-o", "stat=", "-p", &pid.to_string()])
-                .output()
-                .unwrap();
-            let state = String::from_utf8_lossy(&output.stdout);
-            if !output.status.success() || state.trim().is_empty() || state.trim().starts_with('Z')
-            {
-                gone = true;
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(20));
-        }
-        assert!(gone, "child is still executing");
-        std::fs::remove_file(file).unwrap();
-        let run = launch(&runner, "sleep 60");
-        runner.shutdown();
-        assert_eq!(runner.get(&run.id).unwrap().status, "stopped");
-        assert!(runner.stop("missing", true).is_err());
-    }
-    #[test]
-    fn script_names_are_shell_quoted() {
-        let command = build_command(
-            &json!({"packageManager":"npm"}),
-            "test'; echo injected; '",
-            None,
-        )
-        .unwrap();
-        assert!(command.contains("'test'\\''; echo injected; '\\'''"));
-        assert!(build_command(&json!({}), "--help", None).is_err());
-        assert!(build_command(&json!({"packageManager":"npm;echo bad"}), "dev", None).is_err());
-    }
-}
+mod restart_tests;
+#[cfg(all(test, unix))]
+mod tests;

@@ -209,6 +209,7 @@ pub fn run() {
             greet,
             modules::script_runner::start_project_script,
             modules::script_runner::stop_project_script,
+            modules::script_runner::restart_project_script,
             modules::script_runner::list_script_runs,
             mcp::get_mcp_status,
             add_workspace,

@@ -1,3 +1,5 @@
+import { useScriptRunStore } from "@/store/useScriptRunStore";
+import { runStatusLabel } from "@/utils/scriptRuns";
 import PageEmptyState from "@/components/PageEmptyState";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -46,6 +48,7 @@ const getInitialTerminalState = () => {
 
 function TerminalPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { runs, loading: runsLoading, error: runsError } = useScriptRunStore();
   const initialStateRef = useRef(null);
   if (!initialStateRef.current) {
     initialStateRef.current = getInitialTerminalState();
@@ -239,6 +242,8 @@ function TerminalPage() {
     }
   }, [terminals, activeTerminalId]);
 
+  const activeRun = runs.find(run => run.id === activeTerminalId);
+
   const terminalActions = (
     <div className="flex shrink-0 items-center gap-2">
       <Button
@@ -323,6 +328,12 @@ function TerminalPage() {
                 <div className="terminal-session-path flex items-center gap-2 font-mono border-b border-white/5">
                   <FolderOpen className="h-3 w-3 opacity-60" />
                   <span className="truncate">{activeTerminal.cwd}</span>
+                  {activeTerminal.id.startsWith("script-") && (
+                    <span className="ml-auto shrink-0" role="status">
+                      {runsError ? "状态同步失败" : activeRun ? runStatusLabel(activeRun) : runsLoading ? "同步中" : "运行记录已过期"}
+                      {activeRun?.exitCode != null && ` · 退出码 ${activeRun.exitCode}`}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 relative">
                   {terminals.map((terminal) => (

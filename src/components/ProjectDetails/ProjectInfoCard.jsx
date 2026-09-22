@@ -10,6 +10,7 @@ import PackageManagerBadge from "./PackageManagerBadge";
 import EditorSelector from "./EditorSelector";
 import GitWorktreeDialog from "./GitWorktreeDialog";
 import { useToast } from "@/hooks/use-toast";
+import OpenProjectFolderButton from "@/components/OpenProjectFolderButton";
 
 function ProjectInfoCard({
   project,
@@ -137,7 +138,8 @@ function ProjectInfoCard({
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <OpenProjectFolderButton key={project.path} project={project} />
             <Button
               variant="ghost"
               size="sm"

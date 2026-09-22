@@ -1,4 +1,5 @@
 import ProjectDetails from './ProjectDetails';
+import ScriptRuns from './ScriptRuns';
 import WelcomeScreen from './WelcomeScreen';
 
 function MainContent({
@@ -10,7 +11,8 @@ function MainContent({
 	onGetInstalledVersions
 }) {
 	return (
-		<main className='project-main flex-1 overflow-y-auto relative z-20'>
+		<main className='project-main flex-1 min-h-0 overflow-y-auto relative z-20'>
+			<ScriptRuns />
 			{selectedProject ? (
 				<ProjectDetails
 					project={selectedProject}

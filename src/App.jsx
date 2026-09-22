@@ -9,6 +9,7 @@ import { AppRouter } from './router';
 import { useAppStore } from './store/useAppStore';
 import ReminderBridge from './components/ReminderBridge';
 import { startDataSync } from './store/dataSync';
+import { startScriptRunSync } from './store/useScriptRunStore';
 import { PAGE_CONFIGS } from './config/routes';
 
 const TRAY_SYNC_DELAY = 800;
@@ -60,6 +61,7 @@ function App() {
 		localStorage.removeItem('mcp-store');
 
 		if (isTauri()) {
+			startScriptRunSync();
 			useAppStore.getState().initCommandStatusSync();
 		}
 	}, []);

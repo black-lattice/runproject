@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import OpenProjectFolderButton from '@/components/OpenProjectFolderButton';
 
 function ProjectItem({
 	project,
@@ -104,6 +105,8 @@ function ProjectItem({
 						</div>
 					)}
 				</div>
+
+				<OpenProjectFolderButton project={project} compact />
 
 				<Popover
 					open={tagEditorOpen}
