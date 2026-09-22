@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
-import { useNavigate } from 'react-router-dom';
 import { ChevronDown, RotateCw, Square, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/store/useAppStore';
 import { useScriptRunStore } from '@/store/useScriptRunStore';
-import { isActiveRun, runDuration, runStatusLabel, runTerminalUrl } from '@/utils/scriptRuns';
+import { isActiveRun, runDuration, runStatusLabel } from '@/utils/scriptRuns';
+import { openProjectTerminal } from '@/store/useTerminalPanelStore';
 import { useToast } from '@/hooks/use-toast';
 import './styles.css';
 
@@ -15,10 +15,10 @@ export default function ScriptRuns() {
   const setSelectedProject = useAppStore(state => state.setSelectedProject);
   const [expanded, setExpanded] = useState(true);
   const [now, setNow] = useState(Date.now);
-  const navigate = useNavigate();
   const { toast } = useToast();
   const active = runs.filter(isActiveRun);
   const finished = runs.filter(run => !isActiveRun(run));
+  const openLog = run => openProjectTerminal({ id: run.id, title: `${run.project.name}-${run.command.name}`, cwd: run.project.path });
 
   useEffect(() => {
     if (!active.length) return;
@@ -32,6 +32,7 @@ export default function ScriptRuns() {
     try {
       const result = await perform(run, action);
       if (!result) return;
+      if (action === 'restart') openLog(result);
       const stopped = !isActiveRun(result);
       toast({
         title: action === 'restart'
@@ -69,7 +70,7 @@ export default function ScriptRuns() {
           {run.exitCode != null && <span className="text-muted-foreground">退出码 {run.exitCode}</span>}
         </div>
         <div className="script-run-actions">
-          <Button size="sm" variant="outline" onClick={() => navigate(runTerminalUrl(run))}
+          <Button size="sm" variant="outline" onClick={() => openLog(run)}
             aria-label={`查看 ${run.project.name} ${run.command.name} 日志`}>
             <Terminal className="h-3.5 w-3.5" />日志
           </Button>

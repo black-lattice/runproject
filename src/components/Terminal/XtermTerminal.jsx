@@ -6,35 +6,23 @@ import { listen, emit } from '@tauri-apps/api/event';
 import { useAppStore } from '@/store/useAppStore';
 import { useAppAppearance } from '@/components/AppTheme';
 import 'xterm/css/xterm.css';
-
-function terminalTheme(element, isDark) {
-  const styles = getComputedStyle(element);
-  return {
-    background: styles.backgroundColor,
-    foreground: styles.color,
-    cursor: styles.color,
-    selectionBackground: isDark ? '#779cff55' : '#315cc533',
-  };
-}
+import useTerminalViewport, { terminalTheme } from './useTerminalViewport';
 
 const XtermTerminal = ({
 	sessionId,
 	cwd,
 	onClose,
-	existingSession = false
+	existingSession = false,
+	active = true
 }) => {
 	const { isDark } = useAppAppearance();
 	const containerRef = useRef(null);
 	const terminalRef = useRef(null);
 	const fitAddonRef = useRef(null);
-	const reconnectingRef = useRef(false);
 	const closedRef = useRef(false);
-
-    useEffect(() => {
-        if (terminalRef.current && containerRef.current) {
-            terminalRef.current.options.theme = terminalTheme(containerRef.current, isDark);
-        }
-    }, [isDark]);
+	const onCloseRef = useRef(onClose);
+	onCloseRef.current = onClose;
+	const fitVisible = useTerminalViewport({ containerRef, terminalRef, fitAddonRef, sessionId, active, isDark });
 
 	useEffect(() => {
 		console.log(
@@ -44,7 +32,6 @@ const XtermTerminal = ({
 		if (!containerRef.current) return;
 
 		closedRef.current = false;
-		reconnectingRef.current = false;
 
 		let unmounted = false;
 		let unlistenOutput = null;
@@ -131,7 +118,7 @@ const XtermTerminal = ({
 				if (unmounted) return;
 
 				// 调整终端大小
-				fitAddon.fit();
+				const visible = fitVisible();
 
 				// 创建或连接 PTY 会话
 				const { cols, rows } = terminal;
@@ -146,6 +133,16 @@ const XtermTerminal = ({
 					writeEncodedChunk(event.payload);
 				});
 
+				if (unmounted) { unlistenOutput(); return; }
+
+				unlistenClose = await listen(`terminal-closed-${sessionId}`, () => {
+					if (unmounted) return;
+					closedRef.current = true;
+					terminal.write('\r\n\x1b[33m[进程已退出]\x1b[0m\r\n');
+					if (!managed) onCloseRef.current?.();
+				});
+				if (unmounted) { unlistenClose(); return; }
+
 				let sessionReady = false;
 				if (!existingSession && !managed) {
 					await invoke('create_terminal_session', {
@@ -155,18 +152,22 @@ const XtermTerminal = ({
 					sessionReady = true;
 				} else {
 					try {
-						await invoke('resize_terminal', { sessionId, cols, rows });
-						sessionReady = true;
+						if (visible) {
+							await invoke('resize_terminal', { sessionId, cols, rows });
+							sessionReady = true;
+						} else {
+							sessionReady = await invoke('ping_terminal_session', { sessionId });
+						}
 					} catch (error) {
 						console.warn('调整已存在会话大小失败:', error);
 					}
 				}
 
+				if (unmounted || (closedRef.current && !managed)) return;
 				if (!sessionReady && !managed) {
-					await invoke('create_terminal_session', {
-						sessionId,
-						config: { cwd, cols, rows }
-					});
+					closedRef.current = true;
+					terminal.write('\r\n\x1b[33m[会话已结束，请新建终端]\x1b[0m\r\n');
+					return;
 				}
 
 				if (unmounted) return;
@@ -208,13 +209,8 @@ const XtermTerminal = ({
 					writeEncodedChunk(chunk);
 				}
 
-				unlistenClose = await listen(`terminal-closed-${sessionId}`, () => {
-					if (unmounted) return;
-					closedRef.current = true;
-					terminal.write('\r\n\x1b[33m[进程已退出]\x1b[0m\r\n');
-					if (!managed && onClose) onClose();
-				});
 			} catch (error) {
+				if (unmounted) return;
 				console.error('终端初始化失败:', error);
 				terminal.write(`\r\n\x1b[31m错误: ${error}\x1b[0m\r\n`);
 			}
@@ -222,81 +218,27 @@ const XtermTerminal = ({
 
 		const startHeartbeat = () => {
 			heartbeatTimer = setInterval(async () => {
-				if (unmounted || closedRef.current || reconnectingRef.current) return;
+				if (unmounted || closedRef.current) return;
 				try {
 					const alive = await invoke('ping_terminal_session', { sessionId });
-					if (!alive) {
-						throw new Error('session not found');
-					}
-                } catch (error) {
-                    if (managed) {
-                        closedRef.current = true;
-                        terminal.write('\r\n\x1b[33m[脚本已退出，日志保留]\x1b[0m\r\n');
-                        return;
-                    }
-                    reconnectingRef.current = true;
-					try {
-						terminal.write(
-							'\r\n\x1b[33m[连接已断开，正在尝试重连...]\x1b[0m\r\n'
-						);
-						const { cols, rows } = terminal;
-						await invoke('create_terminal_session', {
-							sessionId,
-							config: { cwd, cols, rows }
-						});
-
-						backlogLoaded = false;
-						pendingChunks.length = 0;
-						try {
-							const buffered = await invoke('get_terminal_buffer', {
-								sessionId
-							});
-							if (!unmounted && buffered) {
-								writeEncodedChunk(buffered);
-							}
-						} catch (bufferError) {
-							console.warn('获取终端历史失败:', bufferError);
-						}
-						backlogLoaded = true;
-
-						terminal.write(
-							'\r\n\x1b[32m[重连成功]\x1b[0m\r\n'
-						);
-					} catch (reconnectError) {
-						console.error('重连失败:', reconnectError);
-						terminal.write(
-							`\r\n\x1b[31m[重连失败] ${reconnectError}\x1b[0m\r\n`
-						);
-					} finally {
-						reconnectingRef.current = false;
-					}
+					if (unmounted || closedRef.current || alive) return;
+					closedRef.current = true;
+					terminal.write(managed
+						? '\r\n\x1b[33m[脚本已退出，日志保留]\x1b[0m\r\n'
+						: '\r\n\x1b[33m[终端会话已结束]\x1b[0m\r\n');
+					if (!managed) onCloseRef.current?.();
+				} catch (error) {
+					if (!unmounted) console.warn('检查终端状态失败:', error);
 				}
 			}, 5000);
 		};
 
-		// 窗口大小调整
-		const handleResize = () => {
-			if (unmounted) return;
-			try {
-				fitAddon.fit();
-				const { cols, rows } = terminal;
-				invoke('resize_terminal', { sessionId, cols, rows }).catch(
-					console.error
-				);
-			} catch (error) {
-				console.warn('调整大小失败:', error);
-			}
-		};
-
-		window.addEventListener('resize', handleResize);
-		initSession();
-		startHeartbeat();
+		initSession().then(() => { if (!unmounted) startHeartbeat(); });
 
 		// 清理
 		return () => {
 			console.log(`XtermTerminal 清理函数运行: sessionId=${sessionId}`);
 			unmounted = true;
-			window.removeEventListener('resize', handleResize);
 
 			if (dataDisposable) {
 				try {
@@ -321,7 +263,6 @@ const XtermTerminal = ({
 			// 清理 refs
 			terminalRef.current = null;
 			fitAddonRef.current = null;
-			reconnectingRef.current = false;
 			closedRef.current = false;
 		};
 	}, [sessionId, cwd, existingSession]); // 依赖 sessionId、cwd 与 existingSession
@@ -329,8 +270,7 @@ const XtermTerminal = ({
 	return (
 		<div
 			ref={containerRef}
-			className='w-full h-full bg-background text-foreground'
-			style={{ minHeight: '400px' }}
+			className='w-full h-full min-h-0 overflow-hidden bg-background text-foreground'
 		/>
 	);
 };

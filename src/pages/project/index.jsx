@@ -1,12 +1,13 @@
 import { useEffect, useCallback, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store/useAppStore';
 import Sidebar from '@/components/Sidebar';
 import MainContent from '@/components/MainContent';
 import CommandPalette from '@/components/CommandPalette';
 import { useToast } from '@/hooks/use-toast';
+import ProjectTerminalDock from '@/components/Terminal/ProjectTerminalDock';
+import { openProjectTerminal } from '@/store/useTerminalPanelStore';
 function ProjectPage() {
 	const {
 		workspaces,
@@ -18,7 +19,6 @@ function ProjectPage() {
 		collapsedWorkspaces,
 		useKittenRemote,
 		terminalType,
-		tabs,
 		workspaceTags,
 		projectTags,
 		commandTags,
@@ -32,7 +32,6 @@ function ProjectPage() {
 		updateProjectTerminal,
 		clearProjectTerminal,
 		toggleWorkspaceCollapse,
-		addTab,
 		normalizeWorkspace,
 		setNodeVersionsCache,
 		setWorkspaceTags,
@@ -41,7 +40,6 @@ function ProjectPage() {
 	} = useAppStore();
 
 	const { toast } = useToast();
-	const navigate = useNavigate();
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const [refreshingWorkspacePaths, setRefreshingWorkspacePaths] = useState({});
 	const getCommandKey = (project, command) =>
@@ -83,6 +81,7 @@ function ProjectPage() {
 
 	useEffect(() => {
 		const handleKeyPress = event => {
+			if (event.defaultPrevented || event.target?.closest?.('.xterm')) return;
 			if (
 				(event.ctrlKey || event.metaKey) &&
 				event.shiftKey &&
@@ -424,9 +423,7 @@ function ProjectPage() {
 	const executeInBuiltinTerminal = async (project, command) => {
         try {
             const run = await invoke('start_project_script', { projectPath: project.path, script: command.name });
-            addTab('terminal');
-            const params = new URLSearchParams({ sessionId: run.id, title: `${project.name}-${command.name}`, cwd: project.path });
-            navigate(`/terminal?${params}`);
+            openProjectTerminal({ id: run.id, title: `${project.name}-${command.name}`, cwd: project.path });
             toast({ title: '脚本已启动', description: `在内置终端中执行: ${command.name}` });
         } catch (error) {
             toast({ title: '执行失败', description: String(error), variant: 'destructive' });
@@ -573,7 +570,7 @@ function ProjectPage() {
 
 	return (
 		<div className='project-page h-full flex flex-col overflow-hidden'>
-			<div className='flex-1 flex overflow-hidden'>
+			<div className='flex-1 min-h-0 flex overflow-hidden'>
 				<Sidebar
 					workspaces={workspaces}
 					selectedProject={selectedProject}
@@ -591,14 +588,17 @@ function ProjectPage() {
 					projectTags={projectTags}
 					onSetProjectTags={setProjectTags}
 				/>
-				<MainContent
-					selectedProject={selectedProject}
-					onAddWorkspace={handleAddWorkspace}
-					runningCommands={runningCommands}
-					onExecuteCommand={executeProjectCommand}
-					onStopCommand={stopProjectCommand}
-					onGetInstalledVersions={getInstalledVersions}
-				/>
+				<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'>
+					<MainContent
+						selectedProject={selectedProject}
+						onAddWorkspace={handleAddWorkspace}
+						runningCommands={runningCommands}
+						onExecuteCommand={executeProjectCommand}
+						onStopCommand={stopProjectCommand}
+						onGetInstalledVersions={getInstalledVersions}
+					/>
+					<ProjectTerminalDock project={selectedProject} />
+				</div>
 			</div>
 			<CommandPalette
 				open={commandPaletteOpen}
