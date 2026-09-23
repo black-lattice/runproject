@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
-import { Button, Input, Select, Tag } from "antd";
-import { TagOutlined } from "@ant-design/icons";
+import { Button, Select } from "antd";
 import { taskLists } from "@/utils/taskModel";
 import { nextOccurrenceDate } from "@/utils/taskRecurrence";
 import { TaskSectionSelect } from "./TaskOrganization";
@@ -67,14 +65,12 @@ export function TaskOrganizationFields({
   onTasksChange,
   onDataChange,
 }) {
-  const [tagDraft, setTagDraft] = useState("");
-  useEffect(() => setTagDraft(""), [task.id]);
   const sectionList = taskLists(task).includes(currentList)
     ? currentList
     : task.list;
   return (
-    <section className="task-detail-section" aria-label="分组与标签">
-      <h3 className="task-detail-section-title">分组与标签</h3>
+    <section className="task-detail-section" aria-label="任务分组">
+      <h3 className="task-detail-section-title">任务分组</h3>
       <Field label="分组">
         <TaskSectionSelect
           task={task}
@@ -83,47 +79,6 @@ export function TaskOrganizationFields({
           tasks={tasks}
           onChange={onTasksChange}
           onDataChange={onDataChange}
-        />
-      </Field>
-      <Field label="标签">
-        {task.tags?.length > 0 && (
-          <div className="task-detail-tags">
-            {task.tags.map((tag) => (
-              <Tag
-                key={tag}
-                closable
-                onClose={() =>
-                  onChange((current) => ({
-                    ...current,
-                    tags: (current.tags || []).filter((item) => item !== tag),
-                  }))
-                }
-              >
-                #{tag}
-              </Tag>
-            ))}
-          </div>
-        )}
-        <Input
-          aria-label="添加标签"
-          value={tagDraft}
-          onChange={(event) => setTagDraft(event.target.value)}
-          prefix={<TagOutlined className="text-muted-foreground" />}
-          placeholder="添加标签"
-          onKeyDown={(event) => {
-            if (event.nativeEvent.isComposing || event.key !== "Enter") return;
-            const tag = event.currentTarget.value
-              .trim()
-              .replace(/^#/, "")
-              .trim();
-            if (!tag) return;
-            event.preventDefault();
-            onChange((current) => ({
-              ...current,
-              tags: [...new Set([...(current.tags || []), tag])],
-            }));
-            setTagDraft("");
-          }}
         />
       </Field>
     </section>

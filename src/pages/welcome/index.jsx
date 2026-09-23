@@ -23,16 +23,13 @@ import {
   CloseOutlined,
   CheckSquareFilled as CheckSquare2,
   ClockCircleFilled as Timer,
-  CodeFilled as Code2,
   DeleteFilled as Trash2,
   DownOutlined as ChevronDown,
   FlagFilled as Flag,
-  InboxOutlined as Inbox,
   MoreOutlined as MoreHorizontal,
   CommentOutlined as Comment,
   FontSizeOutlined as TextFormat,
   PlusOutlined as Plus,
-  ProjectFilled as CircleDot,
   QuestionCircleFilled as HelpCircle,
   RightOutlined as ChevronRight,
   SearchOutlined as Search,
@@ -42,7 +39,6 @@ import {
   UnorderedListOutlined as ListTodo,
 } from "@ant-design/icons";
 import { useAppStore } from "@/store/useAppStore";
-import { PAGE_CONFIGS } from "@/config/routes";
 import { useToast } from "@/hooks/use-toast";
 import { ApiOutlined } from "@ant-design/icons";
 import {
@@ -141,6 +137,7 @@ function getWeekStart(dateString) {
 }
 
 const getTaskCategories = taskLists;
+const taskListLabel = (name) => (name === "收件箱" ? "未分类" : name);
 
 function getTaskCreatedDate(task) {
   const value = task?.createdAt ?? task?.createdDate ?? task?.date;
@@ -234,9 +231,7 @@ function WelcomePage() {
       (trigger || document.getElementById("task-input"))?.focus();
     });
   };
-  const [priorityFilter, setPriorityFilter] = useState("全部");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [tagFilter, setTagFilter] = useState("");
+
   const [now, setNow] = useState(Date.now);
   const today = dateKey(new Date(now));
   const unreadCount = pendingReminders(tasks, now).length;
@@ -287,9 +282,7 @@ function WelcomePage() {
     if (task) {
       setActiveTool(null);
       setActiveNav(task.deleted ? "trash" : "all");
-      setPriorityFilter("全部");
-      setStatusFilter("all");
-      setTagFilter("");
+
       setHideCompleted(false);
       setShowDetail(true);
       setSmallDetailOpen(true);
@@ -326,51 +319,26 @@ function WelcomePage() {
       selectTasks(tasks, {
         nav: activeNav,
         day: today,
-        priority: priorityFilter,
-        status: statusFilter,
-        tag: tagFilter,
         hideCompleted,
         sort: sortMode,
       }),
-    [
-      tasks,
-      activeNav,
-      today,
-      priorityFilter,
-      statusFilter,
-      tagFilter,
-      hideCompleted,
-      sortMode,
-    ],
+    [tasks, activeNav, today, hideCompleted, sortMode],
   );
   const searchResults = useMemo(
     () => searchTasks(tasks, search),
     [tasks, search],
   );
-  const allTags = [
-    ...new Set(
-      tasks.filter((task) => !task.deleted).flatMap((task) => task.tags || []),
-    ),
-  ].sort();
   const revealTask = (id) => {
     setActiveNav(
       tasks.find((task) => task.id === id)?.deleted ? "trash" : "all",
     );
-    setPriorityFilter("全部");
-    setStatusFilter("all");
-    setTagFilter("");
+
     setHideCompleted(false);
     openTaskDetail(id);
     setActiveTool(null);
   };
 
-  const selectionView = JSON.stringify([
-    activeNav,
-    priorityFilter,
-    statusFilter,
-    tagFilter,
-    hideCompleted,
-  ]);
+  const selectionView = JSON.stringify([activeNav, hideCompleted]);
   const previousSelectionView = useRef(selectionView);
   useEffect(() => {
     const changed = previousSelectionView.current !== selectionView;
@@ -407,7 +375,7 @@ function WelcomePage() {
       !overrides.list &&
       (activeNav === "completed" || activeNav === "trash")
     ) {
-      toast({ description: "请先选择今天、清单或收件箱再创建任务" });
+      toast({ description: "请先选择所有任务、今天或清单再创建任务" });
       return;
     }
     // 新建任务默认使用实际创建日；“最近 7 天”只负责统计，不改变任务日期。
@@ -474,9 +442,6 @@ function WelcomePage() {
       selectTasks([task], {
         nav: activeNav,
         day: today,
-        priority: priorityFilter,
-        status: statusFilter,
-        tag: tagFilter,
         hideCompleted,
       }).length > 0;
     if (!activeTool && !matchesCurrentView) {
@@ -502,10 +467,6 @@ function WelcomePage() {
           : task,
       ),
     );
-  const open = (id) => {
-    addTab(id);
-    navigate(PAGE_CONFIGS[id].path);
-  };
   const moveTask = (id, target) => {
     setTasks((current) =>
       current.map((task) =>
@@ -519,11 +480,9 @@ function WelcomePage() {
     currentList ||
     {
       all: "所有任务",
-      overdue: "已逾期",
       today: "今天",
       tomorrow: "明天",
       upcoming: "最近 7 天",
-      inbox: "收件箱",
       completed: "已结束",
       trash: "垃圾桶",
       summary: "任务摘要",
@@ -549,15 +508,6 @@ function WelcomePage() {
       String(activeTasks.filter((t) => !isFinished(t)).length),
     ],
     [
-      "overdue",
-      "已逾期",
-      Timer,
-      String(
-        activeTasks.filter((t) => !isFinished(t) && t.date && t.date < today)
-          .length,
-      ),
-    ],
-    [
       "today",
       "今天",
       CalendarDays,
@@ -572,16 +522,6 @@ function WelcomePage() {
       String(
         activeTasks.filter(
           (t) => !isFinished(t) && t.date >= today && t.date <= upcomingEndDate,
-        ).length,
-      ),
-    ],
-    [
-      "inbox",
-      "收件箱",
-      Inbox,
-      String(
-        activeTasks.filter(
-          (t) => !isFinished(t) && getTaskCategories(t).includes("收件箱"),
         ).length,
       ),
     ],
@@ -607,7 +547,7 @@ function WelcomePage() {
       const label = confirmAction.label;
       try {
         updateData((current) => removeTaskList(current, label));
-        if (activeNav === `list:${label}`) setActiveNav("inbox");
+        if (activeNav === `list:${label}`) setActiveNav("all");
       } catch (error) {
         toast({ description: error.message, variant: "destructive" });
         setConfirmAction(null);
@@ -761,10 +701,10 @@ function WelcomePage() {
         label: "移动到清单",
         children: ["收件箱", ...lists.map(([name]) => name)].map((name) => ({
           key: `list-${name}`,
-          label: name,
+          label: taskListLabel(name),
         })),
       },
-      { key: "tag", label: "分组与标签" },
+      { key: "tag", label: "任务分组" },
       { type: "divider" },
       { key: "note", label: "正文编辑与格式", children: noteMenuItems },
       { key: "attachment", label: "上传附件" },
@@ -813,9 +753,6 @@ function WelcomePage() {
             {[
               [null, "任务", CheckSquare2],
               ["calendar", "日历", CalendarDays],
-              ["timeline", "时间线", Timer],
-              ["matrix", "四象限", Grid2X2],
-              ["kanban", "看板", CircleDot],
             ].map(([tool, label, Icon]) => (
               <Button
                 key={label}
@@ -1008,103 +945,12 @@ function WelcomePage() {
                   ))}
                 </div>
               )}
-              <div className="task-sidebar-note-group">
-                <div
-                  className="task-sidebar-note-heading"
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={!collapsedSections.filters}
-                  onClick={() => toggleSection("filters")}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      toggleSection("filters");
-                    }
-                  }}
-                >
-                  <ChevronDown
-                    className={`h-3.5 w-3.5 transition-transform ${collapsedSections.filters ? "-rotate-90" : ""}`}
-                  />
-                  <span>过滤器</span>
-                </div>
-                {!collapsedSections.filters && (
-                  <div className="task-sidebar-note">
-                    <Select
-                      aria-label="筛选优先级"
-                      value={priorityFilter}
-                      onChange={setPriorityFilter}
-                      options={["全部", "高", "中", "低", "无"].map(
-                        (value) => ({
-                          value,
-                          label:
-                            value === "全部" ? "全部优先级" : `${value}优先级`,
-                        }),
-                      )}
-                      style={{ width: "100%" }}
-                    />
-                    {(priorityFilter !== "全部" || tagFilter) && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setPriorityFilter("全部");
-                          setStatusFilter("all");
-                          setTagFilter("");
-                        }}
-                      >
-                        清除筛选
-                      </Button>
-                    )}
-                  </div>
-                )}
-                <div
-                  className="task-sidebar-note-heading"
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={!collapsedSections.tags}
-                  onClick={() => toggleSection("tags")}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      toggleSection("tags");
-                    }
-                  }}
-                >
-                  <ChevronDown
-                    className={`h-3.5 w-3.5 transition-transform ${collapsedSections.tags ? "-rotate-90" : ""}`}
-                  />
-                  <span>标签</span>
-                </div>
-                {!collapsedSections.tags && (
-                  <div className="task-sidebar-note">
-                    {allTags.length ? (
-                      <div className="flex flex-wrap gap-1">
-                        {allTags.map((tag) => (
-                          <Button
-                            key={tag}
-                            size="sm"
-                            variant={tagFilter === tag ? "outline" : "ghost"}
-                            onClick={() => {
-                              setTagFilter(tagFilter === tag ? "" : tag);
-                              setActiveNav("all");
-                            }}
-                          >
-                            #{tag}
-                          </Button>
-                        ))}
-                      </div>
-                    ) : (
-                      "在任务详情添加标签，即可按标签查找"
-                    )}
-                  </div>
-                )}
-              </div>
               <Menu
                 className="task-antd-menu mt-auto"
                 mode="inline"
                 selectedKeys={[activeNav]}
                 onClick={({ key }) => {
-                  if (key === "projects") open("projects");
-                  else setActiveNav(key);
+                  setActiveNav(key);
                 }}
                 items={[
                   {
@@ -1134,11 +980,6 @@ function WelcomePage() {
                         </span>
                       </span>
                     ),
-                  },
-                  {
-                    key: "projects",
-                    icon: <Code2 className="h-4 w-4" />,
-                    label: "项目工作台",
                   },
                 ]}
               />
@@ -1182,100 +1023,13 @@ function WelcomePage() {
                     </p>
                   )}
                   <h1 className="mt-1 text-2xl font-semibold text-foreground">
-                    {activeNav === "overdue"
-                      ? "已逾期"
-                      : activeNav === "summary"
-                        ? "任务摘要"
-                        : activeNav === "inbox"
-                          ? "收件箱"
-                          : activeNav === "tomorrow"
-                            ? "明天"
-                            : activeNav === "upcoming"
-                              ? "最近 7 天"
-                              : activeNav === "all"
-                                ? "所有任务"
-                                : activeNav === "completed"
-                                  ? "已结束"
-                                  : activeNav === "trash"
-                                    ? "垃圾桶"
-                                    : activeNav.startsWith("list:")
-                                      ? activeNav.slice(5)
-                                      : "今天"}{" "}
+                    {currentViewTitle}{" "}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">
                       {visibleTasks.length}
                     </span>
                   </h1>
                 </div>
                 <div className="task-main-actions flex-wrap">
-                  <Popover
-                    trigger="click"
-                    placement="bottomRight"
-                    title="筛选当前任务"
-                    content={
-                      <div className="grid gap-3" style={{ width: 250 }}>
-                        <label className="grid gap-1 text-xs">
-                          状态
-                          <Select
-                            aria-label="筛选任务状态"
-                            value={statusFilter}
-                            onChange={setStatusFilter}
-                            options={[
-                              { value: "all", label: "全部状态" },
-                              { value: "pending", label: "待处理" },
-                              { value: "in-progress", label: "进行中" },
-                              { value: "done", label: "已完成" },
-                              { value: "abandoned", label: "已放弃" },
-                            ]}
-                          />
-                        </label>
-                        <label className="grid gap-1 text-xs">
-                          优先级
-                          <Select
-                            aria-label="筛选任务优先级"
-                            value={priorityFilter}
-                            onChange={setPriorityFilter}
-                            options={["全部", "高", "中", "低", "无"].map(
-                              (value) => ({ value, label: value }),
-                            )}
-                          />
-                        </label>
-                        <label className="grid gap-1 text-xs">
-                          标签
-                          <Select
-                            aria-label="筛选任务标签"
-                            value={tagFilter}
-                            onChange={setTagFilter}
-                            options={[
-                              { value: "", label: "全部标签" },
-                              ...allTags.map((value) => ({
-                                value,
-                                label: value,
-                              })),
-                            ]}
-                          />
-                        </label>
-                        <Button
-                          onClick={() => {
-                            setStatusFilter("all");
-                            setPriorityFilter("全部");
-                            setTagFilter("");
-                            setHideCompleted(false);
-                          }}
-                        >
-                          清除筛选
-                        </Button>
-                      </div>
-                    }
-                  >
-                    <Button>
-                      筛选
-                      {statusFilter !== "all" ||
-                      priorityFilter !== "全部" ||
-                      tagFilter
-                        ? " · 已启用"
-                        : ""}
-                    </Button>
-                  </Popover>
                   {currentList && (
                     <TaskSectionManager
                       listName={currentList}
@@ -1284,9 +1038,6 @@ function WelcomePage() {
                       onChange={updateData}
                     />
                   )}
-                  <Button onClick={() => openTaskExtras("templates")}>
-                    模板
-                  </Button>
                   <Dropdown
                     trigger={["click"]}
                     placement="bottomRight"
@@ -1317,13 +1068,13 @@ function WelcomePage() {
                         {
                           key: "view-label",
                           type: "group",
-                          label: "视图",
+                          label: "更多视图",
                           children: [
                             {
-                              key: "list-view",
-                              icon: <ListTodo />,
-                              label: "列表视图",
-                              onClick: () => setActiveTool(null),
+                              key: "matrix-view",
+                              icon: <Grid2X2 />,
+                              label: "四象限",
+                              onClick: () => setActiveTool("matrix"),
                             },
                             {
                               key: "board-view",
@@ -1354,11 +1105,6 @@ function WelcomePage() {
                               : selected.id != null &&
                                 openTaskDetail(selected.id),
                         },
-                        {
-                          key: "settings",
-                          label: "显示设置",
-                          onClick: () => open("settings"),
-                        },
                         { type: "divider" },
                         {
                           key: "add-group",
@@ -1368,7 +1114,7 @@ function WelcomePage() {
                         },
                         {
                           key: "share",
-                          label: "复制任务内容",
+                          label: "导出 / 打印",
                           onClick: exportView,
                         },
                         {
@@ -1377,9 +1123,9 @@ function WelcomePage() {
                           onClick: () => setExtrasOpen("list-activity"),
                         },
                         {
-                          key: "print",
-                          label: "打印",
-                          onClick: exportView,
+                          key: "templates",
+                          label: "任务模板",
+                          onClick: () => setExtrasOpen("templates"),
                         },
                       ],
                     }}
@@ -1441,28 +1187,6 @@ function WelcomePage() {
                     重试
                   </Button>
                 )}
-                {statusFilter !== "all" && (
-                  <AntTag closable onClose={() => setStatusFilter("all")}>
-                    {
-                      {
-                        pending: "待处理",
-                        "in-progress": "进行中",
-                        done: "已完成",
-                        abandoned: "已放弃",
-                      }[statusFilter]
-                    }
-                  </AntTag>
-                )}
-                {priorityFilter !== "全部" && (
-                  <AntTag closable onClose={() => setPriorityFilter("全部")}>
-                    优先级：{priorityFilter}
-                  </AntTag>
-                )}
-                {tagFilter && (
-                  <AntTag closable onClose={() => setTagFilter("")}>
-                    #{tagFilter}
-                  </AntTag>
-                )}
               </div>
               {activeNav === "trash" && (
                 <div className="mb-4">
@@ -1511,11 +1235,7 @@ function WelcomePage() {
                       ? "垃圾桶为空"
                       : activeNav === "completed"
                         ? "还没有已结束任务"
-                        : priorityFilter !== "全部" ||
-                            statusFilter !== "all" ||
-                            tagFilter
-                          ? "没有符合筛选条件的任务"
-                          : "这里还没有任务，按 N 快速添加"
+                        : "这里还没有任务，按 N 快速添加"
                   }
                 />
               )}
@@ -1766,7 +1486,7 @@ function WelcomePage() {
                   placement="topLeft"
                   menu={{
                     items: ["收件箱", ...lists.map(([label]) => label)].map(
-                      (label) => ({ key: label, label }),
+                      (label) => ({ key: label, label: taskListLabel(label) }),
                     ),
                     onClick: ({ key }) =>
                       setTasks((current) =>
@@ -1781,11 +1501,15 @@ function WelcomePage() {
                   <button
                     type="button"
                     className="task-detail-list-trigger"
-                    aria-label={`移动任务到清单：${getTaskCategories(selected).join(" · ")}`}
+                    aria-label={`移动任务到清单：${getTaskCategories(selected).map(taskListLabel).join(" · ")}`}
                     title="移动任务到其他清单"
                   >
                     <Tag className="h-4 w-4" />
-                    <span>{getTaskCategories(selected).join(" · ")}</span>
+                    <span>
+                      {getTaskCategories(selected)
+                        .map(taskListLabel)
+                        .join(" · ")}
+                    </span>
                   </button>
                 </Dropdown>
                 <div className="flex items-center gap-4">
@@ -1833,7 +1557,7 @@ function WelcomePage() {
         <Modal
           open={Boolean(taskPropertyPanel) && showDetail && selected.id != null}
           title={
-            { reminders: "提醒与重复", tag: "分组与标签", trash: "垃圾桶操作" }[
+            { reminders: "提醒与重复", tag: "任务分组", trash: "垃圾桶操作" }[
               taskPropertyPanel
             ]
           }
@@ -1995,15 +1719,15 @@ function WelcomePage() {
           <div className="space-y-3 text-sm leading-relaxed">
             <p>
               <strong>快速记录：</strong>按 N
-              输入任务，回车创建；“明天下午3点开会”会识别日期与时间。清单和收件箱默认不设日期。
+              输入任务，回车创建；“明天下午3点开会”会识别日期与时间。清单任务默认不设日期。
             </p>
             <p>
               <strong>计划与进度：</strong>
-              日历按日期安排；时间线区分逾期和未安排；四象限区分重要、紧急；看板追踪处理状态。拖动和任务菜单均可移动任务。
+              日历用于安排日期；“更多选项”中可切换看板、时间线或四象限。任务菜单可修改日期和清单。
             </p>
             <p>
               <strong>查找：</strong>Cmd/Ctrl+K
-              搜索全部任务与备注，侧栏按标签和优先级筛选；窄窗口使用顶部清单选择器。
+              搜索任务与备注；侧栏按日期或清单查看，窄窗口使用顶部清单选择器。
             </p>
             <p>
               <strong>保存与提醒：</strong>修改自动保存。桌面应用与 MCP
@@ -2055,13 +1779,13 @@ function WelcomePage() {
         >
           <p className="text-sm text-muted-foreground">
             {confirmAction?.type === "delete-list"
-              ? "任务保留其他清单归属；没有其他归属时移入收件箱。"
+              ? "任务保留其他清单归属；没有其他归属时归为未分类，可在所有任务中查看。"
               : "你可以在垃圾桶中恢复此任务。"}
           </p>
         </Modal>
         <Modal
           open={searchOpen}
-          title="搜索全部任务、备注或标签"
+          title="搜索任务与备注"
           footer={null}
           onCancel={() => setSearchOpen(false)}
           afterClose={afterDetailSourceClosed}
@@ -2093,7 +1817,9 @@ function WelcomePage() {
                   }}
                 >
                   <span>{task.title}</span>
-                  <span>{getTaskCategories(task).join(" · ")}</span>
+                  <span>
+                    {getTaskCategories(task).map(taskListLabel).join(" · ")}
+                  </span>
                 </button>
               ))}
           </div>
@@ -2273,7 +1999,7 @@ function ToolOverlay({
               style={{ minWidth: 140 }}
               options={[
                 { value: "", label: "全部清单" },
-                { value: "收件箱", label: "收件箱" },
+                { value: "收件箱", label: "未分类" },
                 ...lists.map(([value]) => ({ value, label: value })),
               ]}
             />
@@ -2465,7 +2191,7 @@ function ToolOverlay({
               setDraft((current) => ({ ...current, list: value }))
             }
             options={["收件箱", ...lists.map(([name]) => name)].map(
-              (value) => ({ value, label: value }),
+              (value) => ({ value, label: taskListLabel(value) }),
             )}
           />
           <DatePicker
@@ -2493,7 +2219,7 @@ function TaskCategories({ task }) {
     <span className="task-category-list" aria-label="所属分类">
       {categories.map((category) => (
         <span className="task-category-badge" key={category}>
-          {category}
+          {taskListLabel(category)}
         </span>
       ))}
     </span>

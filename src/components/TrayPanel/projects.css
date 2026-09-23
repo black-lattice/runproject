@@ -1,0 +1,26 @@
+.tray-projects .tray-panel-summary { padding: 9px 8px 5px; }
+.tray-project { padding: 2px 0; }
+.tray-project + .tray-project { border-top: 0.5px solid var(--tray-separator); }
+.tray-project summary { display: flex; align-items: center; gap: 5px; min-height: 30px; padding: 4px 8px; border-radius: 5px; cursor: default; list-style: none; }
+.tray-project summary::-webkit-details-marker { display: none; }
+.tray-project summary:hover { background: var(--tray-hover); }
+.tray-project summary:focus-visible { outline: 2px solid var(--tray-focus); outline-offset: -2px; }
+.tray-project summary strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 12px; }
+.tray-project summary > span { color: var(--tray-secondary); font-size: 11px; }
+.tray-project summary svg { flex-shrink: 0; color: var(--tray-secondary); }
+.tray-project[open] .tray-project-chevron { transform: rotate(90deg); }
+.tray-project-commands { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 2px 6px 6px; padding: 0; list-style: none; }
+.tray-project-commands > li { min-width: 0; }
+.tray-project-launch { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 100%; padding: 6px; text-align: left; border-radius: 5px; background: var(--tray-hover); }
+.tray-project-command-line { display: flex; align-items: center; gap: 3px; min-width: 0; }
+.tray-project-command-line code { flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tray-project-tags { display: flex; gap: 3px; min-width: 0; overflow: hidden; }
+.tray-project-tags > span { flex-shrink: 0; max-width: 100%; padding: 0 4px; border-radius: 3px; color: var(--tray-secondary); background: var(--tray-segment); font-size: 10px; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tray-project-launch-state { display: flex; align-items: center; flex-shrink: 0; color: var(--tray-secondary); font-size: 10px; }
+.tray-project-launch:disabled { cursor: default; }
+.tray-project-launch:disabled:hover { background: var(--tray-hover); }
+.tray-project-launch:not(:disabled):hover { background: var(--tray-pressed); }
+.tray-project-no-commands { margin: 4px 8px 6px 25px; color: var(--tray-secondary); font-size: 11px; }
+.tray-project-commands .tray-panel-error { margin: 2px 0; padding: 3px; font-size: 11px; }
+
+.tray-project-running-dot { display: inline-block; width: 5px; height: 5px; flex-shrink: 0; border-radius: 50%; background: var(--tray-green); }

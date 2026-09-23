@@ -142,6 +142,18 @@ export function persistProjectPreferences(preferences) {
   projectData.update((data) => ({ ...data, preferences }));
 }
 
+let productivityStarted = false;
+export function startProductivitySync() {
+  if (productivityStarted) return;
+  productivityStarted = true;
+  productivityData.start();
+  if (native) {
+    listen("productivity-changed", () => productivityData.refresh()).catch(error);
+    setInterval(() => productivityData.refresh(), 3000);
+    window.addEventListener("focus", () => productivityData.refresh());
+  }
+}
+
 let started = false;
 export function startDataSync() {
   if (started) return;
@@ -188,16 +200,12 @@ export function startDataSync() {
     next.preferences = stored("nodejs-project-preferences", {});
     if (!equalData(data, next)) projectData.update(next);
   });
-  productivityData.start();
+  startProductivitySync();
   projectData.start();
   if (native) {
-    listen("productivity-changed", () => productivityData.refresh()).catch(
-      error,
-    );
     listen("projects-changed", () => projectData.refresh()).catch(error);
     // Covers missed startup events and retries temporary database/IPC failures.
     setInterval(() => {
-      productivityData.refresh();
       projectData.refresh();
     }, 3000);
   }

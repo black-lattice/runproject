@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
-import { invoke, isTauri } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
-import { HashRouter as Router, useNavigate } from 'react-router-dom';
+import { isTauri } from '@tauri-apps/api/core';
+import { HashRouter as Router } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster';
 import TabBar from './components/TabBar';
 import TitleBar from './components/TitleBar';
@@ -10,51 +9,8 @@ import { useAppStore } from './store/useAppStore';
 import ReminderBridge from './components/ReminderBridge';
 import { startDataSync } from './store/dataSync';
 import { startScriptRunSync } from './store/useScriptRunStore';
-import { PAGE_CONFIGS } from './config/routes';
-
-const TRAY_SYNC_DELAY = 800;
-
-function TrayEventBridge() {
-	const navigate = useNavigate();
-	const addTab = useAppStore(state => state.addTab);
-
-	useEffect(() => {
-		if (!isTauri()) return;
-
-		let unlisten = null;
-		let cancelled = false;
-
-		const setupListener = async () => {
-			const dispose = await listen('tray-open-page', event => {
-				const page = event?.payload?.page;
-				const config = PAGE_CONFIGS[page];
-				if (!config) return;
-
-				addTab(page);
-				navigate(config.path);
-			});
-
-			if (cancelled) {
-				dispose();
-				return;
-			}
-			unlisten = dispose;
-		};
-
-		setupListener();
-
-		return () => {
-			cancelled = true;
-			if (unlisten) unlisten();
-		};
-	}, [addTab, navigate]);
-
-	return null;
-}
 
 function App() {
-	const workspaces = useAppStore(state => state.workspaces);
-
 	useEffect(() => {
 		startDataSync();
 		localStorage.removeItem('agent-storage');
@@ -81,43 +37,8 @@ function App() {
 		}
 	}, []);
 
-	useEffect(() => {
-		if (!isTauri()) return;
-
-		const projects = (workspaces || []).flatMap(workspace =>
-			(workspace.projects || []).map(project => ({
-				name: project.name,
-				path: project.path,
-				nodeVersion: project.nodeVersion || project.node_version || null,
-				packageManager:
-					project.packageManager || project.package_manager || 'npm',
-				commands: project.commands || []
-			}))
-		);
-
-		const syncPayload = JSON.stringify(projects);
-		if (window.__RUNPROJECT_LAST_TRAY_SYNC__ === syncPayload) {
-			return;
-		}
-
-		const timer = window.setTimeout(() => {
-			if (window.__RUNPROJECT_LAST_TRAY_SYNC__ === syncPayload) {
-				return;
-			}
-
-			window.__RUNPROJECT_LAST_TRAY_SYNC__ = syncPayload;
-			invoke('sync_tray_projects', { projects }).catch(error => {
-				window.__RUNPROJECT_LAST_TRAY_SYNC__ = null;
-				console.error('同步菜单栏项目菜单失败:', error);
-			});
-		}, TRAY_SYNC_DELAY);
-
-		return () => window.clearTimeout(timer);
-	}, [workspaces]);
-
 	return (
 		<Router>
-			<TrayEventBridge />
             <ReminderBridge />
 			<div className='app-shell h-screen flex flex-col overflow-hidden text-foreground'>
 				{/* 自定义标题栏（包含 TabBar） */}

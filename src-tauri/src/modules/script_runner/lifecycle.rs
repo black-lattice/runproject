@@ -84,7 +84,9 @@ impl ScriptRunner {
         {
             return Ok(run);
         }
-        self.launch(project, command, command_line, emit)
+        let run = self.launch(project, command, command_line, emit)?;
+        crate::command_usage::record(database, &run);
+        Ok(run)
     }
 
     pub fn restart(&self, database: &Path, id: &str, emit: EventSink) -> Result<ScriptRun, String> {
@@ -126,12 +128,14 @@ impl ScriptRunner {
             record.info.error = None;
         }
         self.publish_run(id);
-        let result = (|| {
+        let result: Result<ScriptRun, String> = (|| {
             let stopped = self.stop(id, false)?;
             if active(&stopped.status) {
                 return Err("旧进程尚未退出，请稍后重试".into());
             }
-            self.launch(prepared.0, prepared.1, prepared.2, emit)
+            let run = self.launch(prepared.0, prepared.1, prepared.2, emit)?;
+            crate::command_usage::record(database, &run);
+            Ok(run)
         })();
         {
             let mut record = entry.lock().unwrap();

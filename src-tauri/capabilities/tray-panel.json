@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "tray-panel",
+  "description": "菜单栏面板事件权限",
+  "windows": [
+    "tray-panel"
+  ],
+  "permissions": [
+    "core:default"
+  ]
+}

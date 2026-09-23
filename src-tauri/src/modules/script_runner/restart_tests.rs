@@ -279,3 +279,37 @@ fn launch_failure_after_stop_is_visible_and_retry_can_recover() {
         Some(recovered.id)
     );
 }
+
+#[test]
+fn usage_counts_only_new_launches_and_persists_across_connections() {
+    let fixture = Fixture::new();
+    let first = fixture.start();
+    assert_eq!(fixture.start().id, first.id);
+    let count = || {
+        let db = storage::open_database_path(&fixture.database).unwrap();
+        db.query_row("SELECT COUNT(*) FROM command_launches", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .unwrap()
+    };
+    assert_eq!(count(), 1);
+    let failure = fixture.runner.start(
+        &fixture.database,
+        fixture.project.to_str().unwrap(),
+        "missing-script",
+        Arc::new(|_, _| {}),
+    );
+    assert!(failure.is_err());
+    assert_eq!(count(), 1);
+    let successor = fixture
+        .runner
+        .restart(&fixture.database, &first.id, Arc::new(|_, _| {}))
+        .unwrap();
+    assert_ne!(successor.id, first.id);
+    assert_eq!(count(), 2);
+    fixture
+        .runner
+        .restart(&fixture.database, &first.id, Arc::new(|_, _| {}))
+        .unwrap();
+    assert_eq!(count(), 2);
+}

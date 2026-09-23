@@ -1,0 +1,10 @@
+.tray-todos .tray-panel-summary { padding: 9px 8px 5px; }
+.tray-todos-list { list-style: none; margin: 0; padding: 0; }
+.tray-todo-row { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 6px 8px; border-radius: 5px; cursor: default; }
+.tray-todo-row:hover { background: var(--tray-hover); }
+.tray-todo-row input { width: 14px; height: 14px; flex-shrink: 0; margin: 0; accent-color: var(--tray-focus); cursor: default; }
+.tray-todo-row input:focus-visible { outline: 2px solid var(--tray-focus); outline-offset: 2px; }
+.tray-todo-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.tray-todo-done > span { text-decoration: line-through; color: var(--tray-secondary); }
+.tray-todo-completed-start { border-top: 0.5px solid var(--tray-separator); margin-top: 6px; padding-top: 6px; }
+.tray-todos-sync { display: block; padding: 2px 8px; color: var(--tray-secondary); font-size: 11px; }

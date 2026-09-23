@@ -7,6 +7,7 @@ use modules::nvm_manager;
 use modules::platform;
 use modules::project_scanner;
 use modules::tray;
+mod command_usage;
 mod data_merge;
 mod mcp;
 mod storage;
@@ -198,7 +199,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(tray::TrayState::default())
         .setup(|app| {
             tray::setup(app)?;
             mcp::start(app.handle());
@@ -228,7 +228,8 @@ pub fn run() {
             storage::load_project_data,
             storage::save_project_data,
             storage::clear_project_data,
-            tray::sync_tray_projects,
+            tray::tray_panel_action,
+            command_usage::load_tray_projects,
             modules::kitty::executor::execute_command_in_kitty,
             modules::kitty::executor::execute_command_with_kitten,
             modules::kitty::process::terminate_command,
