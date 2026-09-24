@@ -69,7 +69,7 @@ function CommandCard({
 						{running && <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-success' role='img' aria-label='运行中' />}
 						<span className='truncate'>{command.name}</span>
 					</h4>
-					<div className={`flex shrink-0 items-center gap-1 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto ${tagEditorOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+					<div className={`flex shrink-0 items-center gap-1 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto ${running || tagEditorOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
 						<Popover
 							open={tagEditorOpen}
 							onOpenChange={open => setTagEditorOpen(open)}>
