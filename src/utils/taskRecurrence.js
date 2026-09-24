@@ -75,7 +75,9 @@ export function nextOccurrenceDate(task, today = localToday()) {
     const interval = task.repeat === "每周" ? 7 : 1;
     next = shifted(
       source,
-      Math.max(1, Math.ceil((current - source) / (interval * DAY))) * interval,
+      Math.max(1, task.repeat === "每天"
+        ? Math.floor((current - source) / DAY) + 1
+        : Math.ceil((current - source) / (interval * DAY))) * interval,
     );
   }
   return next.getUTCFullYear() <= 9999 ? key(next) : "";

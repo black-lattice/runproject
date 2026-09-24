@@ -78,7 +78,11 @@ fn next_date(task: &Value, today: NaiveDate) -> Option<NaiveDate> {
         "每天" | "每周" => {
             let interval: i64 = if task["repeat"] == "每周" { 7 } else { 1 };
             let elapsed = (today - source).num_days().max(0);
-            let count = ((elapsed + interval - 1) / interval).max(1);
+            let count = if task["repeat"] == "每天" {
+                elapsed + 1
+            } else {
+                ((elapsed + interval - 1) / interval).max(1)
+            };
             source.checked_add_days(Days::new((count * interval) as u64))?
         }
         _ => return None,
@@ -305,7 +309,7 @@ mod tests {
     #[test]
     fn daily_weekly_and_monday_skip_missed_dates_but_keep_cadence() {
         for (rule, source, today, expected) in [
-            ("每天", "2026-08-01", "2026-09-13", "2026-09-13"),
+            ("每天", "2026-08-01", "2026-09-13", "2026-09-14"),
             ("每周", "2026-09-01", "2026-09-13", "2026-09-15"),
             ("每周一", "2026-09-07", "2026-09-14", "2026-09-14"),
             ("每周一", "2026-09-14", "2026-09-14", "2026-09-21"),

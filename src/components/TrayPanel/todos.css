@@ -4,7 +4,23 @@
 .tray-todo-row:hover { background: var(--tray-hover); }
 .tray-todo-row input { width: 14px; height: 14px; flex-shrink: 0; margin: 0; accent-color: var(--tray-focus); cursor: default; }
 .tray-todo-row input:focus-visible { outline: 2px solid var(--tray-focus); outline-offset: 2px; }
-.tray-todo-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.tray-todo-done > span { text-decoration: line-through; color: var(--tray-secondary); }
+.tray-todo-label > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.tray-todo-done .tray-todo-label > span { text-decoration: line-through; color: var(--tray-secondary); }
 .tray-todo-completed-start { border-top: 0.5px solid var(--tray-separator); margin-top: 6px; padding-top: 6px; }
 .tray-todos-sync { display: block; padding: 2px 8px; color: var(--tray-secondary); font-size: 11px; }
+
+.tray-todo-composer { margin: 0 8px 6px; }
+.tray-todo-composer-line { display: flex; align-items: center; gap: 8px; min-height: 34px; color: var(--tray-secondary); }
+.tray-todo-composer-line > svg { flex-shrink: 0; }
+.tray-todo-composer-line input { flex: 1; min-width: 0; width: 100%; padding: 6px 0; border: 0; border-radius: 0; outline: none; box-shadow: none; background: transparent; color: var(--tray-text); font: inherit; font-size: 12px; }
+.tray-todo-composer-line input::placeholder { color: var(--tray-secondary); }
+.tray-todo-composer-line:focus-within > svg { color: var(--tray-focus); }
+.tray-todo-composer-line input:disabled { opacity: 0.5; }
+.tray-todo-composer .tray-panel-error { margin: 0; padding: 2px 0 4px 22px; }
+
+.tray-todo-label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; cursor: default; }
+.tray-todo-delete { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--tray-secondary); cursor: default; opacity: 0; pointer-events: none; }
+.tray-todo-row:hover .tray-todo-delete, .tray-todo-delete:focus-visible { opacity: 0.6; pointer-events: auto; }
+.tray-todo-delete:hover:not(:disabled) { color: #ff3b30; opacity: 1; }
+.tray-todo-delete:focus-visible { outline: 2px solid var(--tray-focus); outline-offset: 2px; }
+.tray-todo-row:hover .tray-todo-delete:disabled { opacity: 0.3; }

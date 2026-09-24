@@ -123,7 +123,7 @@ test("duplicate generated ID is preserved instead of overwriting a concurrently 
 test("daily and weekly skip missed occurrences but preserve weekly cadence", () => {
   assert.equal(
     nextOccurrenceDate({ ...task, date: "2026-08-01" }, today),
-    today,
+    "2026-09-14",
   );
   assert.equal(
     nextOccurrenceDate({ ...task, date: "2026-09-01", repeat: "每周" }, today),

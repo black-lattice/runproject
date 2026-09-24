@@ -13,9 +13,17 @@ export function trayTodos(tasks, now = Date.now()) {
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
+  const today = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+  // Older versions could create a same-day successor when completing an overdue task.
+  const deferred = new Set(tasks.filter(task => isFinished(task)
+    && completedTime(task) >= start.getTime() && completedTime(task) < end.getTime())
+    .map(task => task.recurrenceNextId).filter(Boolean));
   return tasks.filter(task => {
     if (task.deleted || task.status === 'abandoned') return false;
-    if (!isFinished(task)) return true;
+    if (!isFinished(task)) {
+      if (!task.repeat) return true;
+      return !(task.date > today || deferred.has(task.id));
+    }
     const at = completedTime(task);
     return at > 0 && at >= start.getTime() && at < end.getTime();
   }).sort((a, b) => Number(Boolean(isFinished(a))) - Number(Boolean(isFinished(b)))

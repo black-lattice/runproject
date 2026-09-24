@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { applyTaskRecurrence } from '../src/utils/taskRecurrence.js';
 import { trayTodos, toggleTrayTodo } from '../src/utils/trayTodos.js';
 
 test('checking places the newly completed item after pending and before completed', () => {
@@ -50,4 +51,29 @@ test('main-page completion activity supplies the date for older task records', (
   const tasks = [{ id: 'main', done: true, activity: [{ message: '状态改为已完成', at: today }] },
     { id: 'edited', done: true, activity: [{ message: '修改标题', at: today }] }];
   assert.deepEqual(trayTodos(tasks, today).map(task => task.id), ['main']);
+});
+
+test('recurring successors wait until their day; legacy same-day successors wait overnight', () => {
+  const now = new Date(2026, 8, 23, 12).getTime();
+  const tomorrow = new Date(2026, 8, 24).getTime();
+  const tasks = [
+    { id: 'done', done: true, completedAt: now, recurrenceNextId: 'legacy' },
+    { id: 'legacy', repeat: '每天', date: '2026-09-23' },
+    { id: 'next', repeat: '每天', date: '2026-09-24' },
+    { id: 'later', repeat: '每天', date: '2026-09-28' },
+    { id: 'ordinary', date: '2026-09-28' },
+  ];
+  assert.deepEqual(trayTodos(tasks, now).map(task => task.id), ['ordinary', 'done']);
+  assert.deepEqual(trayTodos(tasks, tomorrow).map(task => task.id), ['legacy', 'next', 'ordinary']);
+});
+
+
+test('completing an overdue daily task removes it from pending until tomorrow', () => {
+  const now = new Date(2026, 8, 23, 12).getTime();
+  const before = [{ id: 'daily', repeat: '每天', date: '2026-09-14', done: false }];
+  const saved = applyTaskRecurrence(before, toggleTrayTodo(before, 'daily', now),
+    { today: '2026-09-23', now });
+  assert.equal(saved[0].date, '2026-09-24');
+  assert.deepEqual(trayTodos(saved, now).map(task => task.id), ['daily']);
+  assert.deepEqual(trayTodos(saved, new Date(2026, 8, 24).getTime()).map(task => task.id), [saved[0].id]);
 });
