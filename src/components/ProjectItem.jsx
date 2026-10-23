@@ -68,7 +68,7 @@ function ProjectItem({
 					<Box className='w-4 h-4' />
 				</div>
 
-				<div className='flex-1 min-w-0 flex flex-col'>
+				<div className='project-list-item-content flex-1 min-w-0 flex flex-col'>
 					<span
 						title={project.name}
 						className={cn(
@@ -107,49 +107,51 @@ function ProjectItem({
 					)}
 				</div>
 
-				<OpenProjectFolderButton project={project} compact />
+				<div className='project-list-item-actions' data-no-select='true'>
+					<OpenProjectFolderButton project={project} compact />
 
-				<Popover
-					open={tagEditorOpen}
-					onOpenChange={open => setTagEditorOpen(open)}>
-					<PopoverTrigger>
-						<Button
-							variant='ghost'
-							size='icon'
-							className='h-6 w-6 shrink-0 text-muted-foreground hover:text-primary'
-							data-no-select='true'
-							aria-label={`编辑项目 ${project.name} 的标签`}
-							title='编辑标签'>
-							<Tag className='w-3 h-3' />
-						</Button>
-					</PopoverTrigger>
-					<PopoverContent>
-						<div className='space-y-3'>
-							<p className='text-sm text-foreground'>项目标签（逗号分隔）</p>
-							<Input
-								value={tagDraft}
-								onChange={event => setTagDraft(event.target.value)}
-								placeholder='frontend, backend'
-								className='h-8 text-xs'
-							/>
-							<div className='flex items-center gap-2 justify-end'>
-								<Button
-									variant='outline'
-									size='sm'
-									className='h-8 px-3'
-									onClick={event => {
-										event.stopPropagation();
-										setTagEditorOpen(false);
-									}}>
-									取消
-								</Button>
-								<Button size='sm' className='h-8 px-3' onClick={handleSaveTags}>
-									保存
-								</Button>
+					<Popover
+						open={tagEditorOpen}
+						onOpenChange={open => setTagEditorOpen(open)}>
+						<PopoverTrigger>
+							<Button
+								variant='ghost'
+								size='icon'
+								className='h-6 w-6 shrink-0 text-muted-foreground hover:text-primary'
+								data-no-select='true'
+								aria-label={`编辑项目 ${project.name} 的标签`}
+								title='编辑标签'>
+								<Tag className='w-3 h-3' />
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent>
+							<div className='space-y-3'>
+								<p className='text-sm text-foreground'>项目标签（逗号分隔）</p>
+								<Input
+									value={tagDraft}
+									onChange={event => setTagDraft(event.target.value)}
+									placeholder='frontend, backend'
+									className='h-8 text-xs'
+								/>
+								<div className='flex items-center gap-2 justify-end'>
+									<Button
+										variant='outline'
+										size='sm'
+										className='h-8 px-3'
+										onClick={event => {
+											event.stopPropagation();
+											setTagEditorOpen(false);
+										}}>
+										取消
+									</Button>
+									<Button size='sm' className='h-8 px-3' onClick={handleSaveTags}>
+										保存
+									</Button>
+								</div>
 							</div>
-						</div>
-					</PopoverContent>
-				</Popover>
+						</PopoverContent>
+					</Popover>
+				</div>
 
 				{/* 选中状态打钩，或者其他指示 */}
 				{/* {isSelected && <Check className="w-4 h-4 text-primary opacity-50" />} */}

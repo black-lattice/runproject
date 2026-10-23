@@ -202,8 +202,9 @@ button:disabled,
 }
 
 .project-workspace-header {
+  position: relative;
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 2px;
   min-height: 32px;
@@ -246,15 +247,37 @@ button:disabled,
 }
 
 .project-workspace-actions {
+  position: absolute;
+  top: 50%;
+  right: 2px;
   display: flex;
-  flex: 0 0 auto;
   align-items: center;
   gap: 0;
+  transform: translateY(-50%);
+}
+
+.project-workspace-header:hover .project-workspace-name,
+.project-workspace-header:focus-within .project-workspace-name {
+  padding-right: 80px;
+}
+
+.project-list-item-actions {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.project-list-item:hover .project-list-item-content > :not(.project-list-item-tags),
+.project-list-item:focus-within .project-list-item-content > :not(.project-list-item-tags) {
+  padding-right: 66px;
 }
 
 .project-sidebar-header .project-sidebar-icon-button,
 .project-workspace-actions,
-.project-sidebar .project-list-item [data-no-select="true"] {
+.project-list-item-actions {
   opacity: 0;
   transition: opacity 160ms ease;
 }
@@ -263,8 +286,8 @@ button:disabled,
 .project-sidebar-header:focus-within .project-sidebar-icon-button,
 .project-workspace-header:hover .project-workspace-actions,
 .project-workspace-header:focus-within .project-workspace-actions,
-.project-sidebar .project-list-item:hover [data-no-select="true"],
-.project-sidebar .project-list-item:focus-within [data-no-select="true"] {
+.project-list-item:hover .project-list-item-actions,
+.project-list-item:focus-within .project-list-item-actions {
   opacity: 1;
 }
 
