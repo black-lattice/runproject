@@ -12,6 +12,7 @@ const IGNORED_DIRECTORIES: &[&str] = &[
     "dist",
     "node_modules",
     "target",
+    "vendor",
 ];
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -268,10 +269,12 @@ mod tests {
             unique
         ));
         let nested = root.join("apps/web");
-        let ignored = root.join("node_modules/ignored");
-
         fs::create_dir_all(&nested).unwrap();
-        fs::create_dir_all(&ignored).unwrap();
+        for directory in ["node_modules", "vendor", "apps/web/vendor"] {
+            let ignored = root.join(directory).join("ignored");
+            fs::create_dir_all(&ignored).unwrap();
+            fs::write(ignored.join("package.json"), r#"{"name":"ignored"}"#).unwrap();
+        }
         fs::write(
             root.join("package.json"),
             r#"{"name":"root","packageManager":"pnpm@10.0.0"}"#,
@@ -279,7 +282,6 @@ mod tests {
         .unwrap();
         fs::write(root.join(".nvmrc"), "22\n").unwrap();
         fs::write(nested.join("package.json"), r#"{"name":"web"}"#).unwrap();
-        fs::write(ignored.join("package.json"), r#"{"name":"ignored"}"#).unwrap();
 
         let projects = scan_workspace(root.to_str().unwrap()).unwrap();
         let names = projects

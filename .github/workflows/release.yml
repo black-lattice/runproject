@@ -92,19 +92,30 @@ jobs:
       - name: 安装前端依赖
         run: pnpm install --frozen-lockfile
 
-      - name: 构建并发布安装包
-        uses: tauri-apps/tauri-action@v1
+      - name: 配置 macOS 签名凭据
+        if: runner.os == 'macOS'
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Without a Developer ID certificate Tauri uses the ad-hoc identity
-          # configured in tauri.conf.json. When these secrets are configured,
-          # Tauri signs and notarizes the macOS bundles for distribution.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # Tauri treats empty credential variables as configured credentials.
+          # Export only non-empty secrets so ad-hoc signing remains available.
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID KEYCHAIN_PASSWORD; do
+            if [[ -n "${!name}" ]]; then
+              delimiter="SIGNING_$(openssl rand -hex 16)"
+              printf '%s<<%s\n%s\n%s\n' "$name" "$delimiter" "${!name}" "$delimiter" >> "$GITHUB_ENV"
+            fi
+          done
+
+      - name: 构建并发布安装包
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: RunProject ${{ github.ref_name }}

@@ -70,6 +70,7 @@ function ProjectItem({
 
 				<div className='flex-1 min-w-0 flex flex-col'>
 					<span
+						title={project.name}
 						className={cn(
 							'font-medium text-sm truncate leading-tight',
 							isSelected ? 'text-primary' : 'text-foreground'
@@ -78,7 +79,7 @@ function ProjectItem({
 					</span>
 
 					{/* 辅助信息行 */}
-					<div className='flex items-center gap-2 mt-0.5 h-4'>
+					<div className='flex items-center gap-2 mt-0.5 h-4 overflow-hidden whitespace-nowrap'>
 						{project.packageManager && (
 							<div className='flex items-center gap-1 text-xs opacity-70'>
 								<Package className='w-3 h-3' />
@@ -93,7 +94,7 @@ function ProjectItem({
 						)}
 					</div>
 					{tags.length > 0 && (
-						<div className='mt-1 flex flex-wrap gap-1'>
+						<div className='project-list-item-tags mt-1 flex flex-wrap gap-1'>
 							{tags.map(tag => (
 								<Badge
 									key={tag}
@@ -115,8 +116,9 @@ function ProjectItem({
 						<Button
 							variant='ghost'
 							size='icon'
-							className='h-6 w-6 text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity'
+							className='h-6 w-6 shrink-0 text-muted-foreground hover:text-primary opacity-70 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity'
 							data-no-select='true'
+							aria-label={`编辑项目 ${project.name} 的标签`}
 							title='编辑标签'>
 							<Tag className='w-3 h-3' />
 						</Button>

@@ -173,8 +173,27 @@ button:disabled,
 }
 
 .project-sidebar-scroll {
+  min-width: 0;
   min-height: 0;
   padding: 8px 12px 14px 8px;
+}
+
+/* Radix 的 table 内容容器会被长名称撑宽，让右侧操作按钮溢出。 */
+.project-sidebar-scroll [data-radix-scroll-area-viewport] > div {
+  display: block !important;
+}
+
+.project-sidebar-workspaces,
+.project-workspace,
+.project-workspace-projects,
+.project-tag-group {
+  min-width: 0;
+}
+
+.project-sidebar-workspaces,
+.project-workspace-projects,
+.project-tag-group {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .project-sidebar-workspaces {
@@ -255,6 +274,12 @@ button:disabled,
   margin: 2px 2px 2px 28px;
 }
 
+.project-workspace-tags > *,
+.project-list-item-tags > * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .project-workspace-projects {
   display: grid;
   gap: 6px;
@@ -284,6 +309,17 @@ button:disabled,
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: 0.02em;
+}
+
+.project-tag-heading > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-tag-heading > span:last-child {
+  flex-shrink: 0;
 }
 
 .task-topbar {
