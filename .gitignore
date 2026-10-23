@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 .vscode/
 .pnpm-store/
+
+# Repository-local agent skills
+!/.agents/
+/.agents/*
+!/.agents/skills/

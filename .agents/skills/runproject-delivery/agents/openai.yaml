@@ -1,0 +1,4 @@
+interface:
+  display_name: "RunProject 修复与发布"
+  short_description: "完成 RunProject 问题修复、验证、发布、本机安装及工作区刷新"
+  default_prompt: "使用 $runproject-delivery 按本次需求修复 RunProject，并完成我已授权的验证、提交、发布或本机更新步骤。"

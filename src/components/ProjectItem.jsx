@@ -116,7 +116,7 @@ function ProjectItem({
 						<Button
 							variant='ghost'
 							size='icon'
-							className='h-6 w-6 shrink-0 text-muted-foreground hover:text-primary opacity-70 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity'
+							className='h-6 w-6 shrink-0 text-muted-foreground hover:text-primary'
 							data-no-select='true'
 							aria-label={`编辑项目 ${project.name} 的标签`}
 							title='编辑标签'>

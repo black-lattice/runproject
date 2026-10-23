@@ -250,12 +250,21 @@ button:disabled,
   flex: 0 0 auto;
   align-items: center;
   gap: 0;
-  opacity: 0.68;
+}
+
+.project-sidebar-header .project-sidebar-icon-button,
+.project-workspace-actions,
+.project-sidebar .project-list-item [data-no-select="true"] {
+  opacity: 0;
   transition: opacity 160ms ease;
 }
 
+.project-sidebar-header:hover .project-sidebar-icon-button,
+.project-sidebar-header:focus-within .project-sidebar-icon-button,
 .project-workspace-header:hover .project-workspace-actions,
-.project-workspace-header:focus-within .project-workspace-actions {
+.project-workspace-header:focus-within .project-workspace-actions,
+.project-sidebar .project-list-item:hover [data-no-select="true"],
+.project-sidebar .project-list-item:focus-within [data-no-select="true"] {
   opacity: 1;
 }
 
