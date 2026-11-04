@@ -7,6 +7,7 @@ import {
 	Tag
 } from 'lucide-react';
 import ProjectItem from './ProjectItem';
+import WorkspaceScanMode from './WorkspaceScanMode';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -285,6 +286,7 @@ function Sidebar({
 												? 'max-h-0 opacity-0 overflow-hidden'
 												: 'max-h-none opacity-100 overflow-visible'
 										}`}>
+										<WorkspaceScanMode workspace={workspace} disabled={isWorkspaceRefreshing} onChange={mode=>onRefreshWorkspace(index, mode)} />
 										{(workspace.projects || []).length === 0 ? (
 											<div className='py-2 px-3 text-xs text-muted-foreground italic'>
 												空文件夹

@@ -6,6 +6,7 @@ const ProjectPage = lazy(() => import('../pages/project/index'));
 const SettingsPage = lazy(() => import('../pages/settings/index'));
 const TerminalPage = lazy(() => import('../pages/terminal/index'));
 const WelcomePage = lazy(() => import('../pages/welcome/index'));
+const AgentPage = lazy(() => import('../pages/agent/index'));
 
 function PageLoading() {
 	return (
@@ -27,6 +28,7 @@ export const AppRouter = () => {
 				/>
 				<Route path={PAGE_CONFIGS.welcome.path} element={<WelcomePage />} />
 				<Route path={PAGE_CONFIGS.projects.path} element={<ProjectPage />} />
+				<Route path={PAGE_CONFIGS.manager.path} element={<AgentPage />} />
 				<Route path={PAGE_CONFIGS.settings.path} element={<SettingsPage />} />
 				<Route path={PAGE_CONFIGS.terminal.path} element={<TerminalPage />} />
 				<Route

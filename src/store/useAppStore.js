@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@tauri-apps/api/core';
 import { useScriptRunStore } from '@/store/useScriptRunStore';
 import { upsertTerminalPageSession } from '@/utils/terminalPageState';
+import { normalizeProject } from '@/utils/projectModel';
 
 const DEFAULT_TABS = [];
 const LEGACY_TABS = new Set(['massage-web', 'codex', 'agent', 'formatter']);
@@ -60,16 +61,7 @@ export const useAppStore = create(
 			},
 
 			// 数据规范化
-			normalizeProject: project => {
-				if (!project) return project;
-				return {
-					...project,
-					packageManager:
-						project.packageManager || project.package_manager || 'npm',
-					nodeVersion: project.nodeVersion || project.node_version || null,
-					commands: project.commands || []
-				};
-			},
+			normalizeProject,
 
 			normalizeWorkspace: workspace => {
 				if (!workspace) return workspace;

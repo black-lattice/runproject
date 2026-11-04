@@ -58,6 +58,14 @@ impl ScriptRunner {
         );
         let version = data["preferences"][&preference_key]["nodeVersion"]
             .as_str()
+            .or_else(|| {
+                data["preferences"][format!(
+                    "{}_{}",
+                    package["name"].as_str().unwrap_or(""),
+                    project["path"].as_str().unwrap_or("")
+                )]["nodeVersion"]
+                    .as_str()
+            })
             .or(project["nodeVersion"].as_str());
         let command_line = build_command(&project, script, version)?;
         project["path"] = json!(canonical);

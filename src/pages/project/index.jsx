@@ -1,3 +1,4 @@
+import { projectPreference } from "@/utils/projectModel";
 import { useEffect, useCallback, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -217,7 +218,7 @@ function ProjectPage() {
 		}
 	};
 
-	const refreshWorkspace = async index => {
+	const refreshWorkspace = async (index, scanMode) => {
 		const workspace = useAppStore.getState().workspaces[index];
 		if (!workspace?.path) {
 			toast({
@@ -234,7 +235,8 @@ function ProjectPage() {
 		try {
 			const currentSelectedProject = useAppStore.getState().selectedProject;
 			const refreshedWorkspace = await invoke('add_workspace', {
-				path: workspace.path
+				path: workspace.path,
+				scanMode: scanMode || workspace.scanMode || 'folders'
 			});
 			const normalizedWorkspace = normalizeWorkspace(refreshedWorkspace);
 			const currentWorkspaces = useAppStore.getState().workspaces;
@@ -256,6 +258,8 @@ function ProjectPage() {
 				);
 				if (refreshedSelectedProject) {
 					setSelectedProject(refreshedSelectedProject);
+				} else if ((workspace.projects || []).some(p=>p.path===currentSelectedProject.path)) {
+					setSelectedProject(null);
 				}
 			}
 
@@ -402,7 +406,7 @@ function ProjectPage() {
 			localStorage.getItem('nodejs-project-preferences') || '{}'
 		);
 		const projectKey = `${project.name}_${project.path}`;
-		const userSelected = preferences[projectKey]?.nodeVersion || null;
+		const userSelected = projectPreference(project, preferences).nodeVersion || null;
 
 		if (userSelected) {
 			console.log(`📋 [${project.name}] 使用用户选择Node版本: ${userSelected}`);

@@ -204,7 +204,7 @@ function ProjectInfoCard({
             onOpenWorktreeDialog={handleOpenWorktreeDialog}
           />
 
-          <NodeVersionSelector
+          {(!project.projectType || project.projectType === 'node') && <><NodeVersionSelector
             project={project}
             selectedNodeVersion={selectedNodeVersion}
             installedVersions={installedVersions}
@@ -214,8 +214,10 @@ function ProjectInfoCard({
             isNodeInstalled={isNodeInstalled}
           />
 
-          <PackageManagerBadge project={project} />
+          <PackageManagerBadge project={project} /></>}
         </div>
+        {project.packageName && project.packageName !== project.name && <p className="mt-3 text-xs text-muted-foreground">包名：{project.packageName}</p>}
+        {project.metadataError && <p role="alert" className="mt-3 text-xs text-destructive">{project.metadataError}</p>}
 
         {(project.packageManager === "yarn" ||
           project.packageManager === "pnpm") && (

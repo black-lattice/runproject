@@ -1,3 +1,4 @@
+import { projectPreference } from "@/utils/projectModel";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { persistProjectPreferences } from "@/store/dataSync";
 import { invoke } from "@tauri-apps/api/core";
@@ -161,7 +162,7 @@ function ProjectDetails({
         localStorage.getItem("nodejs-project-preferences") || "{}",
       );
       const projectKey = `${activeProject.name}_${activeProject.path}`;
-      const userPref = preferences[projectKey]?.editor;
+      const userPref = projectPreference(activeProject, preferences).editor;
 
       if (userPref && editors.find((e) => e.id === userPref && e.installed)) {
         setSelectedEditor(userPref);
@@ -179,7 +180,7 @@ function ProjectDetails({
     );
     const projectKey = `${activeProject.name}_${activeProject.path}`;
     return (
-      preferences[projectKey]?.nodeVersion ||
+      projectPreference(activeProject, preferences).nodeVersion ||
       activeProject.nodeVersion ||
       "system"
     );
@@ -394,6 +395,7 @@ function ProjectDetails({
     );
     const projectKey = `${project.name}_${project.path}`;
     preferences[projectKey] = {
+      ...projectPreference(project, preferences),
       nodeVersion: version,
       timestamp: new Date().toISOString(),
     };
@@ -410,7 +412,7 @@ function ProjectDetails({
       localStorage.getItem("nodejs-project-preferences") || "{}",
     );
     const projectKey = `${project.name}_${project.path}`;
-    const existingPref = preferences[projectKey] || {};
+    const existingPref = projectPreference(project, preferences);
     preferences[projectKey] = {
       ...existingPref,
       editor: editorId,

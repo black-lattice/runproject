@@ -112,6 +112,18 @@ jobs:
             fi
           done
 
+      - name: 读取版本发布说明
+        id: release_notes
+        shell: bash
+        run: |
+          notes_file="docs/releases/${GITHUB_REF_NAME}.md"
+          if [[ -f "$notes_file" ]]; then
+            delimiter="RELEASE_NOTES_${GITHUB_RUN_ID}"
+            printf 'body<<%s\n' "$delimiter" >> "$GITHUB_OUTPUT"
+            cat "$notes_file" >> "$GITHUB_OUTPUT"
+            printf '\n%s\n' "$delimiter" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 构建并发布安装包
         uses: tauri-apps/tauri-action@v1
         env:
@@ -120,6 +132,8 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: RunProject ${{ github.ref_name }}
           releaseBody: |
+            ${{ steps.release_notes.outputs.body }}
+
             请在 Assets 中下载适合当前系统的安装包：
 
             - macOS Apple Silicon（M1 及以上）：`aarch64` DMG

@@ -100,7 +100,7 @@ function CommandList({
 			{filteredCommands.length === 0 && (
 				<div className='rounded-lg border border-dashed border-border p-6 text-center space-y-2'>
 					<p className='text-sm text-muted-foreground'>
-						{commands.length ? '没有匹配的命令，试试更短的关键词或标签。' : '当前项目没有可运行的命令。'}
+						{commands.length ? '没有匹配的命令，试试更短的关键词或标签。' : project.projectType && project.projectType !== 'node' ? '该项目没有 Node 脚本，可在终端中操作，或交给总管处理。' : '当前项目没有可运行的命令。'}
 					</p>
 					{query && <Button type='button' variant='outline' size='sm' onClick={clearSearch}>清空搜索</Button>}
 				</div>

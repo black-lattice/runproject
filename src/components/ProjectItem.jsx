@@ -10,6 +10,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import OpenProjectFolderButton from '@/components/OpenProjectFolderButton';
+import { PROJECT_TYPE_LABELS } from '@/utils/projectModel';
 
 function ProjectItem({
 	project,
@@ -70,7 +71,7 @@ function ProjectItem({
 
 				<div className='project-list-item-content flex-1 min-w-0 flex flex-col'>
 					<span
-						title={project.name}
+						title={project.packageName && project.packageName !== project.name ? `${project.name} · 包名 ${project.packageName}` : project.name}
 						className={cn(
 							'font-medium text-sm truncate leading-tight',
 							isSelected ? 'text-primary' : 'text-foreground'
@@ -86,6 +87,7 @@ function ProjectItem({
 								<span>{project.packageManager}</span>
 							</div>
 						)}
+						{!project.packageManager && <span className='text-xs opacity-70'>{PROJECT_TYPE_LABELS[project.projectType] || '项目目录'}</span>}
 						{project.nodeVersion && (
 							<div className='flex items-center gap-1 text-xs opacity-70'>
 								<div className='w-1.5 h-1.5 rounded-full bg-success/50' />

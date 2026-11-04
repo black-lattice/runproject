@@ -12,6 +12,7 @@ mod data_merge;
 mod mcp;
 mod storage;
 mod task_lifecycle;
+mod agent;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -19,7 +20,7 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn add_workspace(path: String) -> Result<project_scanner::Workspace, String> {
+async fn add_workspace(path: String, scan_mode: Option<String>) -> Result<project_scanner::Workspace, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let workspace_name = Path::new(&path)
             .file_name()
@@ -27,12 +28,14 @@ async fn add_workspace(path: String) -> Result<project_scanner::Workspace, Strin
             .unwrap_or("workspace")
             .to_string();
 
-        let projects = project_scanner::scan_workspace(&path)?;
+        let scan_mode = scan_mode.unwrap_or_else(||"folders".into());
+        let projects = project_scanner::scan_workspace_with_mode(&path,&scan_mode)?;
 
         Ok(project_scanner::Workspace {
             path,
             name: workspace_name,
             projects,
+            scan_mode,
         })
     })
     .await
@@ -199,6 +202,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(agent::AgentService::default())
         .setup(|app| {
             tray::setup(app)?;
             mcp::start(app.handle());
@@ -207,6 +211,16 @@ pub fn run() {
         .on_window_event(tray::handle_window_event)
         .invoke_handler(tauri::generate_handler![
             greet,
+            agent::agent_snapshot,
+            agent::agent_connect,
+            agent::agent_send,
+            agent::agent_stop,
+            agent::agent_approve,
+            agent::agent_add_project,
+            agent::agent_models,
+            agent::agent_save_manager,
+            agent::agent_api_models,
+            agent::agent_test_api,
             modules::script_runner::start_project_script,
             modules::script_runner::stop_project_script,
             modules::script_runner::restart_project_script,
@@ -248,8 +262,10 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_app, event| {
+        .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
+                use tauri::Manager;
+                app.state::<agent::AgentService>().shutdown();
                 modules::script_runner::RUNNER.shutdown();
             }
         });

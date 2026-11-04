@@ -23,6 +23,9 @@ pub struct Project {
     pub node_version: Option<String>,
     pub package_manager: String,
     pub commands: Vec<ProjectCommand>,
+    pub project_type: String,
+    pub package_name: Option<String>,
+    pub metadata_error: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,6 +41,7 @@ pub struct Workspace {
     pub path: String,
     pub name: String,
     pub projects: Vec<Project>,
+    pub scan_mode: String,
 }
 
 fn read_project(path: &Path, workspace_root: &Path) -> Result<Project, String> {
@@ -49,35 +53,75 @@ fn read_project(path: &Path, workspace_root: &Path) -> Result<Project, String> {
     }
 
     let package_json_path = path.join("package.json");
-    if !package_json_path.exists() {
-        return Err(format!(
-            "未找到 package.json: {}",
-            package_json_path.display()
-        ));
-    }
-
-    let content = fs::read_to_string(&package_json_path)
-        .map_err(|error| format!("读取 package.json 失败: {}", error))?;
-    let package_json = serde_json::from_str::<serde_json::Value>(&content)
-        .map_err(|error| format!("解析 package.json 失败: {}", error))?;
-
-    let name = package_json
-        .get("name")
-        .and_then(|name| name.as_str())
-        .unwrap_or(
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("unknown"),
-        )
-        .to_string();
+    let is_node = package_json_path.is_file();
+    let mut metadata_error = None;
+    let content = if is_node {
+        match fs::read_to_string(&package_json_path).and_then(|s| {
+            serde_json::from_str::<serde_json::Value>(&s)
+                .map(|_| s)
+                .map_err(std::io::Error::other)
+        }) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                metadata_error = Some(format!("package.json 无法读取或解析：{e}"));
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let package_name = content
+        .as_ref()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+        .and_then(|v| v["name"].as_str().map(str::to_owned));
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("unknown")
+        .to_owned();
 
     Ok(Project {
         name,
         path: path.to_string_lossy().to_string(),
-        node_version: detect_node_version_within(path, workspace_root),
-        package_manager: detect_package_manager_within(path, workspace_root),
-        commands: extract_scripts(&content),
+        node_version: if is_node {
+            detect_node_version_within(path, workspace_root)
+        } else {
+            None
+        },
+        package_manager: if is_node {
+            detect_package_manager_within(path, workspace_root)
+        } else {
+            String::new()
+        },
+        commands: content.as_deref().map(extract_scripts).unwrap_or_default(),
+        project_type: detect_project_type(path).into(),
+        package_name,
+        metadata_error,
     })
+}
+
+fn detect_project_type(path: &Path) -> &'static str {
+    for (marker, kind) in [
+        ("package.json", "node"),
+        ("Package.swift", "swift"),
+        ("Cargo.toml", "rust"),
+        ("go.mod", "go"),
+        ("pyproject.toml", "python"),
+        ("requirements.txt", "python"),
+        ("CMakeLists.txt", "cmake"),
+    ] {
+        if path.join(marker).is_file() {
+            return kind;
+        }
+    }
+    for entry in fs::read_dir(path).into_iter().flatten().flatten() {
+        match entry.path().extension().and_then(|s| s.to_str()) {
+            Some("xcodeproj" | "xcworkspace") => return "swift",
+            Some("sln" | "csproj") => return "dotnet",
+            _ => (),
+        }
+    }
+    "directory"
 }
 
 fn package_manager_in_dir(dir: &Path) -> Option<String> {
@@ -201,7 +245,7 @@ fn collect_projects(
     depth: usize,
     projects: &mut Vec<Project>,
 ) {
-    if current_dir.join("package.json").is_file() {
+    if detect_project_type(current_dir) != "directory" || current_dir.join(".git").exists() {
         match read_project(current_dir, workspace_root) {
             Ok(project) => projects.push(project),
             Err(error) => eprintln!("读取项目失败 {:?}: {}", current_dir, error),
@@ -232,6 +276,13 @@ fn collect_projects(
 }
 
 pub fn scan_workspace(workspace_path: &str) -> Result<Vec<Project>, String> {
+    scan_workspace_with_mode(workspace_path, "folders")
+}
+
+pub fn scan_workspace_with_mode(workspace_path: &str, mode: &str) -> Result<Vec<Project>, String> {
+    if !matches!(mode, "folders" | "recursive") {
+        return Err("未知的扫描方式".into());
+    }
     let workspace_dir = PathBuf::from(workspace_path);
 
     if !workspace_dir.exists() {
@@ -242,8 +293,28 @@ pub fn scan_workspace(workspace_path: &str) -> Result<Vec<Project>, String> {
     }
 
     let mut projects = Vec::new();
-    collect_projects(&workspace_dir, &workspace_dir, 0, &mut projects);
-    projects.sort_by(|left, right| left.path.cmp(&right.path));
+    if mode == "recursive" {
+        collect_projects(&workspace_dir, &workspace_dir, 0, &mut projects);
+    } else if detect_project_type(&workspace_dir) != "directory" {
+        // A user may select a project itself rather than its parent workspace.
+        projects.push(read_project(&workspace_dir, &workspace_dir)?);
+    } else {
+        for entry in fs::read_dir(&workspace_dir).map_err(|e| format!("读取工作区失败：{e}"))?
+        {
+            let entry = entry.map_err(|e| e.to_string())?;
+            if entry.file_type().map_err(|e| e.to_string())?.is_dir()
+                && !should_skip_directory(&entry.path())
+            {
+                projects.push(read_project(&entry.path(), &workspace_dir)?);
+            }
+        }
+    }
+    projects.sort_by(|left, right| {
+        left.path
+            .to_lowercase()
+            .cmp(&right.path.to_lowercase())
+            .then_with(|| left.path.cmp(&right.path))
+    });
     Ok(projects)
 }
 
@@ -253,46 +324,4 @@ pub fn scan_project(project_path: &str) -> Result<Project, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    #[test]
-    fn scans_root_and_nested_projects_while_skipping_dependency_directories() {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "runproject-scanner-{}-{}",
-            std::process::id(),
-            unique
-        ));
-        let nested = root.join("apps/web");
-        fs::create_dir_all(&nested).unwrap();
-        for directory in ["node_modules", "vendor", "apps/web/vendor"] {
-            let ignored = root.join(directory).join("ignored");
-            fs::create_dir_all(&ignored).unwrap();
-            fs::write(ignored.join("package.json"), r#"{"name":"ignored"}"#).unwrap();
-        }
-        fs::write(
-            root.join("package.json"),
-            r#"{"name":"root","packageManager":"pnpm@10.0.0"}"#,
-        )
-        .unwrap();
-        fs::write(root.join(".nvmrc"), "22\n").unwrap();
-        fs::write(nested.join("package.json"), r#"{"name":"web"}"#).unwrap();
-
-        let projects = scan_workspace(root.to_str().unwrap()).unwrap();
-        let names = projects
-            .iter()
-            .map(|project| project.name.as_str())
-            .collect::<Vec<_>>();
-
-        assert_eq!(names, vec!["root", "web"]);
-        assert_eq!(projects[1].package_manager, "pnpm");
-        assert_eq!(projects[1].node_version.as_deref(), Some("22"));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-}
+mod tests;
