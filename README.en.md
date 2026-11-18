@@ -59,7 +59,7 @@ Running project scripts requires the appropriate Node.js environment and package
 
 On the project management page, press `⌘/Ctrl + K` to search projects and commands, or `⌘/Ctrl + Shift + O` to add a workspace.
 
-Workspaces import direct child folders by default, preserving folder names and non-Node projects. Selecting a directory with its own project manifest imports that project itself. Choose “包含嵌套项目” (include nested projects) to discover monorepo packages and examples recursively. Node package names remain available as metadata.
+Workspaces import direct child folders, preserving folder names and non-Node projects. Selecting a directory with its own project manifest imports that project itself. To manage a project deeper in the directory tree, add its directory as a separate workspace. Node package names remain available as metadata.
 
 ## Organize tasks
 

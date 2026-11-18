@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const MAX_SCAN_DEPTH: usize = 6;
 const IGNORED_DIRECTORIES: &[&str] = &[
     ".git",
     ".next",
@@ -41,7 +40,6 @@ pub struct Workspace {
     pub path: String,
     pub name: String,
     pub projects: Vec<Project>,
-    pub scan_mode: String,
 }
 
 fn read_project(path: &Path, workspace_root: &Path) -> Result<Project, String> {
@@ -239,50 +237,7 @@ fn should_skip_directory(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn collect_projects(
-    current_dir: &Path,
-    workspace_root: &Path,
-    depth: usize,
-    projects: &mut Vec<Project>,
-) {
-    if detect_project_type(current_dir) != "directory" || current_dir.join(".git").exists() {
-        match read_project(current_dir, workspace_root) {
-            Ok(project) => projects.push(project),
-            Err(error) => eprintln!("读取项目失败 {:?}: {}", current_dir, error),
-        }
-    }
-
-    if depth >= MAX_SCAN_DEPTH {
-        return;
-    }
-
-    let mut directories = match fs::read_dir(current_dir) {
-        Ok(entries) => entries
-            .filter_map(Result::ok)
-            .filter(|entry| entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false))
-            .map(|entry| entry.path())
-            .filter(|path| !should_skip_directory(path))
-            .collect::<Vec<_>>(),
-        Err(error) => {
-            eprintln!("读取目录失败 {:?}: {}", current_dir, error);
-            return;
-        }
-    };
-
-    directories.sort();
-    for directory in directories {
-        collect_projects(&directory, workspace_root, depth + 1, projects);
-    }
-}
-
 pub fn scan_workspace(workspace_path: &str) -> Result<Vec<Project>, String> {
-    scan_workspace_with_mode(workspace_path, "folders")
-}
-
-pub fn scan_workspace_with_mode(workspace_path: &str, mode: &str) -> Result<Vec<Project>, String> {
-    if !matches!(mode, "folders" | "recursive") {
-        return Err("未知的扫描方式".into());
-    }
     let workspace_dir = PathBuf::from(workspace_path);
 
     if !workspace_dir.exists() {
@@ -293,9 +248,7 @@ pub fn scan_workspace_with_mode(workspace_path: &str, mode: &str) -> Result<Vec<
     }
 
     let mut projects = Vec::new();
-    if mode == "recursive" {
-        collect_projects(&workspace_dir, &workspace_dir, 0, &mut projects);
-    } else if detect_project_type(&workspace_dir) != "directory" {
+    if detect_project_type(&workspace_dir) != "directory" {
         // A user may select a project itself rather than its parent workspace.
         projects.push(read_project(&workspace_dir, &workspace_dir)?);
     } else {

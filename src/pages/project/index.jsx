@@ -1,7 +1,7 @@
 import { projectPreference } from "@/utils/projectModel";
 import { useEffect, useCallback, useState } from 'react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
 import { useAppStore } from '@/store/useAppStore';
 import Sidebar from '@/components/Sidebar';
 import MainContent from '@/components/MainContent';
@@ -218,7 +218,33 @@ function ProjectPage() {
 		}
 	};
 
-	const refreshWorkspace = async (index, scanMode) => {
+	const removeProject = async (workspacePath, project) => {
+		const message = `确定从当前工作区移除“${project.name}”吗？`;
+		try {
+			const confirmed = isTauri()
+				? await confirmDialog(message, { title: '移除项目', okLabel: '移除', cancelLabel: '取消' })
+				: window.confirm(message);
+			if (!confirmed) return;
+		} catch (error) {
+			toast({ title: '无法打开移除确认', description: String(error), variant: 'destructive' });
+			return;
+		}
+
+		const currentWorkspaces = useAppStore.getState().workspaces;
+		const index = currentWorkspaces.findIndex(workspace => workspace.path === workspacePath);
+		const workspace = currentWorkspaces[index];
+		if (!workspace?.projects.some(item => item.path === project.path)) return;
+
+		const newWorkspaces = [...currentWorkspaces];
+		newWorkspaces[index] = {
+			...workspace,
+			excludedProjectPaths: { ...workspace.excludedProjectPaths, [project.path]: true }
+		};
+		saveWorkspaces(newWorkspaces);
+		toast({ title: '已移除项目', description: project.name });
+	};
+
+	const refreshWorkspace = async index => {
 		const workspace = useAppStore.getState().workspaces[index];
 		if (!workspace?.path) {
 			toast({
@@ -233,12 +259,9 @@ function ProjectPage() {
 
 		setWorkspaceRefreshing(workspace.path, true);
 		try {
-			const currentSelectedProject = useAppStore.getState().selectedProject;
-			const refreshedWorkspace = await invoke('add_workspace', {
-				path: workspace.path,
-				scanMode: scanMode || workspace.scanMode || 'folders'
+			const projects = await invoke('scan_workspace_projects', {
+				workspacePath: workspace.path
 			});
-			const normalizedWorkspace = normalizeWorkspace(refreshedWorkspace);
 			const currentWorkspaces = useAppStore.getState().workspaces;
 			const workspaceIndex = currentWorkspaces.findIndex(
 				item => item.path === workspace.path
@@ -249,19 +272,11 @@ function ProjectPage() {
 			}
 
 			const newWorkspaces = [...currentWorkspaces];
-			newWorkspaces[workspaceIndex] = normalizedWorkspace;
+			newWorkspaces[workspaceIndex] = {
+				...currentWorkspaces[workspaceIndex],
+				projects
+			};
 			saveWorkspaces(newWorkspaces);
-
-			if (currentSelectedProject?.path) {
-				const refreshedSelectedProject = normalizedWorkspace.projects?.find(
-					project => project.path === currentSelectedProject.path
-				);
-				if (refreshedSelectedProject) {
-					setSelectedProject(refreshedSelectedProject);
-				} else if ((workspace.projects || []).some(p=>p.path===currentSelectedProject.path)) {
-					setSelectedProject(null);
-				}
-			}
 
 			toast({
 				title: '刷新成功',
@@ -583,6 +598,7 @@ function ProjectPage() {
 					onAddWorkspace={handleAddWorkspace}
 					onRefreshWorkspace={refreshWorkspace}
 					onRemoveWorkspace={removeWorkspace}
+					onRemoveProject={removeProject}
 					onProjectSelect={setSelectedProject}
 					onExecuteCommand={executeProjectCommand}
 					collapsedWorkspaces={collapsedWorkspaces}

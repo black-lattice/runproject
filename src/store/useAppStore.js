@@ -65,9 +65,13 @@ export const useAppStore = create(
 
 			normalizeWorkspace: workspace => {
 				if (!workspace) return workspace;
+				const excludedProjectPaths = workspace.excludedProjectPaths ?? {};
 				return {
 					...workspace,
-					projects: (workspace.projects || []).map(get().normalizeProject)
+					excludedProjectPaths,
+					projects: (workspace.projects || [])
+						.filter(project => excludedProjectPaths[project?.path] !== true)
+						.map(get().normalizeProject)
 				};
 			},
 

@@ -271,13 +271,66 @@ pub(crate) fn read_projects(connection: &Connection) -> Result<Value, String> {
         )
         .optional()
         .map_err(|e| e.to_string())?;
-    let data = raw
+    let mut data = raw
         .map(|raw| serde_json::from_str::<Value>(&raw))
         .transpose()
         .map_err(|e| e.to_string())?;
+    if let Some(data) = data.as_mut() {
+        retain_workspace_project_lists(data);
+    }
     Ok(
         serde_json::json!({"initialized": data.is_some(), "data": data.unwrap_or_else(|| serde_json::json!({"workspaces": [], "workspaceTags": {}, "projectTags": {}, "commandTags": {}, "preferences": {}}))}),
     )
+}
+
+fn retain_workspace_project_lists(data: &mut Value) {
+    if let Some(workspaces) = data.get_mut("workspaces").and_then(Value::as_array_mut) {
+        workspaces.iter_mut().for_each(retain_workspace_projects);
+    }
+}
+
+pub(crate) fn retain_workspace_projects(workspace: &mut Value) {
+    let Some(workspace) = workspace.as_object_mut() else {
+        return;
+    };
+    workspace.remove("scanMode");
+    let Some(root) = workspace
+        .get("path")
+        .and_then(Value::as_str)
+        .map(PathBuf::from)
+    else {
+        return;
+    };
+    let mut canonical_root = None;
+    let mut project_key = |path: &str| {
+        let path = Path::new(path);
+        let relative = path.strip_prefix(&root).ok().or_else(|| {
+            // MCP may return canonical paths for a workspace added via a symlink.
+            let canonical = canonical_root.get_or_insert_with(|| root.canonicalize().ok());
+            path.strip_prefix(canonical.as_deref()?).ok()
+        })?;
+        let empty = Path::new("");
+        // A workspace may point to a project itself.
+        (relative == empty || (relative.file_name().is_some() && relative.parent() == Some(empty)))
+            .then(|| relative.to_path_buf())
+    };
+    let excluded = workspace
+        .entry("excludedProjectPaths")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(_, excluded)| **excluded == true)
+        .filter_map(|(path, _)| project_key(path))
+        .collect::<std::collections::HashSet<_>>();
+    if let Some(projects) = workspace.get_mut("projects").and_then(Value::as_array_mut) {
+        projects.retain(|project| {
+            project["path"]
+                .as_str()
+                .and_then(&mut project_key)
+                .is_some_and(|key| !excluded.contains(&key))
+        });
+    }
 }
 
 pub(crate) fn write_projects(connection: &Connection, data: &Value) -> Result<(), String> {
@@ -300,7 +353,8 @@ pub fn save_project_data(
     let next = if initialize.unwrap_or(false) && current["initialized"] == true {
         current["data"].clone()
     } else {
-        let next = crate::data_merge::merge(&base, &data, &current["data"], "");
+        let mut next = crate::data_merge::merge(&base, &data, &current["data"], "");
+        retain_workspace_project_lists(&mut next);
         write_projects(&tx, &next)?;
         next
     };
@@ -323,6 +377,36 @@ pub fn clear_project_data(app: AppHandle) -> Result<(), String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn reads_legacy_workspaces_without_nested_projects() {
+        let db = open_database_path(Path::new(":memory:")).unwrap();
+        let direct = "/workspace/callbridge-service";
+        let nested = "/workspace/callbridge-app/artifacts/ios-h5-dev/releases/2";
+        let data = json!({
+            "workspaces": [
+                {"path": "/workspace", "projects": [{"path": direct}, {"path": nested}]},
+                {"path": direct, "scanMode": "recursive", "projects": [
+                    {"path": direct}, {"path": "/workspace/callbridge-service/web/examples/demo"}
+                ]}
+            ],
+            "projectTags": { (direct): ["服务"], (nested): ["发布"] },
+            "preferences": { "project": { "editor": "code" } }
+        });
+        write_projects(&db, &data).unwrap();
+
+        let cached = read_projects(&db).unwrap()["data"].clone();
+        assert_eq!(
+            cached["workspaces"],
+            json!([
+                {"path": "/workspace", "projects": [{"path": direct}], "excludedProjectPaths": {}},
+                {"path": direct, "projects": [{"path": direct}], "excludedProjectPaths": {}}
+            ])
+        );
+        assert_eq!(cached["projectTags"], data["projectTags"]);
+        assert_eq!(cached["preferences"], data["preferences"]);
+    }
+
     #[test]
     fn migrates_legacy_tasks_without_losing_records() {
         let path =

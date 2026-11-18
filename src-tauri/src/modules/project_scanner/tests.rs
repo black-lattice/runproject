@@ -1,5 +1,4 @@
 use super::*;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn default_import_matches_direct_folders_including_native_projects() {
@@ -40,41 +39,25 @@ fn default_import_matches_direct_folders_including_native_projects() {
 }
 
 #[test]
-fn scans_root_and_nested_projects_while_skipping_dependency_directories() {
-    let unique = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "runproject-scanner-{}-{}",
-        std::process::id(),
-        unique
-    ));
-    let nested = root.join("apps/web");
+fn reads_node_metadata_only_for_direct_projects() {
+    let root = std::env::temp_dir().join(format!("runproject-node-scan-{}", uuid::Uuid::new_v4()));
+    let direct = root.join("service");
+    let nested = direct.join("artifacts/releases/2");
     fs::create_dir_all(&nested).unwrap();
-    for directory in ["node_modules", "vendor", "apps/web/vendor"] {
-        let ignored = root.join(directory).join("ignored");
-        fs::create_dir_all(&ignored).unwrap();
-        fs::write(ignored.join("package.json"), r#"{"name":"ignored"}"#).unwrap();
-    }
-    fs::write(
-        root.join("package.json"),
-        r#"{"name":"root","packageManager":"pnpm@10.0.0"}"#,
-    )
-    .unwrap();
+    fs::write(root.join("pnpm-lock.yaml"), "").unwrap();
     fs::write(root.join(".nvmrc"), "22\n").unwrap();
-    fs::write(nested.join("package.json"), r#"{"name":"web"}"#).unwrap();
+    fs::write(direct.join("package.json"), r#"{"name":"service"}"#).unwrap();
+    fs::write(nested.join("package.json"), r#"{"name":"release"}"#).unwrap();
 
-    let projects = scan_workspace_with_mode(root.to_str().unwrap(), "recursive").unwrap();
-    let names = projects
-        .iter()
-        .map(|project| project.name.as_str())
-        .collect::<Vec<_>>();
+    let projects = scan_workspace(root.to_str().unwrap()).unwrap();
+    assert_eq!(projects.len(), 1);
+    assert_eq!(projects[0].name, "service");
+    assert_eq!(projects[0].package_manager, "pnpm");
+    assert_eq!(projects[0].node_version.as_deref(), Some("22"));
 
-    assert_eq!(names[1], "web");
-    assert_eq!(projects.len(), 2);
-    assert_eq!(projects[1].package_manager, "pnpm");
-    assert_eq!(projects[1].node_version.as_deref(), Some("22"));
+    let single_project = scan_workspace(direct.to_str().unwrap()).unwrap();
+    assert_eq!(single_project.len(), 1);
+    assert_eq!(single_project[0].path, direct.to_str().unwrap());
 
     fs::remove_dir_all(root).unwrap();
 }

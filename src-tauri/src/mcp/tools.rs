@@ -93,8 +93,9 @@ pub struct RenameList {
 pub struct WorkspacePath {
     /// 工作区的绝对目录路径。
     pub path: String,
-    /// folders（默认）：直属文件夹；recursive：递归识别有项目标记的目录。
-    pub scan_mode: Option<String>,
+    #[serde(rename = "scan_mode")]
+    #[schemars(skip)]
+    _scan_mode: Option<String>,
 }
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -683,18 +684,18 @@ impl RunProjectMcp {
         }).await
     }
     #[tool(
-        description = "添加工作区，默认每个直属文件夹为一个项目并保留目录名称，支持非 Node 项目。scan_mode=recursive 可发现嵌套项目。不会执行脚本。",
+        description = "添加工作区，识别直属文件夹并保留目录名称，支持非 Node 项目。不会执行脚本。",
         annotations(destructive_hint = false)
     )]
     async fn add_workspace(&self, Parameters(args): Parameters<WorkspacePath>) -> ToolResult {
-        self.scan_workspace(args.path, false, args.scan_mode).await
+        self.scan_workspace(args.path, false).await
     }
     #[tool(
         description = "重新扫描已添加的工作区，更新项目、版本和脚本缓存。",
         annotations(destructive_hint = false)
     )]
     async fn refresh_workspace(&self, Parameters(args): Parameters<WorkspacePath>) -> ToolResult {
-        self.scan_workspace(args.path, true, args.scan_mode).await
+        self.scan_workspace(args.path, true).await
     }
     #[tool(
         description = "从应用移除工作区及其标签，不删除磁盘文件。",
@@ -785,32 +786,7 @@ impl RunProjectMcp {
     }
 }
 impl RunProjectMcp {
-    async fn scan_workspace(
-        &self,
-        path: String,
-        refresh: bool,
-        scan_mode: Option<String>,
-    ) -> ToolResult {
-        let mode = if let Some(mode) = scan_mode {
-            mode
-        } else {
-            let connection = match storage::open_database_path(&self.database) {
-                Ok(c) => c,
-                Err(e) => return output(Err(e)),
-            };
-            let data = match storage::read_projects(&connection) {
-                Ok(d) => d,
-                Err(e) => return output(Err(e)),
-            };
-            data["data"]["workspaces"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .find(|w| w["path"] == path)
-                .and_then(|w| w["scanMode"].as_str())
-                .unwrap_or("folders")
-                .to_owned()
-        };
+    async fn scan_workspace(&self, path: String, refresh: bool) -> ToolResult {
         // Scanning can be slow: do it outside the write transaction.
         let scanned = tokio::task::spawn_blocking(move || {
             if !std::path::Path::new(&path).is_absolute() {
@@ -818,7 +794,7 @@ impl RunProjectMcp {
             }
             let canonical = std::fs::canonicalize(&path).map_err(|e| e.to_string())?;
             let canonical = canonical.to_string_lossy().to_string();
-            let projects = project_scanner::scan_workspace_with_mode(&canonical, &mode)?;
+            let projects = project_scanner::scan_workspace(&canonical)?;
             let name = std::path::Path::new(&canonical)
                 .file_name()
                 .unwrap_or_default()
@@ -826,7 +802,7 @@ impl RunProjectMcp {
                 .to_string();
             Ok((
                 path,
-                json!({"path":canonical,"name":name,"projects":projects,"scanMode":mode}),
+                json!({"path":canonical,"name":name,"projects":projects}),
             ))
         })
         .await;
@@ -844,7 +820,7 @@ impl RunProjectMcp {
                 let i = found.ok_or("工作区不存在，请先 add_workspace")?;
                 // Preserve the existing identity and metadata, including symlink paths.
                 workspaces[i]["projects"] = workspace["projects"].clone();
-                workspaces[i]["scanMode"] = workspace["scanMode"].clone();
+                storage::retain_workspace_projects(&mut workspaces[i]);
                 Ok(json!({"workspace":workspaces[i]}))
             } else {
                 if found.is_some() {

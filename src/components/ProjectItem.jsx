@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Package, Check, Tag } from 'lucide-react';
+import { Box, Package, Check, Tag, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -16,6 +16,7 @@ function ProjectItem({
 	project,
 	selectedProject,
 	onProjectSelect,
+	onRemoveProject,
 	tags = [],
 	onSetTags
 }) {
@@ -153,6 +154,16 @@ function ProjectItem({
 							</div>
 						</PopoverContent>
 					</Popover>
+					<Button
+						type='button'
+						variant='ghost'
+						size='icon'
+						className='h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive'
+						aria-label={`移除项目 ${project.name}`}
+						title='移除项目'
+						onClick={() => onRemoveProject(project)}>
+						<Trash2 aria-hidden='true' className='w-3 h-3' />
+					</Button>
 				</div>
 
 				{/* 选中状态打钩，或者其他指示 */}

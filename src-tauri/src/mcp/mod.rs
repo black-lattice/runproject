@@ -659,13 +659,20 @@ mod tests {
     async fn project_crud_does_not_delete_files() {
         let s = Server::new().await;
         let path = s.root.join("workspace");
-        std::fs::create_dir(&path).unwrap();
+        let nested = path.join("examples/nested");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("package.json"), r#"{"name":"nested"}"#).unwrap();
         std::fs::write(
             path.join("package.json"),
             r#"{"name":"sample","scripts":{"dev":"vite"}}"#,
         )
         .unwrap();
-        let created = s.call("add_workspace", json!({"path":path})).await;
+        let created = s
+            .call(
+                "add_workspace",
+                json!({"path":path,"scan_mode":"recursive"}),
+            )
+            .await;
         let canonical = created["workspace"]["path"].as_str().unwrap();
         assert_eq!(
             s.call("get_workspaces", json!({})).await["workspaces"][0]["project_count"],
@@ -688,8 +695,13 @@ mod tests {
             r#"{"name":"sample","scripts":{"build":"vite build"}}"#,
         )
         .unwrap();
-        s.call("refresh_workspace", json!({"path":canonical})).await;
+        s.call(
+            "refresh_workspace",
+            json!({"path":canonical,"scan_mode":"recursive"}),
+        )
+        .await;
         let projects = s.call("get_projects", json!({})).await;
+        assert_eq!(projects["projects"].as_array().unwrap().len(), 1);
         assert_eq!(
             projects["projects"][0]["project"]["commands"][0]["name"],
             "build"
@@ -702,6 +714,40 @@ mod tests {
             json!([])
         );
     }
+    #[tokio::test]
+    async fn refreshing_a_workspace_respects_its_project_removals() {
+        let s = Server::new().await;
+        let path = s.root.join("workspace");
+        let removed_path = path.join("removed");
+        for project in [&removed_path, &path.join("kept")] {
+            std::fs::create_dir_all(project).unwrap();
+            std::fs::write(project.join("package.json"), "{}").unwrap();
+        }
+        s.call("add_workspace", json!({"path":path})).await;
+        let child = s.call("add_workspace", json!({"path":removed_path})).await;
+        let canonical_child = &child["workspace"]["path"];
+        {
+            let db = crate::storage::open_database_path(&s.root.join("test.db")).unwrap();
+            let mut data = crate::storage::read_projects(&db).unwrap()["data"].clone();
+            // Cache from the desktop UI can use the path selected in its folder picker.
+            data["workspaces"][0]["path"] = json!(path);
+            data["workspaces"][0]["excludedProjectPaths"] =
+                json!({(removed_path.to_str().unwrap()): true});
+            crate::storage::write_projects(&db, &data).unwrap();
+        }
+        let result = s.call("refresh_workspace", json!({"path":path})).await;
+        let projects = result["workspace"]["projects"].as_array().unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0]["name"], "kept");
+        assert_eq!(result["workspace"]["path"], json!(path));
+        let other = s
+            .call("get_projects", json!({"workspace_path":canonical_child}))
+            .await;
+        assert_eq!(other["projects"].as_array().unwrap().len(), 1);
+        assert_eq!(other["projects"][0]["project"]["path"], *canonical_child);
+        assert!(removed_path.join("package.json").is_file());
+    }
+
     #[tokio::test]
     async fn concurrent_clients_do_not_lose_tasks() {
         let s = Server::new().await;

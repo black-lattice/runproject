@@ -20,7 +20,7 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn add_workspace(path: String, scan_mode: Option<String>) -> Result<project_scanner::Workspace, String> {
+async fn add_workspace(path: String) -> Result<project_scanner::Workspace, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let workspace_name = Path::new(&path)
             .file_name()
@@ -28,14 +28,12 @@ async fn add_workspace(path: String, scan_mode: Option<String>) -> Result<projec
             .unwrap_or("workspace")
             .to_string();
 
-        let scan_mode = scan_mode.unwrap_or_else(||"folders".into());
-        let projects = project_scanner::scan_workspace_with_mode(&path,&scan_mode)?;
+        let projects = project_scanner::scan_workspace(&path)?;
 
         Ok(project_scanner::Workspace {
             path,
             name: workspace_name,
             projects,
-            scan_mode,
         })
     })
     .await
