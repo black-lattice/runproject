@@ -27,6 +27,8 @@ assert len(base64.b64decode(key, validate=True)) == 32
 info = sdk / "Info.plist"
 with info.open("wb") as f:
     plistlib.dump({
+        "CFBundleDevelopmentRegion": "zh-Hans",
+        "CFBundleLocalizations": ["zh-Hans"],
         "SUFeedURL": f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/latest/download/appcast-{arch}.xml",
         "SUPublicEDKey": key,
         "SURequireSignedFeed": True,
