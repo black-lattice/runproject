@@ -44,7 +44,7 @@ Visit [GitHub Releases](https://github.com/black-lattice/runproject/releases/lat
 | Windows 64-bit | EXE installer |
 | Linux 64-bit | AppImage or DEB |
 
-RunProject v0.1.11 and later require macOS 12 or newer on Mac. You can check for updates under Settings → About or let Sparkle check periodically. For a first install or an upgrade from v0.1.10 or earlier, download the DMG for your Mac.
+RunProject v0.1.12 and later require macOS 12 or newer on Mac. You can check for updates under Settings → About or let Sparkle check periodically. For a first install or an upgrade from v0.1.10 or earlier, download the DMG for your Mac.
 
 macOS may show a security prompt for builds without Apple notarization. After verifying the source, allow the app in System Settings → Privacy & Security.
 

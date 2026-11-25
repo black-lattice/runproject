@@ -95,7 +95,7 @@ Tauri 会将已定义但为空的 Apple 凭据变量当作凭据处理，可能�
 
 ## 按需安装 macOS 版本
 
-仅在用户要求本机更新时执行。macOS 从 v0.1.11 起优先使用「设置 → 关于 → 检查更新」通过 Sparkle 安装 GitHub CI 发布的正式版；发布验收时核对两个架构的 appcast、版本、下载地址及 EdDSA 签名。首次安装、从不带 Sparkle 的旧版本升级或修复安装时，按以下步骤安装已完成 CI 验收的 Release DMG。
+仅在用户要求本机更新时执行。macOS 从 v0.1.12 起优先使用「设置 → 关于 → 检查更新」通过 Sparkle 安装 GitHub CI 发布的正式版；发布验收时核对两个架构的 appcast、版本、下载地址及 EdDSA 签名。首次安装、从不带 Sparkle 的旧版本升级或修复安装时，按以下步骤安装已完成 CI 验收的 Release DMG。
 
 1. **确认芯片和安装位置。** 检查实际运行进程路径、应用版本与 Bundle ID。用 `uname -m`、`sysctl -n hw.optional.arm64`，必要时用 `sysctl -n machdep.cpu.brand_string` 判断硬件；Rosetta 可能让进程报告 `x86_64`，不能据此认定 Intel。不要把本次机器的芯片类型固定为技能默认值。
 2. **检查退出影响。** 用 `get_script_runs(running_only=true)` 检查内置脚本，并留意终端会话；该接口不覆盖外部 Kitty 或所有独立终端。结合当前安装/重启授权处理，不把旧进程退出误认为后台脚本会自动恢复。

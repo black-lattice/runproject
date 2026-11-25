@@ -16,11 +16,18 @@ dmg=(src-tauri/target/"$target"/release/bundle/dmg/*.dmg)
 cp "${dmg[0]}" "$out/$asset"
 digest=$(gh release view "$GITHUB_REF_NAME" --json assets --jq ".assets[] | select(.name == \"$asset\") | .digest")
 [[ "$digest" == "sha256:$(shasum -a 256 "$out/$asset" | cut -d' ' -f1)" ]]
-app="src-tauri/target/$target/release/bundle/macos/RunProject.app"
+# DMG-only builds remove the intermediate .app. Verify the shipped bundle.
+mountpoint=$(mktemp -d "$RUNNER_TEMP/sparkle-dmg.XXXXXXXX")
+hdiutil attach -readonly -nobrowse -mountpoint "$mountpoint" "$out/$asset" >/dev/null
+trap 'hdiutil detach "$mountpoint" >/dev/null' EXIT
+app="$mountpoint/RunProject.app"
 codesign --verify --deep --strict "$app"
 [[ -L "$app/Contents/Frameworks/Sparkle.framework/Versions/Current" ]]
 [[ "$(plutil -extract SUPublicEDKey raw "$app/Contents/Info.plist")" == "$(cat src-tauri/sparkle-public-key.txt)" ]]
 [[ "$(plutil -extract SUFeedURL raw "$app/Contents/Info.plist")" == "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/$appcast" ]]
+hdiutil detach "$mountpoint" >/dev/null
+trap - EXIT
+rmdir "$mountpoint" 2>/dev/null || true
 if [[ -f "docs/releases/$GITHUB_REF_NAME.md" ]]; then
   cp "docs/releases/$GITHUB_REF_NAME.md" "$out/${asset%.dmg}.md"
 fi
