@@ -12,7 +12,6 @@ mod data_merge;
 mod mcp;
 mod storage;
 mod task_lifecycle;
-mod agent;
 mod updater;
 
 #[tauri::command]
@@ -201,7 +200,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .manage(agent::AgentService::default())
         .setup(|app| {
             tray::setup(app)?;
             mcp::start(app.handle());
@@ -211,16 +209,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             updater::check_for_updates,
-            agent::agent_snapshot,
-            agent::agent_connect,
-            agent::agent_send,
-            agent::agent_stop,
-            agent::agent_approve,
-            agent::agent_add_project,
-            agent::agent_models,
-            agent::agent_save_manager,
-            agent::agent_api_models,
-            agent::agent_test_api,
             modules::script_runner::start_project_script,
             modules::script_runner::stop_project_script,
             modules::script_runner::restart_project_script,
@@ -262,14 +250,12 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| {
+        .run(|_, event| {
             #[cfg(target_os = "macos")]
             if matches!(event, tauri::RunEvent::Ready) {
                 updater::start();
             }
             if matches!(event, tauri::RunEvent::Exit) {
-                use tauri::Manager;
-                app.state::<agent::AgentService>().shutdown();
                 modules::script_runner::RUNNER.shutdown();
             }
         });

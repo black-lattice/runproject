@@ -30,7 +30,6 @@ Organize tasks with lists, groups, and a detail panel. The screenshot shows the 
 | Git and editors | View and switch Git branches, and open a project in an editor or file manager |
 | Task management | Plan work with lists, tags, subtasks, a calendar, a kanban board, and an importance/urgency matrix |
 | MCP integration | Access local project, task, and script management from compatible MCP clients |
-| Agent manager | Choose a coordinator model and reasoning effort, connect an OpenAI-compatible API, and delegate Codex workers |
 | Appearance | Choose a light or dark theme |
 
 ## Download and install
@@ -68,14 +67,6 @@ Workspaces import direct child folders, preserving folder names and non-Node pro
 Open Tasks (任务) from the top navigation. Create lists for work or personal activities, and add dates, tags, notes, and subtasks. Use the calendar to plan time, the kanban board to track progress, and the matrix to distinguish important and urgent work.
 
 In-app reminders require the application to remain running. No system notifications are sent after the app has fully quit.
-
-## Use the agent manager
-
-Install Codex CLI and run `codex login` on the same machine. Open Manager (总管) → Connection Settings (连接设置) to detect `codex` or select its executable. RunProject starts a local app-server, routes requests to project workers, and collects their results. Task cards let you inspect progress, continue the same conversation, or interrupt work.
-
-The model button opens independent coordinator settings: choose a Codex model and reasoning effort, or enter an OpenAI-compatible API endpoint, API key, and model ID. Keys are stored in the operating system credential store. Worker settings remain separate.
-
-Projects come from saved workspaces or individually added directories. Task records and conversation IDs persist locally. Follow-up processing ends when the app quits; remote-machine connections are not implemented in this version. See the [agent manager guide](docs/AGENT_MANAGER.md) (in Chinese).
 
 ## Connect an MCP client
 

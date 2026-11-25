@@ -1,6 +1,5 @@
 import {
   CheckSquareOutlined,
-  RobotOutlined,
   FolderOpenOutlined,
   SettingOutlined,
   WindowsOutlined,
@@ -12,14 +11,6 @@ export const PAGE_CONFIGS = {
     path: "/projects",
     title: "项目管理",
     icon: FolderOpenOutlined,
-    closable: false,
-    fixed: true,
-  },
-  manager: {
-    id: "manager",
-    path: "/manager",
-    title: "总管",
-    icon: RobotOutlined,
     closable: false,
     fixed: true,
   },
