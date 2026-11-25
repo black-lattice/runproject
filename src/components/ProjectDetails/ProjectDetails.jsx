@@ -1,7 +1,7 @@
 import { projectPreference } from "@/utils/projectModel";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { persistProjectPreferences } from "@/store/dataSync";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
