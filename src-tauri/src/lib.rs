@@ -13,6 +13,7 @@ mod mcp;
 mod storage;
 mod task_lifecycle;
 mod agent;
+mod updater;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -209,6 +210,7 @@ pub fn run() {
         .on_window_event(tray::handle_window_event)
         .invoke_handler(tauri::generate_handler![
             greet,
+            updater::check_for_updates,
             agent::agent_snapshot,
             agent::agent_connect,
             agent::agent_send,
@@ -261,6 +263,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if matches!(event, tauri::RunEvent::Ready) {
+                updater::start();
+            }
             if matches!(event, tauri::RunEvent::Exit) {
                 use tauri::Manager;
                 app.state::<agent::AgentService>().shutdown();

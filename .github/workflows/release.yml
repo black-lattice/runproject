@@ -42,10 +42,12 @@ jobs:
         include:
           - name: macOS Apple Silicon
             platform: macos-latest
+            sparkle_arch: aarch64
             target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin --bundles dmg
           - name: macOS Intel
             platform: macos-latest
+            sparkle_arch: x64
             target: x86_64-apple-darwin
             args: --target x86_64-apple-darwin --bundles dmg
           - name: Windows x64
@@ -94,23 +96,43 @@ jobs:
 
       - name: 配置 macOS 签名凭据
         if: runner.os == 'macOS'
+        id: mac_signing
         shell: bash
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          HAS_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           # Tauri treats empty credential variables as configured credentials.
           # Export only non-empty secrets so ad-hoc signing remains available.
-          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID KEYCHAIN_PASSWORD; do
+          echo "has_cert=$HAS_CERT" >> "$GITHUB_OUTPUT"
+          for name in APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
             if [[ -n "${!name}" ]]; then
               delimiter="SIGNING_$(openssl rand -hex 16)"
               printf '%s<<%s\n%s\n%s\n' "$name" "$delimiter" "${!name}" "$delimiter" >> "$GITHUB_ENV"
             fi
           done
+
+      - name: 导入 Developer ID 证书
+        if: steps.mac_signing.outputs.has_cert == 'true'
+        id: certificate
+        uses: apple-actions/import-codesign-certs@288b8ec97b82c66b6f2a6baaf7acc8dfbcbe331c # v7.2.0
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: 准备 Sparkle 更新框架
+        if: runner.os == 'macOS'
+        id: sparkle
+        env:
+          IDENTITIES: ${{ steps.certificate.outputs.identities }}
+        run: |
+          if [[ -n "$IDENTITIES" ]]; then
+            SIGNING_IDENTITY=$(jq -er '[.[] | select(.name | startswith("Developer ID Application:"))] | if length == 1 then .[0].hash else error("需要唯一的 Developer ID Application 证书") end' <<< "$IDENTITIES")
+            export SIGNING_IDENTITY
+          fi
+          scripts/prepare-sparkle.sh "${{ matrix.sparkle_arch }}"
 
       - name: 读取版本发布说明
         id: release_notes
@@ -142,10 +164,27 @@ jobs:
             - Linux 64 位：AppImage 或 DEB
 
             macOS 包默认使用 ad-hoc 签名；首次打开时如果出现安全提醒，请在“系统设置 → 隐私与安全性”中确认打开。
-            配置 APPLE_CERTIFICATE、APPLE_CERTIFICATE_PASSWORD、APPLE_ID、APPLE_PASSWORD、APPLE_TEAM_ID 和 KEYCHAIN_PASSWORD secrets 后，macOS 包会自动使用 Developer ID 签名并进行公证。
+            配置 APPLE_CERTIFICATE、APPLE_CERTIFICATE_PASSWORD、APPLE_ID、APPLE_PASSWORD 和 APPLE_TEAM_ID secrets 后，macOS 包会自动使用 Developer ID 签名并进行公证。
           generateReleaseNotes: true
-          releaseDraft: false
+          releaseDraft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           uploadUpdaterJson: false
           releaseAssetNamePattern: "[name]_[version]_[platform]_[arch][ext]"
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ steps.sparkle.outputs.args }}
+
+      - name: 签名并上传 Sparkle 更新源
+        if: runner.os == 'macOS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: scripts/publish-sparkle.sh "${{ matrix.sparkle_arch }}" "${{ matrix.target }}"
+
+  release:
+    name: 公开完整发布
+    needs: publish
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 发布安装包与更新源
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false

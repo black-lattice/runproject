@@ -40,9 +40,11 @@ RunProject 是面向多项目开发的桌面工作台，把项目、脚本、Nod
 | 系统 | 安装包 |
 | --- | --- |
 | macOS Apple Silicon | 文件名包含 `aarch64` 的 DMG |
-| macOS Intel | 文件名包含 `x86_64` 的 DMG |
+| macOS Intel | 文件名包含 `darwin_x64` 的 DMG |
 | Windows 64 位 | EXE 安装程序 |
 | Linux 64 位 | AppImage 或 DEB |
+
+v0.1.11 起支持 macOS 12 及以上版本。可在「设置 → 关于」中检查更新，或允许 Sparkle 定期检查。首次安装，以及从 v0.1.10 或更早版本升级，请先下载对应芯片的 DMG。
 
 macOS 未公证的安装包可能出现安全提示。确认来源后，可在「系统设置 → 隐私与安全性」中允许打开。
 
